@@ -1,0 +1,37 @@
+type HiddenBidInputProps = {
+  value: string;
+  onChange: (value: string) => void;
+};
+
+export default function HiddenBidInput({
+  value,
+  onChange,
+}: HiddenBidInputProps) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-neutral-300">
+        Hidden Bid
+      </label>
+
+      <div className="flex rounded-xl border border-neutral-700 bg-neutral-950">
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="0.00"
+          className="w-full bg-transparent px-4 py-3 text-sm outline-none placeholder:text-neutral-600"
+        />
+
+        <div className="border-l border-neutral-700 px-4 py-3 text-sm text-neutral-400">
+          Test USDC
+        </div>
+      </div>
+
+      <p className="mt-2 text-xs leading-5 text-neutral-500">
+        Your bid is private and will never be shown to other participants.
+      </p>
+    </div>
+  );
+}
