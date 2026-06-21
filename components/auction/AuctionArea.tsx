@@ -1,18 +1,8 @@
+import type { Advertisement, AuctionPhase, SlotState } from "@/lib/auction";
+
 import AuctionStatusCard from "./AuctionStatusCard";
 import AuctionSlotCard from "./AuctionSlotCard";
 import DemoModeCard from "./DemoModeCard";
-
-type Advertisement = {
-  name: string;
-  company: string;
-};
-
-type AuctionPhase = "open" | "selecting" | "live";
-
-type SlotState = {
-  selectedAdvertisement: string;
-  bid: string;
-};
 
 type AuctionAreaProps = {
   phase: AuctionPhase;
@@ -89,7 +79,7 @@ export default function AuctionArea({
         </>
       )}
 
-      {phase === "selecting" && (
+      {phase === "locked" && (
         <>
           <AuctionStatusCard
             phase={phase}
@@ -105,8 +95,7 @@ export default function AuctionArea({
             </p>
 
             <p className="mt-2 text-neutral-500">
-              Hidden bids are locked. Only winners and advertisements are
-              revealed.
+              Hidden bids are locked. Winners and advertisements are revealed.
             </p>
           </div>
 
