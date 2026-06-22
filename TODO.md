@@ -12,7 +12,7 @@
 - [ ] Gradient background
 - [ ] Demo Mode
 
-## Company
+## Business Profile
 
 - [ ] Wallet
 - [ ] Deposit

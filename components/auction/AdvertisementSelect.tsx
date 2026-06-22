@@ -1,6 +1,6 @@
 type Advertisement = {
   name: string;
-  company: string;
+  businessName: string;
 };
 
 type AdvertisementSelectProps = {
@@ -35,10 +35,10 @@ export default function AdvertisementSelect({
 
         {sortedAdvertisements.map((ad) => (
           <option
-            key={`${ad.company}-${ad.name}`}
+            key={`${ad.businessName}-${ad.name}`}
             value={ad.name}
           >
-            {ad.company} — {ad.name}
+            {ad.businessName} — {ad.name}
           </option>
         ))}
       </select>

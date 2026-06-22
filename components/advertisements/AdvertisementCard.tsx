@@ -22,7 +22,7 @@ export default function AdvertisementCard({
           </h2>
 
           <p className="mt-2 text-sm text-white/50">
-            {advertisement.company}
+            {advertisement.businessName}
           </p>
         </div>
 

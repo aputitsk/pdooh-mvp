@@ -1,19 +1,20 @@
 import type { Advertisement } from "./auctionTypes";
-import { DEMO_BOT_ADVERTISEMENT } from "./auctionWinners";
+import { DEMO_BOT_ADVERTISEMENT } from "./constants";
+import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
 export type AuctionPaymentResult = {
   paidSlots: boolean[];
-  walletBalance: number;
-  demoTreasury: number;
+  walletBalance: UsdcMinorUnits;
+  demoTreasury: UsdcMinorUnits;
 };
 
 export function processAuctionSlotPayment(params: {
   slotIndex: number;
   paidSlots: boolean[];
   winners: Advertisement[];
-  winnerBidAmounts: number[];
-  walletBalance: number;
-  demoTreasury: number;
+  winnerBidAmounts: UsdcMinorUnits[];
+  walletBalance: UsdcMinorUnits;
+  demoTreasury: UsdcMinorUnits;
 }): AuctionPaymentResult {
   const {
     slotIndex,
@@ -39,7 +40,7 @@ export function processAuctionSlotPayment(params: {
     return index === slotIndex ? true : isPaid;
   });
 
-  if (winner.company === DEMO_BOT_ADVERTISEMENT.company) {
+  if (winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName) {
     return {
       paidSlots: nextPaidSlots,
       walletBalance,
@@ -65,9 +66,9 @@ export function processAuctionSlotPayment(params: {
 export function processAllAuctionSlotPayments(params: {
   paidSlots: boolean[];
   winners: Advertisement[];
-  winnerBidAmounts: number[];
-  walletBalance: number;
-  demoTreasury: number;
+  winnerBidAmounts: UsdcMinorUnits[];
+  walletBalance: UsdcMinorUnits;
+  demoTreasury: UsdcMinorUnits;
 }): AuctionPaymentResult {
   const { paidSlots, winners, winnerBidAmounts, walletBalance, demoTreasury } =
     params;

@@ -1,4 +1,4 @@
-import { formatWalletAddress } from "@/lib/wallet/mockWallet";
+import { formatWalletAddress } from "@/lib/wallet";
 
 type ConnectWalletCardProps = {
   isWalletConnected: boolean;

@@ -1,182 +1,47 @@
-# pDOOH — Arc Integration
+# pDOOH Arc Integration
 
-Version: 1.1
+Status: Planned, not implemented
 
-Status: Planned
+## Current Reality
 
----
+The current MVP is a working demo built on mock modules and browser storage. There is no Arc SDK integration in the codebase yet.
 
-# Purpose
+`lib/arc` exists as an empty directory. It does not currently provide an adapter, wallet connector, payment client, or balance reader.
 
-This document defines how the current mock MVP will be migrated to the Arc ecosystem.
+## Existing Boundaries
 
-The objective is to replace the implementation layer without changing the user experience.
+These modules are the places to replace mock behavior later:
 
-The application flow, pages, components and UX must remain unchanged.
+- `lib/wallet`: mock wallet facade used by Navbar and app pages.
+- `lib/advertiser`: Business Profile and demo balance storage.
+- `lib/advertisements`: Advertisement storage and rules.
+- `lib/auction`: bidding, winner selection, payment processing, and auction storage.
+- `lib/money/usdc.ts`: USDC parsing, formatting, and minor-unit representation.
 
----
+## Next Arc Step
 
-# Integration Principles
+Create an Arc adapter boundary before replacing behavior.
 
-- Follow the official Arc documentation.
-- Never invent SDK usage or APIs.
-- Replace mock services one module at a time.
-- Preserve the current application architecture.
-- Keep the user experience unchanged.
+The adapter should provide Arc-compatible implementations for:
 
----
+- wallet connection and wallet state;
+- Test USDC balance reads;
+- payment execution;
+- any persistent storage or sync needed by advertisements and auctions.
 
-# Current Mock Modules
+## Migration Approach
 
-Wallet Module
+Replace mock modules behind existing boundaries, one area at a time:
 
-- mockWallet.ts
-- walletStorage.ts
-- walletEvents.ts
-- walletTypes.ts
+1. Mock wallet -> Arc-compatible wallet implementation.
+2. Mock balance storage -> Arc-compatible balance source.
+3. Mock payments -> Arc-compatible Test USDC payment flow.
+4. Browser storage sync -> Arc-compatible persistence or synchronization where needed.
 
-Advertisement Module
+## Rules
 
-- advertisements.ts
-
-Internal Wallet
-
-- localStorage
-
-Auction
-
-- localStorage synchronization
-
----
-
-# Arc Migration Order
-
-## Phase 1
-
-Replace Wallet Module.
-
-Current
-
-Mock Wallet
-
-↓
-
-Target
-
-Arc Wallet
-
----
-
-## Phase 2
-
-Replace Internal Wallet.
-
-Current
-
-Mock Test USDC Balance
-
-↓
-
-Target
-
-Arc Test USDC Balance
-
----
-
-## Phase 3
-
-Replace Advertisement Storage.
-
-Current
-
-localStorage
-
-↓
-
-Target
-
-Arc-compatible persistent storage.
-
----
-
-## Phase 4
-
-Replace Auction Synchronization.
-
-Current
-
-localStorage
-
-↓
-
-Target
-
-Arc infrastructure.
-
----
-
-## Phase 5
-
-Replace Payments.
-
-Current
-
-Mock balance updates
-
-↓
-
-Target
-
-Real Test USDC transfers.
-
----
-
-# Architecture Rules
-
-Arc integration must not require redesigning pages.
-
-The following pages should continue working without UX changes:
-
-- Company Dashboard
-- Advertisements
-- Auction
-- Live Screen
-
-Only the implementation behind the modules should change.
-
----
-
-# Wallet Rules
-
-Navbar remains the only place where users connect or disconnect a wallet.
-
-Company Dashboard never manages wallet connection.
-
-Wallet Module remains the single source of truth.
-
----
-
-# Advertisement Rules
-
-Advertisements remain a dedicated module.
-
-Business logic stays inside the Advertisement Module.
-
-Company Dashboard only links to the Advertisements workspace.
-
----
-
-# Development Rules
-
-If Arc documentation changes:
-
-1. Compare the new documentation with the current implementation.
-2. Update this document if required.
-3. Discuss architecture changes before implementation.
-4. Only then modify the code.
-
-The official Arc documentation always has priority.
-
----
-
-End of ARC_INTEGRATION.md
+- Do not redesign pages for Arc.
+- Keep Advertiser, Business Profile, Business Name, and `Advertisement.businessName` terminology.
+- Keep USDC values in minor units internally.
+- Do not document Arc APIs until the actual SDK or adapter code exists.
+- Official Arc documentation should be checked before implementing the adapter.

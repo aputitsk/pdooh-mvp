@@ -1,33 +1,18 @@
-export type Advertisement = {
-  name: string;
-  company: string;
-};
+import {
+  getStoredAdvertisements,
+  setStoredAdvertisements,
+} from "./advertisementStorage";
+import type { Advertisement } from "./advertisementTypes";
+export type { Advertisement } from "./advertisementTypes";
 
-const STORAGE_KEY = "pdooh-ads";
 const DEFAULT_ADVERTISEMENT_NAME = "Demo Advertisement";
 
 export function getAdvertisements(): Advertisement[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const stored = localStorage.getItem(STORAGE_KEY);
-
-  if (!stored) {
-    return [];
-  }
-
-  try {
-    const advertisements: Advertisement[] = JSON.parse(stored);
-
-    return advertisements.sort((a, b) => a.name.localeCompare(b.name));
-  } catch {
-    return [];
-  }
+  return getStoredAdvertisements().sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function saveAdvertisements(advertisements: Advertisement[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(advertisements));
+  setStoredAdvertisements(advertisements);
 }
 
 export function advertisementExists(
@@ -70,7 +55,7 @@ export function deleteAdvertisement(
 
 export function createDefaultAdvertisement(
   advertisements: Advertisement[],
-  companyName: string
+  businessName: string
 ) {
   if (advertisements.length > 0) {
     return advertisements;
@@ -78,6 +63,6 @@ export function createDefaultAdvertisement(
 
   return addAdvertisement(advertisements, {
     name: DEFAULT_ADVERTISEMENT_NAME,
-    company: companyName,
+    businessName,
   });
 }

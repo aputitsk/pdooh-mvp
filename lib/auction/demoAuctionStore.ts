@@ -2,151 +2,165 @@
 
 import { useSyncExternalStore } from "react";
 
-import type { AuctionClock, SlotState } from "./auctionTypes";
+import type { Advertisement, AuctionClock, SlotState } from "./auctionTypes";
+import type { UsdcMinorUnits } from "@/lib/money/usdc";
 import { getAuctionClock } from "./auctionTimer";
+import { AUCTION_SLOTS } from "./constants";
 import {
-  AUCTION_STORAGE_KEYS,
-  AUCTION_SLOTS,
-  DEMO_BOT_BID,
-} from "./constants";
+  createDefaultWinners,
+  placeAuctionBid,
+  syncAuctionCycle,
+  updateAuctionSlot,
+} from "./auctionActions";
+import {
+  createBooleanList,
+  createEmptySlotStates,
+  getAuctionStart,
+  getStoredAdvertisements,
+  getStoredDemoTreasury,
+  getStoredPaidSlots,
+  getStoredSlotStates,
+  getStoredSubmittedBids,
+  getStoredWalletBalance,
+  resetStoredAuctionDemoState,
+} from "./auctionStorage";
+import { selectAuctionWinners } from "./auctionWinners";
 
 type DemoAuctionSnapshot = {
+  isLoaded: boolean;
   clock: AuctionClock;
   slots: readonly string[];
+  advertisements: Advertisement[];
+  walletBalance: UsdcMinorUnits;
+  demoTreasury: UsdcMinorUnits;
   slotStates: SlotState[];
   submittedBids: boolean[];
   paidSlots: boolean[];
+  winners: Advertisement[];
+  winnerBidAmounts: UsdcMinorUnits[];
+};
+
+type DemoAuctionStore = DemoAuctionSnapshot & {
+  updateSlot: (slotIndex: number, nextState: Partial<SlotState>) => void;
+  placeBid: (slotIndex: number) => void;
 };
 
 const listeners = new Set<() => void>();
+const auctionStoreEventName = "pdooh-auction-store-change";
+
+const emptyClock: AuctionClock = {
+  phase: "open",
+  secondsRemaining: 0,
+  currentSlotIndex: 0,
+  cycleId: 0,
+  elapsedInCycle: 0,
+};
 
 const serverSnapshot: DemoAuctionSnapshot = {
-  clock: {
-    phase: "open",
-    secondsRemaining: 0,
-    currentSlotIndex: 0,
-    cycleId: 0,
-    elapsedInCycle: 0,
-  },
+  isLoaded: false,
+  clock: emptyClock,
   slots: AUCTION_SLOTS,
+  advertisements: [],
+  walletBalance: 0,
+  demoTreasury: 0,
   slotStates: createEmptySlotStates(),
   submittedBids: createBooleanList(false),
   paidSlots: createBooleanList(false),
+  winners: createDefaultWinners(),
+  winnerBidAmounts: AUCTION_SLOTS.map(() => 0),
 };
 
 let cachedSnapshot: DemoAuctionSnapshot | null = null;
 let cachedSnapshotSecond = -1;
+let cachedSnapshotVersion = 0;
+let snapshotVersion = 0;
 
 function emitChange() {
   cachedSnapshot = null;
+  snapshotVersion += 1;
   listeners.forEach((listener) => listener());
+}
+
+function notifyAuctionStoreChanged() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(auctionStoreEventName));
+}
+
+function syncAndEmitChange() {
+  const clock = getAuctionClock(getAuctionStart());
+
+  syncAuctionCycle(clock);
+  emitChange();
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
 
+  if (typeof window === "undefined") {
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  const handleStorageChange = () => {
+    syncAndEmitChange();
+  };
+
+  window.addEventListener("storage", handleStorageChange);
+  window.addEventListener(auctionStoreEventName, handleStorageChange);
+
+  const interval = window.setInterval(syncAndEmitChange, 500);
+
+  syncAndEmitChange();
+
   return () => {
     listeners.delete(listener);
+    window.removeEventListener("storage", handleStorageChange);
+    window.removeEventListener(auctionStoreEventName, handleStorageChange);
+    window.clearInterval(interval);
   };
-}
-
-function getBrowserStorage() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage;
-}
-
-function createEmptySlotStates(): SlotState[] {
-  return AUCTION_SLOTS.map(() => ({
-    selectedAdvertisement: "",
-    bid: "",
-  }));
-}
-
-function createBooleanList(value: boolean): boolean[] {
-  return AUCTION_SLOTS.map(() => value);
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  const storage = getBrowserStorage();
-
-  if (!storage) {
-    return fallback;
-  }
-
-  try {
-    const value = storage.getItem(key);
-
-    if (!value) {
-      return fallback;
-    }
-
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson<T>(key: string, value: T) {
-  const storage = getBrowserStorage();
-
-  if (!storage) {
-    return;
-  }
-
-  storage.setItem(key, JSON.stringify(value));
-}
-
-function getAuctionStart() {
-  const storage = getBrowserStorage();
-
-  if (!storage) {
-    return Date.now();
-  }
-
-  const storedValue = storage.getItem(AUCTION_STORAGE_KEYS.auctionStart);
-  const parsedValue = storedValue ? Number(storedValue) : NaN;
-
-  if (Number.isFinite(parsedValue) && parsedValue > 0) {
-    return parsedValue;
-  }
-
-  const now = Date.now();
-  storage.setItem(AUCTION_STORAGE_KEYS.auctionStart, String(now));
-
-  return now;
 }
 
 function getSnapshot(): DemoAuctionSnapshot {
   const currentSecond = Math.floor(Date.now() / 1000);
 
-  if (cachedSnapshot && cachedSnapshotSecond === currentSecond) {
+  if (
+    cachedSnapshot &&
+    cachedSnapshotSecond === currentSecond &&
+    cachedSnapshotVersion === snapshotVersion
+  ) {
     return cachedSnapshot;
   }
 
-  const auctionStart = getAuctionStart();
-  const clock = getAuctionClock(auctionStart);
+  const clock = getAuctionClock(getAuctionStart());
+  const slotStates = getStoredSlotStates();
+  const submittedBids = getStoredSubmittedBids();
+  const advertisements = getStoredAdvertisements();
+  const { winners, winnerBidAmounts } = selectAuctionWinners({
+    slotStates,
+    submittedBids,
+    advertisements,
+  });
 
   cachedSnapshot = {
+    isLoaded: true,
     clock,
     slots: AUCTION_SLOTS,
-    slotStates: readJson(
-      AUCTION_STORAGE_KEYS.slotStates,
-      createEmptySlotStates()
-    ),
-    submittedBids: readJson(
-      AUCTION_STORAGE_KEYS.submittedBids,
-      createBooleanList(false)
-    ),
-    paidSlots: readJson(
-      AUCTION_STORAGE_KEYS.paidSlots,
-      createBooleanList(false)
-    ),
+    advertisements,
+    walletBalance: getStoredWalletBalance(),
+    demoTreasury: getStoredDemoTreasury(),
+    slotStates,
+    submittedBids,
+    paidSlots: getStoredPaidSlots(),
+    winners,
+    winnerBidAmounts,
   };
 
   cachedSnapshotSecond = currentSecond;
+  cachedSnapshotVersion = snapshotVersion;
 
   return cachedSnapshot;
 }
@@ -155,59 +169,38 @@ function getServerSnapshot(): DemoAuctionSnapshot {
   return serverSnapshot;
 }
 
-export function useDemoAuctionStore() {
-  return useSyncExternalStore(
+function updateSlot(slotIndex: number, nextState: Partial<SlotState>) {
+  const snapshot = getSnapshot();
+
+  updateAuctionSlot(slotIndex, nextState, snapshot.clock.phase);
+  notifyAuctionStoreChanged();
+  emitChange();
+}
+
+function placeBid(slotIndex: number) {
+  const snapshot = getSnapshot();
+
+  placeAuctionBid(slotIndex, snapshot.clock.phase);
+  notifyAuctionStoreChanged();
+  emitChange();
+}
+
+export function resetDemoAuctionStore() {
+  resetStoredAuctionDemoState();
+  notifyAuctionStoreChanged();
+  emitChange();
+}
+
+export function useDemoAuctionStore(): DemoAuctionStore {
+  const snapshot = useSyncExternalStore(
     subscribe,
     getSnapshot,
     getServerSnapshot
   );
-}
 
-export function updateSlotState(
-  slotIndex: number,
-  nextState: SlotState
-) {
-  const slotStates = readJson(
-    AUCTION_STORAGE_KEYS.slotStates,
-    createEmptySlotStates()
-  );
-
-  const nextSlotStates = slotStates.map((slotState, index) => {
-    return index === slotIndex ? nextState : slotState;
-  });
-
-  writeJson(AUCTION_STORAGE_KEYS.slotStates, nextSlotStates);
-  emitChange();
-}
-
-export function submitSlotBid(slotIndex: number) {
-  const submittedBids = readJson(
-    AUCTION_STORAGE_KEYS.submittedBids,
-    createBooleanList(false)
-  );
-
-  const nextSubmittedBids = submittedBids.map((submitted, index) => {
-    return index === slotIndex ? true : submitted;
-  });
-
-  writeJson(AUCTION_STORAGE_KEYS.submittedBids, nextSubmittedBids);
-  emitChange();
-}
-
-export function markSlotPaid(slotIndex: number) {
-  const paidSlots = readJson(
-    AUCTION_STORAGE_KEYS.paidSlots,
-    createBooleanList(false)
-  );
-
-  const nextPaidSlots = paidSlots.map((paid, index) => {
-    return index === slotIndex ? true : paid;
-  });
-
-  writeJson(AUCTION_STORAGE_KEYS.paidSlots, nextPaidSlots);
-  emitChange();
-}
-
-export function getDemoBotBid() {
-  return DEMO_BOT_BID;
+  return {
+    ...snapshot,
+    updateSlot,
+    placeBid,
+  };
 }

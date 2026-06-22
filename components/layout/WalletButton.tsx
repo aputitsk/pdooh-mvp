@@ -1,72 +1,91 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   connectWallet,
   formatWalletAddress,
   getWalletState,
   logOutWallet,
-} from "@/lib/wallet/mockWallet";
-import { subscribeToWalletChanges } from "@/lib/wallet/walletEvents";
-import type { WalletState } from "@/lib/wallet/walletTypes";
+  subscribeToWalletChanges,
+  type WalletState,
+} from "@/lib/wallet";
+import { useSyncExternalStore } from "react";
 
-const initialWalletState: WalletState = {
+const disconnectedWallet: WalletState = {
   connected: false,
   address: null,
 };
 
+let cachedWallet = disconnectedWallet;
+
+function getWalletSnapshot() {
+  const nextWallet = getWalletState();
+
+  if (
+    cachedWallet.connected === nextWallet.connected &&
+    cachedWallet.address === nextWallet.address
+  ) {
+    return cachedWallet;
+  }
+
+  cachedWallet = nextWallet;
+  return cachedWallet;
+}
+
+function getServerWalletSnapshot() {
+  return disconnectedWallet;
+}
+
+function subscribeToHydration(onStoreChange: () => void) {
+  queueMicrotask(onStoreChange);
+
+  return () => {};
+}
+
+function getHydratedSnapshot() {
+  return true;
+}
+
+function getServerHydratedSnapshot() {
+  return false;
+}
+
 export default function WalletButton() {
-  const [wallet, setWallet] = useState<WalletState>(initialWalletState);
+  const isMounted = useSyncExternalStore(
+    subscribeToHydration,
+    getHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
+  const wallet = useSyncExternalStore(
+    subscribeToWalletChanges,
+    getWalletSnapshot,
+    getServerWalletSnapshot
+  );
 
-  useEffect(() => {
-    setWallet(getWalletState());
-
-    const unsubscribe = subscribeToWalletChanges(() => {
-      setWallet(getWalletState());
-    });
-
-    return unsubscribe;
-  }, []);
-
-  function handleConnect() {
-    connectWallet();
-    setWallet(getWalletState());
+  if (!isMounted) {
+    return (
+      <div className="h-9 w-[132px] rounded-full border border-zinc-800 bg-zinc-900/60" />
+    );
   }
 
-  function handleLogOut() {
-    logOutWallet();
-    setWallet(getWalletState());
-  }
-
-  if (!wallet.connected) {
+  if (wallet.connected && wallet.address) {
     return (
       <button
         type="button"
-        onClick={handleConnect}
-        className="ml-2 rounded-full border border-neutral-700 px-4 py-2 text-sm font-medium text-neutral-300 transition hover:border-neutral-500 hover:text-white"
+        onClick={logOutWallet}
+        className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-900"
       >
-        Connect Wallet
+        {formatWalletAddress(wallet.address)}
       </button>
     );
   }
 
   return (
-    <div className="ml-2 flex items-center gap-2">
-      <button
-        type="button"
-        className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:border-emerald-400/40"
-      >
-        {wallet.address ? formatWalletAddress(wallet.address) : "Wallet"}
-      </button>
-
-      <button
-        type="button"
-        onClick={handleLogOut}
-        title="Log Out"
-        className="rounded-full border border-neutral-700 px-3 py-2 text-sm text-neutral-300 transition hover:border-red-400 hover:text-red-300"
-      >
-        ⎋
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={connectWallet}
+      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-zinc-200"
+    >
+      Connect wallet
+    </button>
   );
 }

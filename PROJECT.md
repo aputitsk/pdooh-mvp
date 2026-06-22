@@ -1,88 +1,52 @@
 # pDOOH MVP
 
-Version: MVP Specification v1.4
+Status: Current demo MVP
 
-Status: Active Development
+## Purpose
 
----
+pDOOH is a demo private DOOH advertising marketplace. The current app runs on mock browser storage and is prepared for a later Arc implementation layer without changing the main UX.
 
-# Vision
+## Current State
 
-Build a working MVP of a private DOOH advertising marketplace using mock infrastructure first, then replace it with Arc integrations without changing the UX.
+- Demo flow works: Home -> Advertiser -> Advertisements -> Screen.
+- `npm run lint` passes.
+- `npx tsc --noEmit` passes.
+- `npm run build` passes.
+- Offline build no longer depends on Google Fonts; the app uses local system fonts from CSS.
 
----
+## Product Flow
 
-# Technology Stack
+1. Connect Wallet from the Navbar.
+2. Create a Business Profile with a Business Name.
+3. Deposit Test USDC into the internal demo balance.
+4. Manage Advertisements.
+5. Bid for screen slots on the auction screen.
 
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
+## Implemented Demo Features
 
-Future:
-- Arc Wallet
-- Arc App Kit
-- Test USDC
-- Arc Testnet
+- Home page.
+- Advertiser Dashboard.
+- Business Profile creation.
+- Automatic Demo Advertisement after first Business Profile creation.
+- Advertisements workspace with create, delete, duplicate protection, sorting, and storage sync.
+- Mock wallet connection, logout, and reset.
+- Internal demo balance.
+- Hidden slot bidding.
+- Demo Bot with a fixed 0.02 USDC bid.
+- Winner selection and demo payments.
+- Developer reset for demo state.
 
----
+## Money Model
 
-# Application Flow
+- USDC values are represented as `UsdcMinorUnits`.
+- Balance, bids, payments, treasury, and winner bid amounts use minor units internally.
+- Display values are formatted with `formatUSDCFromMinorUnits`.
+- User input is parsed with `parseUSDCToMinorUnits`.
+- Legacy display keys such as `pdooh-balance` and `pdooh-demo-treasury` are kept as migration/display mirrors beside minor-unit keys.
+- Aggregate bid exposure is locked: total entered bids cannot exceed the demo wallet balance when placing a bid.
 
-Landing → Company Dashboard → Advertisements → Auction
+## Arc Status
 
----
+Arc is not integrated yet. The current code uses mock wallet, mock storage, mock balance, and mock payments.
 
-# Company Workflow
-
-1. Connect Wallet (Navbar)
-2. Create Company
-3. Internal Wallet
-4. Deposit Test USDC
-5. Manage Advertisements
-6. Go To Auction
-
----
-
-# Company Rules
-
-- One Wallet
-- One Company
-- One Internal Wallet
-- Many Advertisements
-- First company automatically receives one Demo Advertisement.
-
----
-
-# Advertisement Management
-
-- Dedicated Advertisements page
-- Automatic Demo Advertisement
-- Unlimited advertisements
-- Duplicate protection
-- Delete advertisements
-- Alphabetical sorting
-- Automatic synchronization
-
----
-
-# Current MVP Status
-
-Completed:
-- Wallet Module
-- Company Dashboard
-- Advertisements Workspace
-- Internal Wallet
-- Hidden Auction
-- Live Screen
-- Demo Bot
-- Demo Advertisement
-
-Remaining:
-- Withdraw
-- Dashboard polish
-- Arc integration
-
----
-
-End of PROJECT.md
+Next Arc step: create an Arc adapter boundary, then replace mock wallet, mock payments, and mock balance implementations with Arc-compatible modules.

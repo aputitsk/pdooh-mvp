@@ -1,10 +1,14 @@
 import type { Advertisement, AuctionPhase } from "@/lib/auction";
+import {
+  formatUSDCFromMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
 type AuctionStatusCardProps = {
   phase: AuctionPhase | "selecting";
   secondsRemaining: number;
   currentSlotIndex: number;
-  walletBalance: number;
+  walletBalance: UsdcMinorUnits;
   winners: Advertisement[];
 };
 
@@ -36,7 +40,7 @@ export default function AuctionStatusCard({
           title: "🏆 AUCTION RESULTS",
           main: "Winners selected",
           description:
-            "Winning companies and advertisements for the current auction cycle.",
+            "Winning businesses and advertisements for the current auction cycle.",
         };
 
       case "live":
@@ -86,7 +90,7 @@ export default function AuctionStatusCard({
                   </p>
 
                   <p className="mt-1 text-lg font-semibold text-white">
-                    {winner.company}
+                    {winner.businessName}
                   </p>
 
                   <p className="mt-5 text-xs uppercase tracking-widest text-white/50">
@@ -112,7 +116,7 @@ export default function AuctionStatusCard({
               </p>
 
               <p className="mt-2 text-3xl font-bold">
-                {walletBalance.toFixed(2)}
+                {formatUSDCFromMinorUnits(walletBalance)}
                 <span className="ml-2 text-base font-medium text-white/60">
                   Test USDC
                 </span>

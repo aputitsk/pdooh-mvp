@@ -6,11 +6,26 @@ import {
   getAdvertisements,
   type Advertisement,
 } from "@/lib/advertisements/advertisements";
-import { getWalletState } from "@/lib/wallet/mockWallet";
-import { subscribeToWalletChanges } from "@/lib/wallet/walletEvents";
-import type { WalletState } from "@/lib/wallet/walletTypes";
+import {
+  getStoredAdvertiserBalance,
+  getStoredBusinessName,
+  getStoredBusinessProfileCreated,
+  setStoredAdvertiserBalance,
+  setStoredBusinessName,
+  setStoredBusinessProfileCreated,
+} from "@/lib/advertiser/advertiserStorage";
+import {
+  getWalletState,
+  subscribeToWalletChanges,
+  type WalletState,
+} from "@/lib/wallet";
+import {
+  formatUSDCFromMinorUnits,
+  parseUSDCToMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
-type CreateCompanyResult = {
+type CreateBusinessProfileResult = {
   createdDefaultAdvertisement: boolean;
 };
 
@@ -61,28 +76,28 @@ function getServerWalletSnapshot() {
   return emptyWalletState;
 }
 
-function getCompanyNameSnapshot() {
-  return localStorage.getItem("pdooh-company-name") || "";
+function getBusinessNameSnapshot() {
+  return getStoredBusinessName();
 }
 
-function getServerCompanyNameSnapshot() {
+function getServerBusinessNameSnapshot() {
   return "";
 }
 
-function getCompanyCreatedSnapshot() {
-  return localStorage.getItem("pdooh-company-created") === "true";
+function getBusinessProfileCreatedSnapshot() {
+  return getStoredBusinessProfileCreated();
 }
 
-function getServerCompanyCreatedSnapshot() {
+function getServerBusinessProfileCreatedSnapshot() {
   return false;
 }
 
 function getBalanceSnapshot() {
-  return localStorage.getItem("pdooh-balance") || "0";
+  return getStoredAdvertiserBalance();
 }
 
 function getServerBalanceSnapshot() {
-  return "0";
+  return 0;
 }
 
 function getAdvertisementsSnapshot() {
@@ -102,25 +117,27 @@ function getServerAdvertisementsSnapshot() {
   return emptyAdvertisements;
 }
 
-function setCompanyName(companyName: string) {
-  localStorage.setItem("pdooh-company-name", companyName);
+function setBusinessName(businessName: string) {
+  setStoredBusinessName(businessName);
   notifyDemoStorageChange();
 }
 
-function createCompany(companyName: string): CreateCompanyResult {
-  const trimmedCompanyName = companyName.trim();
+function createBusinessProfile(
+  businessName: string
+): CreateBusinessProfileResult {
+  const trimmedBusinessName = businessName.trim();
 
-  if (!trimmedCompanyName) {
+  if (!trimmedBusinessName) {
     return { createdDefaultAdvertisement: false };
   }
 
-  localStorage.setItem("pdooh-company-name", trimmedCompanyName);
-  localStorage.setItem("pdooh-company-created", "true");
+  setStoredBusinessName(trimmedBusinessName);
+  setStoredBusinessProfileCreated(true);
 
   const currentAdvertisements = getAdvertisements();
   const nextAdvertisements = createDefaultAdvertisement(
     currentAdvertisements,
-    trimmedCompanyName
+    trimmedBusinessName
   );
 
   notifyDemoStorageChange();
@@ -131,20 +148,23 @@ function createCompany(companyName: string): CreateCompanyResult {
   };
 }
 
-function depositTestUSDC(amount: string, currentBalance: string) {
-  const deposit = Number(amount);
+function depositTestUSDC(amount: string) {
+  let deposit: UsdcMinorUnits;
 
-  if (!deposit || deposit <= 0) {
+  try {
+    deposit = parseUSDCToMinorUnits(amount);
+  } catch {
     return false;
   }
 
-  const savedBalance = Number(
-    localStorage.getItem("pdooh-balance") || currentBalance
-  );
+  if (deposit <= 0) {
+    return false;
+  }
 
-  const nextBalance = String(savedBalance + deposit);
+  const savedBalance = getStoredAdvertiserBalance();
+  const nextBalance = savedBalance + deposit;
 
-  localStorage.setItem("pdooh-balance", nextBalance);
+  setStoredAdvertiserBalance(nextBalance);
   notifyDemoStorageChange();
 
   return true;
@@ -157,16 +177,16 @@ export function useDemoAdvertiserStore() {
     getServerWalletSnapshot
   );
 
-  const companyName = useSyncExternalStore(
+  const businessName = useSyncExternalStore(
     subscribeToDemoStorage,
-    getCompanyNameSnapshot,
-    getServerCompanyNameSnapshot
+    getBusinessNameSnapshot,
+    getServerBusinessNameSnapshot
   );
 
-  const isCompanyCreated = useSyncExternalStore(
+  const isBusinessProfileCreated = useSyncExternalStore(
     subscribeToDemoStorage,
-    getCompanyCreatedSnapshot,
-    getServerCompanyCreatedSnapshot
+    getBusinessProfileCreatedSnapshot,
+    getServerBusinessProfileCreatedSnapshot
   );
 
   const balance = useSyncExternalStore(
@@ -183,12 +203,13 @@ export function useDemoAdvertiserStore() {
 
   return {
     wallet,
-    companyName,
-    isCompanyCreated,
+    businessName,
+    isBusinessProfileCreated,
     balance,
+    formattedBalance: formatUSDCFromMinorUnits(balance),
     advertisements,
-    setCompanyName,
-    createCompany,
+    setBusinessName,
+    createBusinessProfile,
     depositTestUSDC,
   };
 }

@@ -1,10 +1,14 @@
+import { resetStoredAdvertiser } from "@/lib/advertiser/advertiserStorage";
+import { resetStoredAdvertisements } from "@/lib/advertisements/advertisementStorage";
+import { resetDemoAuctionStore } from "@/lib/auction";
+import { resetWallet } from "@/lib/wallet";
+
 export default function DeveloperToolsCard() {
   function resetDemo() {
-    localStorage.removeItem("pdooh-wallet-connected");
-    localStorage.removeItem("pdooh-company-name");
-    localStorage.removeItem("pdooh-company-created");
-    localStorage.removeItem("pdooh-balance");
-    localStorage.removeItem("pdooh-ads");
+    resetWallet();
+    resetStoredAdvertiser();
+    resetStoredAdvertisements();
+    resetDemoAuctionStore();
 
     window.location.reload();
   }

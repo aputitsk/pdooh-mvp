@@ -4,7 +4,7 @@ import {
   getStoredWalletConnected,
   setStoredWalletAddress,
   setStoredWalletConnected,
-} from "../storage/walletStorage";
+} from "./walletStorage";
 import type { WalletState } from "./walletTypes";
 
 function generateMockWalletAddress() {

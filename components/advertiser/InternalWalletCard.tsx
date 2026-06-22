@@ -21,7 +21,8 @@ export default function InternalWalletCard({
         </h2>
 
         <p className="mt-2 text-sm text-white/50">
-          Your company receives one internal wallet on the pDOOH platform.
+          Your business profile receives one internal wallet on the pDOOH
+          platform.
         </p>
       </div>
 

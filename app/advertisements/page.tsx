@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import AdvertisementCard from "@/components/advertisements/AdvertisementCard";
 import CreateAdvertisementCard from "@/components/advertisements/CreateAdvertisementCard";
 import EmptyAdvertisementsCard from "@/components/advertisements/EmptyAdvertisementsCard";
@@ -11,27 +11,90 @@ import {
   getAdvertisements,
   type Advertisement,
 } from "@/lib/advertisements/advertisements";
-import { isWalletConnected } from "@/lib/wallet/mockWallet";
-import { subscribeToWalletChanges } from "@/lib/wallet/walletEvents";
+import { getStoredBusinessName } from "@/lib/advertiser/advertiserStorage";
+import {
+  isWalletConnected,
+  subscribeToWalletChanges,
+} from "@/lib/wallet";
+
+function getWalletConnectedSnapshot() {
+  return isWalletConnected();
+}
+
+function getServerWalletConnectedSnapshot() {
+  return false;
+}
+
+const emptyAdvertisements: Advertisement[] = [];
+const advertisementStoreEventName = "pdooh-advertisements-store-change";
+
+let cachedAdvertisements = emptyAdvertisements;
+let cachedAdvertisementsJson = "";
+
+function subscribeToAdvertisementChanges(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(advertisementStoreEventName, onStoreChange);
+
+  const syncInterval = window.setInterval(onStoreChange, 500);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(advertisementStoreEventName, onStoreChange);
+    window.clearInterval(syncInterval);
+  };
+}
+
+function notifyAdvertisementChanges() {
+  window.dispatchEvent(new Event(advertisementStoreEventName));
+}
+
+function getAdvertisementsSnapshot() {
+  const nextAdvertisements = getAdvertisements();
+  const nextAdvertisementsJson = JSON.stringify(nextAdvertisements);
+
+  if (nextAdvertisementsJson === cachedAdvertisementsJson) {
+    return cachedAdvertisements;
+  }
+
+  cachedAdvertisements = nextAdvertisements;
+  cachedAdvertisementsJson = nextAdvertisementsJson;
+  return cachedAdvertisements;
+}
+
+function getServerAdvertisementsSnapshot() {
+  return emptyAdvertisements;
+}
+
+function getBusinessNameSnapshot() {
+  return getStoredBusinessName();
+}
+
+function getServerBusinessNameSnapshot() {
+  return "";
+}
 
 export default function AdvertisementsPage() {
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [companyName, setCompanyName] = useState("");
+  const walletConnected = useSyncExternalStore(
+    subscribeToWalletChanges,
+    getWalletConnectedSnapshot,
+    getServerWalletConnectedSnapshot
+  );
+  const businessName = useSyncExternalStore(
+    subscribeToAdvertisementChanges,
+    getBusinessNameSnapshot,
+    getServerBusinessNameSnapshot
+  );
   const [adName, setAdName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
-
-  useEffect(() => {
-    setWalletConnected(isWalletConnected());
-    setCompanyName(localStorage.getItem("pdooh-company-name") || "");
-    setAdvertisements(getAdvertisements());
-
-    const unsubscribe = subscribeToWalletChanges(() => {
-      setWalletConnected(isWalletConnected());
-    });
-
-    return unsubscribe;
-  }, []);
+  const advertisements = useSyncExternalStore(
+    subscribeToAdvertisementChanges,
+    getAdvertisementsSnapshot,
+    getServerAdvertisementsSnapshot
+  );
 
   function handleCreateAdvertisement() {
     if (!walletConnected) {
@@ -44,8 +107,10 @@ export default function AdvertisementsPage() {
       return;
     }
 
-    if (!companyName.trim()) {
-      setErrorMessage("Create a company before adding advertisements.");
+    if (!businessName.trim()) {
+      setErrorMessage(
+        "Create a business profile before adding advertisements."
+      );
       return;
     }
 
@@ -56,10 +121,12 @@ export default function AdvertisementsPage() {
 
     const nextAdvertisements = addAdvertisement(advertisements, {
       name: adName.trim(),
-      company: companyName,
+      businessName,
     });
 
-    setAdvertisements(nextAdvertisements);
+    cachedAdvertisements = nextAdvertisements;
+    cachedAdvertisementsJson = JSON.stringify(nextAdvertisements);
+    notifyAdvertisementChanges();
     setAdName("");
     setErrorMessage("");
   }
@@ -71,7 +138,9 @@ export default function AdvertisementsPage() {
     }
 
     const nextAdvertisements = deleteAdvertisement(advertisements, name);
-    setAdvertisements(nextAdvertisements);
+    cachedAdvertisements = nextAdvertisements;
+    cachedAdvertisementsJson = JSON.stringify(nextAdvertisements);
+    notifyAdvertisementChanges();
   }
 
   function handleAdNameChange(value: string) {
@@ -131,7 +200,7 @@ export default function AdvertisementsPage() {
               <div className="grid gap-5 md:grid-cols-2">
                 {advertisements.map((advertisement) => (
                   <AdvertisementCard
-                    key={`${advertisement.company}-${advertisement.name}`}
+                    key={`${advertisement.businessName}-${advertisement.name}`}
                     advertisement={advertisement}
                     onDelete={handleDeleteAdvertisement}
                   />

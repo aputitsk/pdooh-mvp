@@ -1,6 +1,8 @@
+import type { UsdcMinorUnits } from "@/lib/money/usdc";
+
 export type Advertisement = {
   name: string;
-  company: string;
+  businessName: string;
 };
 
 export type AuctionPhase = "open" | "locked" | "live";
@@ -17,21 +19,21 @@ export type SlotState = {
 export type AuctionSlot = {
   id: string;
   label: string;
-  price: number;
+  price: UsdcMinorUnits;
   status: AuctionSlotStatus;
 };
 
 export type AuctionBid = {
   slotId: string;
   advertisementId: string;
-  amount: number;
+  amount: UsdcMinorUnits;
   source: AuctionBidSource;
 };
 
 export type AuctionWinner = {
   slotId: string;
   advertisementId: string;
-  amount: number;
+  amount: UsdcMinorUnits;
   source: AuctionBidSource;
 };
 
@@ -45,9 +47,9 @@ export type AuctionClock = {
 
 export type AuctionAccess = {
   hasWallet: boolean;
-  hasCompany: boolean;
+  hasBusinessProfile: boolean;
   hasAdvertisement: boolean;
-  balance: number;
+  balance: UsdcMinorUnits;
 };
 
 export type AuctionState = {

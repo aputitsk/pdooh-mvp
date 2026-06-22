@@ -1,4 +1,5 @@
 import type { Advertisement, AuctionPhase, SlotState } from "@/lib/auction";
+import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
 import AuctionStatusCard from "./AuctionStatusCard";
 import AuctionSlotCard from "./AuctionSlotCard";
@@ -11,9 +12,10 @@ type AuctionAreaProps = {
   slots: string[];
   advertisements: Advertisement[];
   slotStates: SlotState[];
-  walletBalance: number;
+  walletBalance: UsdcMinorUnits;
   submittedBids: boolean[];
   winners: Advertisement[];
+  isWalletConnected: boolean;
   onAdvertisementChange: (slotIndex: number, value: string) => void;
   onBidChange: (slotIndex: number, value: string) => void;
   onPlaceBid: (slotIndex: number) => void;
@@ -29,10 +31,15 @@ export default function AuctionArea({
   walletBalance,
   submittedBids,
   winners,
+  isWalletConnected,
   onAdvertisementChange,
   onBidChange,
   onPlaceBid,
 }: AuctionAreaProps) {
+  const isAuctionDisabled = !isWalletConnected;
+  const disabledMessage =
+    "Connect your wallet to select advertisements and place bids.";
+
   return (
     <div>
       {phase === "open" && (
@@ -64,6 +71,8 @@ export default function AuctionArea({
                 bid={slotStates[index].bid}
                 walletBalance={walletBalance}
                 isBidSubmitted={submittedBids[index]}
+                isDisabled={isAuctionDisabled}
+                disabledMessage={disabledMessage}
                 onAdvertisementChange={(value) =>
                   onAdvertisementChange(index, value)
                 }

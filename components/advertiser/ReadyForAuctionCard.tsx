@@ -1,13 +1,13 @@
 import Link from "next/link";
 
 type ReadyForAuctionCardProps = {
-  companyName: string;
+  businessName: string;
   advertisementCount: number;
-  balance: number;
+  balance: string;
 };
 
 export default function ReadyForAuctionCard({
-  companyName,
+  businessName,
   advertisementCount,
   balance,
 }: ReadyForAuctionCardProps) {
@@ -18,7 +18,7 @@ export default function ReadyForAuctionCard({
       </p>
 
       <h2 className="mt-2 text-2xl font-bold">
-        {companyName} is ready to participate.
+        {businessName} is ready to participate.
       </h2>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -44,8 +44,8 @@ export default function ReadyForAuctionCard({
       </div>
 
       <p className="mt-6 text-sm text-white/60">
-        Your company meets all requirements to participate in the private
-        pDOOH auction.
+        Your business profile meets all requirements to participate in the
+        private pDOOH auction.
       </p>
 
       <Link

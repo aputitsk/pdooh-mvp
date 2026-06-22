@@ -3,7 +3,7 @@
 import { useState } from "react";
 import AdvertisementsCard from "@/components/advertiser/AdvertisementsCard";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
-import CreateCompanyCard from "@/components/advertiser/CreateCompanyCard";
+import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
 import DeveloperToolsCard from "@/components/advertiser/DeveloperToolsCard";
 import InternalWalletCard from "@/components/advertiser/InternalWalletCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
@@ -12,38 +12,39 @@ import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
 export default function AdvertiserPage() {
   const {
     wallet,
-    companyName,
-    isCompanyCreated,
+    businessName,
+    isBusinessProfileCreated,
     balance,
+    formattedBalance,
     advertisements,
-    setCompanyName,
-    createCompany,
+    setBusinessName,
+    createBusinessProfile,
     depositTestUSDC,
   } = useDemoAdvertiserStore();
 
   const [depositAmount, setDepositAmount] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const canShowCompany = wallet.connected;
-  const canShowWorkspace = wallet.connected && isCompanyCreated;
+  const canShowBusinessProfile = wallet.connected;
+  const canShowWorkspace = wallet.connected && isBusinessProfileCreated;
   const canGoToAuction =
     canShowWorkspace &&
-    companyName.trim().length > 0 &&
+    businessName.trim().length > 0 &&
     advertisements.length > 0 &&
-    Number(balance) > 0;
+    balance > 0;
 
-  function handleCreateCompany() {
-    const result = createCompany(companyName);
+  function handleCreateBusinessProfile() {
+    const result = createBusinessProfile(businessName);
 
     if (result.createdDefaultAdvertisement) {
       setSuccessMessage(
-        "Demo Advertisement has been created for your company."
+        "Demo Advertisement has been created for your business."
       );
     }
   }
 
   function handleDepositTestUSDC() {
-    const isDeposited = depositTestUSDC(depositAmount, balance);
+    const isDeposited = depositTestUSDC(depositAmount);
 
     if (isDeposited) {
       setDepositAmount("");
@@ -58,11 +59,14 @@ export default function AdvertiserPage() {
             Advertiser onboarding
           </p>
 
-          <h1 className="mt-2 text-4xl font-bold">Company Dashboard</h1>
+          <h1 className="mt-2 text-4xl font-bold">
+            Advertiser Dashboard
+          </h1>
 
           <p className="mt-3 max-w-2xl text-white/60">
-            Connect your wallet, create a company, fund your internal wallet,
-            manage advertisements, and join the private pDOOH auction.
+            Connect your wallet, create your business profile, fund your
+            internal wallet, manage advertisements, and join the private pDOOH
+            auction.
           </p>
         </div>
 
@@ -78,19 +82,19 @@ export default function AdvertiserPage() {
             walletAddress={wallet.address}
           />
 
-          {canShowCompany && (
-            <CreateCompanyCard
-              companyName={companyName}
-              isCompanyCreated={isCompanyCreated}
-              onCompanyNameChange={setCompanyName}
-              onCreateCompany={handleCreateCompany}
+          {canShowBusinessProfile && (
+            <CreateBusinessProfileCard
+              businessName={businessName}
+              isBusinessProfileCreated={isBusinessProfileCreated}
+              onBusinessNameChange={setBusinessName}
+              onCreateBusinessProfile={handleCreateBusinessProfile}
             />
           )}
 
           {canShowWorkspace && (
             <>
               <InternalWalletCard
-                balance={balance}
+                balance={formattedBalance}
                 depositAmount={depositAmount}
                 onDepositAmountChange={setDepositAmount}
                 onDeposit={handleDepositTestUSDC}
@@ -102,9 +106,9 @@ export default function AdvertiserPage() {
 
           {canGoToAuction && (
             <ReadyForAuctionCard
-              companyName={companyName}
+              businessName={businessName}
               advertisementCount={advertisements.length}
-              balance={Number(balance)}
+              balance={formattedBalance}
             />
           )}
 

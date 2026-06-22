@@ -1,6 +1,6 @@
 type Advertisement = {
   name: string;
-  company: string;
+  businessName: string;
 };
 
 type LiveScreenProps = {
@@ -19,7 +19,7 @@ export default function LiveScreen({ winner }: LiveScreenProps) {
           {winner ? (
             <div className="animate-pulse">
               <h2 className="mt-4 text-4xl font-semibold">
-                {winner.company}
+                {winner.businessName}
               </h2>
 
               <p className="mt-3 text-2xl text-neutral-300">

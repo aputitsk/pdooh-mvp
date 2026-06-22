@@ -1,132 +1,66 @@
-# pDOOH MVP — Architecture
+# pDOOH MVP Architecture
 
-Version: 1.1
+Status: Current demo MVP
 
-Status: Current MVP
+## Structure
 
----
+- `app/` contains pages and route-level containers.
+- `components/` contains UI components.
+- `lib/` contains business logic and browser-storage modules.
 
-# Purpose
+## Pages
 
-This document describes the current application architecture and code organization.
+- `app/page.tsx`: Home.
+- `app/advertiser/page.tsx`: Advertiser Dashboard and Business Profile flow.
+- `app/advertisements/page.tsx`: Advertisement management.
+- `app/screen/page.tsx`: auction screen and live playback.
+- `app/layout.tsx`: shared RootLayout and Navbar.
 
----
+## Component Areas
 
-# Project Structure
+- `components/layout`: shared Navbar and WalletButton.
+- `components/advertiser`: Advertiser Dashboard cards.
+- `components/advertisements`: advertisement workspace UI.
+- `components/auction`: auction UI, slot cards, bid inputs, live screen.
 
-app/
+## Business Logic
 
-- page.tsx
-- advertiser/page.tsx
-- advertisements/page.tsx
-- screen/page.tsx
+- `lib/advertiser`: Business Profile state, Business Name, advertiser balance storage, and demo advertiser store.
+- `lib/advertisements`: Advertisement types, storage, demo/default advertisement logic, create/delete rules.
+- `lib/auction`: auction clock, timer, slot state, bidding actions, winner selection, payments, storage, and demo auction store.
+- `lib/wallet`: mock wallet state, wallet storage, wallet events, wallet hook, connect/logout/reset facade.
+- `lib/money/usdc.ts`: USDC parser, formatter, constants, and `UsdcMinorUnits`.
+- `lib/arc`: directory exists, but no Arc adapter implementation is present yet.
 
-components/
+## State and Storage
 
-- company/
-- advertisements/
-- auction/
-- navbar/
+The current MVP uses React client hooks plus `localStorage` synchronization.
 
-lib/
+Main storage ownership:
 
-- advertisements.ts
-- mockWallet.ts
-- walletEvents.ts
-- walletStorage.ts
-- walletTypes.ts
+- Wallet: `pdooh-wallet-connected`, `pdooh-wallet-address`.
+- Advertiser: `pdooh-business-name`, `pdooh-business-profile-created`, `pdooh-balance`, `pdooh-balance-minor-units`.
+- Advertisements: `pdooh-ads`.
+- Auction: `pdooh-auction-*`, `pdooh-demo-treasury`, `pdooh-demo-treasury-minor-units`.
 
----
+## Money Rules
 
-# Pages
+- All internal USDC math uses `UsdcMinorUnits`.
+- Inputs are parsed through `parseUSDCToMinorUnits`.
+- UI output is formatted through `formatUSDCFromMinorUnits`.
+- Legacy decimal string keys are migration/display mirrors when minor-unit keys are written.
+- Auction payments move winning user bid amounts from wallet balance to demo treasury.
+- Aggregate exposure lock prevents placing bids when total slot exposure exceeds wallet balance.
 
-Landing
+## Reset Lifecycle
 
-Application entry.
+Developer reset is modular:
 
-Company Dashboard
+- `resetWallet()` clears wallet connected state and wallet address.
+- `resetStoredAdvertiser()` clears Business Profile, Business Name, and advertiser balance keys.
+- `resetStoredAdvertisements()` clears only advertisement storage.
+- `resetDemoAuctionStore()` clears auction demo storage and emits auction store changes.
 
-Company onboarding and internal wallet management.
+## Arc Readiness
 
-Advertisements
-
-Create, view and delete advertisements.
-
-Auction
-
-Hidden bidding and live playback.
-
----
-
-# Core Modules
-
-Wallet Module
-
-- Shared wallet state
-- Navbar connection/logout
-- Mock Arc-compatible implementation
-
-Company Module
-
-- Company creation
-- Internal wallet
-- Ready for Auction
-
-Advertisements Module
-
-- Advertisement storage
-- Demo Advertisement
-- Create / Delete
-- Shared synchronization
-
-Auction Module
-
-- Hidden bidding
-- Global auction engine
-- Demo Bot
-- Winner selection
-- Payments
-
----
-
-# State Management
-
-Current MVP uses React state with localStorage synchronization.
-
-Wallet changes are propagated through the Wallet Module.
-
-Advertisements are managed through lib/advertisements.ts.
-
----
-
-# Local Storage
-
-Main keys
-
-- pdooh-wallet-connected
-- pdooh-company-name
-- pdooh-company-created
-- pdooh-balance
-- pdooh-ads
-- pdooh-demo-treasury
-- pdooh-auction-*
-
----
-
-# Architecture Principles
-
-- Small reusable components.
-- Pages orchestrate components.
-- Shared business logic belongs in lib/.
-- One responsibility per module.
-- Keep architecture simple during MVP.
-
----
-
-# Arc Preparation
-
-Current architecture is designed so the mock implementation can later be replaced by Arc without changing the UI or user flow.
-
----
-
-End of ARCHITECTURE.md
+The architecture is prepared for a future Arc adapter boundary. Arc SDK, Arc wallet, Arc payments, and Arc balance implementations are not connected in the current code.

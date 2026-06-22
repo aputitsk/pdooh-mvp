@@ -1,6 +1,6 @@
 type Advertisement = {
   name: string;
-  company: string;
+  businessName: string;
 };
 
 type CreateAdvertisementCardProps = {
@@ -76,7 +76,7 @@ export default function CreateAdvertisementCard({
           <div className="mt-3 grid gap-3">
             {sortedAds.map((ad) => (
               <div
-                key={`${ad.company}-${ad.name}`}
+                key={`${ad.businessName}-${ad.name}`}
                 className="rounded-2xl border border-green-500/30 bg-green-500/10 p-4"
               >
                 <p className="text-sm text-white/50">
@@ -88,7 +88,7 @@ export default function CreateAdvertisementCard({
                 </p>
 
                 <p className="mt-2 text-sm text-white/60">
-                  Company: {ad.company}
+                  Business: {ad.businessName}
                 </p>
               </div>
             ))}

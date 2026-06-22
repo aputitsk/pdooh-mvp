@@ -2,15 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import WalletButton from "@/components/layout/WalletButton";
 
 const appLinks = [
   {
-    label: "Home",
-    href: "/",
-  },
-  {
-    label: "Company",
+    label: "Advertiser",
     href: "/advertiser",
   },
   {
@@ -26,6 +23,10 @@ const appLinks = [
 export default function Navbar() {
   const pathname = usePathname();
   const isLandingPage = pathname === "/";
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
 
   if (isLandingPage) {
     return (

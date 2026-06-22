@@ -10,7 +10,7 @@ const appLinks = [
     href: "/",
   },
   {
-    label: "Company",
+    label: "Advertiser",
     href: "/advertiser",
   },
   {

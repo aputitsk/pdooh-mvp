@@ -1,14 +1,13 @@
 import type { Advertisement, SlotState } from "./auctionTypes";
-import { DEMO_BOT_BID } from "./constants";
-
-export const DEMO_BOT_ADVERTISEMENT: Advertisement = {
-  company: "Demo Bot",
-  name: "Demo Advertisement",
-};
+import { DEMO_BOT_ADVERTISEMENT, DEMO_BOT_BID } from "./constants";
+import {
+  parseUSDCToMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
 export type AuctionWinnersResult = {
   winners: Advertisement[];
-  winnerBidAmounts: number[];
+  winnerBidAmounts: UsdcMinorUnits[];
 };
 
 export function selectAuctionWinners(params: {
@@ -19,7 +18,7 @@ export function selectAuctionWinners(params: {
   const { slotStates, submittedBids, advertisements } = params;
 
   const winners = slotStates.map((slot, index) => {
-    const userBid = Number(slot.bid);
+    const userBid = getBidAmount(slot.bid);
 
     const advertisement = advertisements.find(
       (item) => item.name === slot.selectedAdvertisement
@@ -38,10 +37,10 @@ export function selectAuctionWinners(params: {
   });
 
   const winnerBidAmounts = slotStates.map((slot, index) => {
-    const userBid = Number(slot.bid);
+    const userBid = getBidAmount(slot.bid);
     const winner = winners[index];
 
-    if (winner.company === DEMO_BOT_ADVERTISEMENT.company) {
+    if (winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName) {
       return 0;
     }
 
@@ -52,4 +51,12 @@ export function selectAuctionWinners(params: {
     winners,
     winnerBidAmounts,
   };
+}
+
+function getBidAmount(bid: string): UsdcMinorUnits {
+  try {
+    return parseUSDCToMinorUnits(bid);
+  } catch {
+    return 0;
+  }
 }
