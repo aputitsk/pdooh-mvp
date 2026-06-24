@@ -16,6 +16,7 @@ type AuctionAreaProps = {
   submittedBids: boolean[];
   winners: Advertisement[];
   isWalletConnected: boolean;
+  isWalletRestoring?: boolean;
   onAdvertisementChange: (slotIndex: number, value: string) => void;
   onBidChange: (slotIndex: number, value: string) => void;
   onPlaceBid: (slotIndex: number) => void;
@@ -32,13 +33,15 @@ export default function AuctionArea({
   submittedBids,
   winners,
   isWalletConnected,
+  isWalletRestoring = false,
   onAdvertisementChange,
   onBidChange,
   onPlaceBid,
 }: AuctionAreaProps) {
-  const isAuctionDisabled = !isWalletConnected;
-  const disabledMessage =
-    "Connect your wallet to select advertisements and place bids.";
+  const isAuctionDisabled = !isWalletConnected || isWalletRestoring;
+  const disabledMessage = isWalletRestoring
+    ? undefined
+    : "Connect your wallet to select advertisements and place bids.";
 
   return (
     <div>

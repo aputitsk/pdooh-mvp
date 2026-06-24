@@ -36,11 +36,3 @@ export function setStoredAdvertisements(advertisements: Advertisement[]) {
     JSON.stringify(advertisements)
   );
 }
-
-export function resetStoredAdvertisements() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  localStorage.removeItem(STORAGE_KEYS.advertisements);
-}

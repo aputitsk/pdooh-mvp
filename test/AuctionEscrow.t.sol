@@ -27,8 +27,6 @@ contract AuctionEscrowTest {
 
     uint256 private constant ONE_USDC = 1_000_000;
     bytes32 private constant SETTLEMENT_ID = keccak256("settlement-1");
-    bytes32 private constant SCREEN_ID = keccak256("screen-1");
-    bytes32 private constant SLOT_ID = keccak256("slot-1");
 
     error AssertionFailed();
 
@@ -112,7 +110,7 @@ contract AuctionEscrowTest {
 
         vm.prank(ADVERTISER);
         vm.expectRevert(abi.encodeWithSelector(AuctionEscrow.UnauthorizedOperator.selector, ADVERTISER));
-        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID, SCREEN_ID, SLOT_ID);
+        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID);
     }
 
     function testSettleRejectsAmountGreaterThanAdvertiserEscrowBalance() public {
@@ -127,7 +125,7 @@ contract AuctionEscrowTest {
                 10 * ONE_USDC
             )
         );
-        escrow.settle(ADVERTISER, 11 * ONE_USDC, SETTLEMENT_ID, SCREEN_ID, SLOT_ID);
+        escrow.settle(ADVERTISER, 11 * ONE_USDC, SETTLEMENT_ID);
     }
 
     function testSettleRejectsReplayOfSettlementId() public {
@@ -136,24 +134,15 @@ contract AuctionEscrowTest {
 
         vm.prank(OPERATOR);
         vm.expectRevert(abi.encodeWithSelector(AuctionEscrow.SettlementAlreadyProcessed.selector, SETTLEMENT_ID));
-        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID, SCREEN_ID, keccak256("slot-2"));
+        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID);
     }
 
-    function testSettleRejectsZeroIdentifiers() public {
+    function testSettleRejectsZeroSettlementId() public {
         depositFromAdvertiser(10 * ONE_USDC);
 
-        vm.startPrank(OPERATOR);
-
+        vm.prank(OPERATOR);
         vm.expectRevert(abi.encodeWithSelector(AuctionEscrow.ZeroIdentifier.selector));
-        escrow.settle(ADVERTISER, ONE_USDC, bytes32(0), SCREEN_ID, SLOT_ID);
-
-        vm.expectRevert(abi.encodeWithSelector(AuctionEscrow.ZeroIdentifier.selector));
-        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID, bytes32(0), SLOT_ID);
-
-        vm.expectRevert(abi.encodeWithSelector(AuctionEscrow.ZeroIdentifier.selector));
-        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID, SCREEN_ID, bytes32(0));
-
-        vm.stopPrank();
+        escrow.settle(ADVERTISER, ONE_USDC, bytes32(0));
     }
 
     function testOwnerCannotWithdrawAdvertiserEscrowDirectly() public {
@@ -197,10 +186,10 @@ contract AuctionEscrowTest {
 
         vm.prank(OPERATOR);
         vm.expectRevert(abi.encodeWithSelector(AuctionEscrow.UnauthorizedOperator.selector, OPERATOR));
-        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID, SCREEN_ID, SLOT_ID);
+        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID);
 
         vm.prank(NEW_OPERATOR);
-        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID, SCREEN_ID, SLOT_ID);
+        escrow.settle(ADVERTISER, ONE_USDC, SETTLEMENT_ID);
 
         assertEq(escrow.balanceOf(ADVERTISER), 9 * ONE_USDC);
         assertEq(escrow.totalEscrowed(), 9 * ONE_USDC);
@@ -237,7 +226,7 @@ contract AuctionEscrowTest {
 
     function settleAsOperator(uint256 amount, bytes32 settlementId) private {
         vm.prank(OPERATOR);
-        escrow.settle(ADVERTISER, amount, settlementId, SCREEN_ID, SLOT_ID);
+        escrow.settle(ADVERTISER, amount, settlementId);
     }
 
     function assertAccountingInvariant() private view {

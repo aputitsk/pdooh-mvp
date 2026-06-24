@@ -4,10 +4,11 @@ import { useState } from "react";
 import AdvertisementsCard from "@/components/advertiser/AdvertisementsCard";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
-import DeveloperToolsCard from "@/components/advertiser/DeveloperToolsCard";
 import InternalWalletCard from "@/components/advertiser/InternalWalletCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
+import TreasuryTransferCard from "@/components/advertiser/TreasuryTransferCard";
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
+import { useWalletUsdcBalance } from "@/lib/wallet";
 
 export default function AdvertiserPage() {
   const {
@@ -21,10 +22,12 @@ export default function AdvertiserPage() {
     createBusinessProfile,
     depositTestUSDC,
   } = useDemoAdvertiserStore();
+  const walletUsdcBalance = useWalletUsdcBalance();
 
   const [depositAmount, setDepositAmount] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  const isWalletRestoring = wallet.status === "restoring";
   const canShowBusinessProfile = wallet.connected;
   const canShowWorkspace = wallet.connected && isBusinessProfileCreated;
   const canGoToAuction =
@@ -80,9 +83,25 @@ export default function AdvertiserPage() {
           <ConnectWalletCard
             isWalletConnected={wallet.connected}
             walletAddress={wallet.address}
+            walletStatus={wallet.status}
+            usdcBalance={walletUsdcBalance.formattedBalance}
+            usdcBalanceStatus={walletUsdcBalance.status}
+            usdcBalanceError={walletUsdcBalance.error}
           />
 
-          {canShowBusinessProfile && (
+          {wallet.connected && (
+            <TreasuryTransferCard onSuccess={walletUsdcBalance.refresh} />
+          )}
+
+          {isWalletRestoring && (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+              <div className="h-5 w-32 rounded-full bg-white/10" />
+              <div className="mt-4 h-8 w-64 rounded-full bg-white/10" />
+              <div className="mt-5 h-12 rounded-xl bg-white/5" />
+            </div>
+          )}
+
+          {!isWalletRestoring && canShowBusinessProfile && (
             <CreateBusinessProfileCard
               businessName={businessName}
               isBusinessProfileCreated={isBusinessProfileCreated}
@@ -91,7 +110,7 @@ export default function AdvertiserPage() {
             />
           )}
 
-          {canShowWorkspace && (
+          {!isWalletRestoring && canShowWorkspace && (
             <>
               <InternalWalletCard
                 balance={formattedBalance}
@@ -104,15 +123,13 @@ export default function AdvertiserPage() {
             </>
           )}
 
-          {canGoToAuction && (
+          {!isWalletRestoring && canGoToAuction && (
             <ReadyForAuctionCard
               businessName={businessName}
               advertisementCount={advertisements.length}
               balance={formattedBalance}
             />
           )}
-
-          <DeveloperToolsCard />
         </div>
       </section>
     </main>

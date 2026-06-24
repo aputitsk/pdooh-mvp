@@ -244,19 +244,3 @@ export function getStoredPaidSlots() {
 export function setStoredPaidSlots(value: boolean[]) {
   writeAuctionJson(AUCTION_STORAGE_KEYS.paidSlots, value);
 }
-
-export function resetStoredAuctionDemoState() {
-  const storage = getBrowserStorage();
-
-  if (!storage) {
-    return;
-  }
-
-  storage.removeItem(AUCTION_STORAGE_KEYS.auctionStart);
-  storage.removeItem(AUCTION_STORAGE_KEYS.auctionCycleId);
-  storage.removeItem(AUCTION_STORAGE_KEYS.slotStates);
-  storage.removeItem(AUCTION_STORAGE_KEYS.submittedBids);
-  storage.removeItem(AUCTION_STORAGE_KEYS.paidSlots);
-  storage.removeItem(AUCTION_STORAGE_KEYS.demoTreasury);
-  storage.removeItem(AUCTION_STORAGE_KEYS.demoTreasuryMinorUnits);
-}

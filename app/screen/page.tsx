@@ -55,6 +55,7 @@ export default function ScreenPage() {
           submittedBids={auction.submittedBids}
           winners={auction.winners}
           isWalletConnected={wallet.connected}
+          isWalletRestoring={wallet.status === "restoring"}
           onAdvertisementChange={(slot, value) =>
             auction.updateSlot(slot, {
               selectedAdvertisement: value,

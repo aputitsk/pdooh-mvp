@@ -3,12 +3,30 @@ import { formatWalletAddress } from "@/lib/wallet";
 type ConnectWalletCardProps = {
   isWalletConnected: boolean;
   walletAddress: string | null;
+  walletStatus: "restoring" | "connected" | "disconnected";
+  usdcBalance: string;
+  usdcBalanceStatus: "idle" | "loading" | "ready" | "error";
+  usdcBalanceError: string | null;
 };
 
 export default function ConnectWalletCard({
   isWalletConnected,
   walletAddress,
+  walletStatus,
+  usdcBalance,
+  usdcBalanceStatus,
+  usdcBalanceError,
 }: ConnectWalletCardProps) {
+  const isWalletRestoring = walletStatus === "restoring";
+  const balanceText =
+    usdcBalanceStatus === "ready"
+      ? `${usdcBalance} Test USDC`
+      : usdcBalanceStatus === "loading"
+        ? "Reading balance..."
+        : usdcBalanceStatus === "error"
+          ? usdcBalanceError
+          : "Connect wallet in the navbar";
+
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
       <div className="flex items-start justify-between gap-4">
@@ -24,10 +42,16 @@ export default function ConnectWalletCard({
           className={`rounded-full px-3 py-1 text-xs font-semibold ${
             isWalletConnected
               ? "bg-green-500/10 text-green-400"
+              : isWalletRestoring
+                ? "bg-white/10 text-white/60"
               : "bg-white/10 text-white/50"
           }`}
         >
-          {isWalletConnected ? "Connected" : "Not Connected"}
+          {isWalletConnected
+            ? "Connected"
+            : isWalletRestoring
+              ? "Checking"
+              : "Not Connected"}
         </span>
       </div>
 
@@ -37,7 +61,17 @@ export default function ConnectWalletCard({
         <p className="mt-1 font-semibold text-white/80">
           {isWalletConnected && walletAddress
             ? formatWalletAddress(walletAddress)
+            : isWalletRestoring
+              ? "Checking wallet..."
             : "Connect wallet in the navbar"}
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <p className="text-sm text-white/50">Arc Testnet USDC Balance</p>
+
+        <p className="mt-1 break-words font-semibold text-white/80">
+          {balanceText}
         </p>
       </div>
     </div>

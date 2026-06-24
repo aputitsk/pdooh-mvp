@@ -30,6 +30,7 @@ type CreateBusinessProfileResult = {
 };
 
 const emptyWalletState: WalletState = {
+  status: "restoring",
   connected: false,
   address: null,
 };
@@ -63,7 +64,8 @@ function getWalletSnapshot() {
 
   if (
     cachedWalletState.connected === nextWalletState.connected &&
-    cachedWalletState.address === nextWalletState.address
+    cachedWalletState.address === nextWalletState.address &&
+    cachedWalletState.status === nextWalletState.status
   ) {
     return cachedWalletState;
   }

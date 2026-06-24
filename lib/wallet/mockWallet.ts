@@ -19,8 +19,11 @@ function generateMockWalletAddress() {
 }
 
 export function getWalletState(): WalletState {
+  const connected = getStoredWalletConnected();
+
   return {
-    connected: getStoredWalletConnected(),
+    status: connected ? "connected" : "disconnected",
+    connected,
     address: getStoredWalletAddress(),
   };
 }

@@ -1,6 +1,7 @@
 type CreateAdvertisementCardProps = {
   adName: string;
   errorMessage?: string;
+  isDisabled?: boolean;
   onAdNameChange: (value: string) => void;
   onCreateAdvertisement: () => void;
 };
@@ -8,6 +9,7 @@ type CreateAdvertisementCardProps = {
 export default function CreateAdvertisementCard({
   adName,
   errorMessage = "",
+  isDisabled = false,
   onAdNameChange,
   onCreateAdvertisement,
 }: CreateAdvertisementCardProps) {
@@ -30,8 +32,9 @@ export default function CreateAdvertisementCard({
       <input
         value={adName}
         onChange={(e) => onAdNameChange(e.target.value)}
+        disabled={isDisabled}
         placeholder="Summer Sale"
-        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-not-allowed disabled:text-white/40"
       />
 
       {errorMessage && (
@@ -41,7 +44,8 @@ export default function CreateAdvertisementCard({
       <button
         type="button"
         onClick={onCreateAdvertisement}
-        className="mt-5 w-full rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+        disabled={isDisabled}
+        className="mt-5 w-full rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
       >
         Create Advertisement
       </button>

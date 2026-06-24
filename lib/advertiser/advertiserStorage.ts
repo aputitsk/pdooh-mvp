@@ -78,17 +78,6 @@ export function setStoredAdvertiserBalance(balance: UsdcMinorUnits) {
   localStorage.setItem(STORAGE_KEYS.balance, formatUSDCFromMinorUnits(balance));
 }
 
-export function resetStoredAdvertiser() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  localStorage.removeItem(STORAGE_KEYS.businessName);
-  localStorage.removeItem(STORAGE_KEYS.businessProfileCreated);
-  localStorage.removeItem(STORAGE_KEYS.balance);
-  localStorage.removeItem(STORAGE_KEYS.balanceMinorUnits);
-}
-
 function readStoredBalanceMinorUnits(): UsdcMinorUnits | null {
   const value = localStorage.getItem(STORAGE_KEYS.balanceMinorUnits);
 

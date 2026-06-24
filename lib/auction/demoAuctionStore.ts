@@ -22,7 +22,6 @@ import {
   getStoredSlotStates,
   getStoredSubmittedBids,
   getStoredWalletBalance,
-  resetStoredAuctionDemoState,
 } from "./auctionStorage";
 import { selectAuctionWinners } from "./auctionWinners";
 
@@ -181,12 +180,6 @@ function placeBid(slotIndex: number) {
   const snapshot = getSnapshot();
 
   placeAuctionBid(slotIndex, snapshot.clock.phase);
-  notifyAuctionStoreChanged();
-  emitChange();
-}
-
-export function resetDemoAuctionStore() {
-  resetStoredAuctionDemoState();
   notifyAuctionStoreChanged();
   emitChange();
 }

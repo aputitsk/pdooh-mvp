@@ -1,66 +1,150 @@
 # pDOOH MVP Architecture
 
-Status: Current demo MVP
+Status: Current hybrid demo and Arc Testnet MVP
 
-## Structure
+## Architecture Summary
 
-- `app/` contains pages and route-level containers.
-- `components/` contains UI components.
-- `lib/` contains business logic and browser-storage modules.
+The project combines two intentionally separate areas:
+
+- a browser-based demo domain for advertiser onboarding, advertisements, auctions, internal balances, winner selection, and demo payments;
+- an Arc Testnet integration layer for an external wallet, ERC-20 USDC balance reads, and a manual wallet-to-treasury USDC transfer.
+
+The demo auction does not execute blockchain settlement. `AuctionEscrow` exists as a separate financial boundary and is not connected to the frontend or the current auction runtime.
+
+## Project Structure
+
+- `app/`: Next.js pages and route-level client containers.
+- `components/`: UI components grouped by product area.
+- `lib/advertiser/`: demo Business Profile and internal balance state.
+- `lib/advertisements/`: demo advertisement types, rules, and storage.
+- `lib/auction/`: demo auction clock, bids, winner selection, payments, and storage.
+- `lib/wallet/`: wallet-facing application facade, wallet state hooks, Arc USDC balance hook, and wallet transaction orchestration.
+- `lib/payments/`: payment boundary used by the UI.
+- `lib/arc/`: Arc Testnet constants, configuration, ports, wallet adapter, balance adapter, and transaction adapter.
+- `lib/money/`: USDC parsing, formatting, and minor-unit representation.
+- `src/`: Solidity contracts.
+- `script/`: Foundry deployment scripts.
+- `test/`: Solidity test sources and `MockUSDC`.
 
 ## Pages
 
-- `app/page.tsx`: Home.
-- `app/advertiser/page.tsx`: Advertiser Dashboard and Business Profile flow.
-- `app/advertisements/page.tsx`: Advertisement management.
-- `app/screen/page.tsx`: auction screen and live playback.
-- `app/layout.tsx`: shared RootLayout and Navbar.
+- `app/page.tsx`: landing page.
+- `app/advertiser/page.tsx`: advertiser onboarding, external wallet information, manual treasury transfer, Business Profile, and demo internal balance.
+- `app/advertisements/page.tsx`: demo advertisement management.
+- `app/screen/page.tsx`: demo auction and live advertisement playback.
+- `app/layout.tsx`: shared root layout and navigation.
 
-## Component Areas
+## Demo Domain
 
-- `components/layout`: shared Navbar and WalletButton.
-- `components/advertiser`: Advertiser Dashboard cards.
-- `components/advertisements`: advertisement workspace UI.
-- `components/auction`: auction UI, slot cards, bid inputs, live screen.
+The following state remains browser-based and is not persisted onchain:
 
-## Business Logic
+- Business Profile and Business Name;
+- advertisements;
+- internal demo wallet balance;
+- auction cycle and slot inputs;
+- submitted bid markers;
+- winner selection;
+- paid-slot markers;
+- demo treasury balance.
 
-- `lib/advertiser`: Business Profile state, Business Name, advertiser balance storage, and demo advertiser store.
-- `lib/advertisements`: Advertisement types, storage, demo/default advertisement logic, create/delete rules.
-- `lib/auction`: auction clock, timer, slot state, bidding actions, winner selection, payments, storage, and demo auction store.
-- `lib/wallet`: mock wallet state, wallet storage, wallet events, wallet hook, connect/logout/reset facade.
-- `lib/money/usdc.ts`: USDC parser, formatter, constants, and `UsdcMinorUnits`.
-- `lib/arc`: directory exists, but no Arc adapter implementation is present yet.
+React client stores synchronize this state through `localStorage`, browser storage events, and project-specific change events.
 
-## State and Storage
+The demo auction payment logic only updates the internal demo balance and demo treasury. It does not call `lib/payments`, an Arc adapter, or `AuctionEscrow`.
 
-The current MVP uses React client hooks plus `localStorage` synchronization.
+## Wallet Boundary
 
-Main storage ownership:
+Runtime UI imports the public facade from `lib/wallet`.
 
-- Wallet: `pdooh-wallet-connected`, `pdooh-wallet-address`.
-- Advertiser: `pdooh-business-name`, `pdooh-business-profile-created`, `pdooh-balance`, `pdooh-balance-minor-units`.
-- Advertisements: `pdooh-ads`.
-- Auction: `pdooh-auction-*`, `pdooh-demo-treasury`, `pdooh-demo-treasury-minor-units`.
+The active wallet implementation:
 
-## Money Rules
+- discovers injected browser wallets through EIP-6963, with `window.ethereum` as a fallback;
+- requests the selected account through the browser wallet provider;
+- switches to or adds Arc Testnet;
+- requests the existing pDOOH sign-in signature;
+- restores an already authorized wallet session;
+- tracks account and chain changes;
+- exposes wallet state to React through the wallet facade.
 
-- All internal USDC math uses `UsdcMinorUnits`.
-- Inputs are parsed through `parseUSDCToMinorUnits`.
-- UI output is formatted through `formatUSDCFromMinorUnits`.
-- Legacy decimal string keys are migration/display mirrors when minor-unit keys are written.
-- Auction payments move winning user bid amounts from wallet balance to demo treasury.
-- Aggregate exposure lock prevents placing bids when total slot exposure exceeds wallet balance.
+Application disconnect is local to the pDOOH session and is recorded in `sessionStorage`. It does not revoke permissions inside the external wallet.
 
-## Reset Lifecycle
+`lib/wallet/mockWallet.ts`, `lib/wallet/walletStorage.ts`, and `lib/arc/mockArcPorts.ts` remain in the repository as legacy/demo modules. They are not imported by the active runtime UI or the active wallet facade.
 
-Developer reset is modular:
+## Arc Boundary
 
-- `resetWallet()` clears wallet connected state and wallet address.
-- `resetStoredAdvertiser()` clears Business Profile, Business Name, and advertiser balance keys.
-- `resetStoredAdvertisements()` clears only advertisement storage.
-- `resetDemoAuctionStore()` clears auction demo storage and emits auction store changes.
+`lib/arc` isolates Arc-specific network and provider behavior:
 
-## Arc Readiness
+- `arcConstants.ts`: Arc Testnet chain ID, RPC URL, explorer URL, native currency metadata, and the Arc Testnet USDC ERC-20 address.
+- `arcConfig.ts`: validates the public pDOOH Treasury address.
+- `arcWalletAdapter.ts`: injected wallet discovery, Arc Testnet switching, wallet session state, and Circle Viem adapter initialization.
+- `arcBalanceAdapter.ts`: reads the external wallet's USDC balance through the standard ERC-20 `balanceOf` interface.
+- `arcTransactionAdapter.ts`: simulates, submits, and waits for the current wallet-to-treasury ERC-20 USDC transfer.
+- `arcPorts.ts`: Arc-facing wallet, balance, and payment port types.
 
-The architecture is prepared for a future Arc adapter boundary. Arc SDK, Arc wallet, Arc payments, and Arc balance implementations are not connected in the current code.
+The demo domain does not import Arc SDK or Viem modules.
+
+## Payment Boundary
+
+Runtime UI initiates the manual treasury payment through:
+
+`TreasuryTransferCard` → `lib/payments/paymentService.ts` → `lib/wallet/walletTransactions.ts` → `lib/arc/arcTransactionAdapter.ts`
+
+The UI does not call the Arc transaction adapter or Viem directly.
+
+The current payment operation is a direct ERC-20 USDC `transfer` from the connected advertiser wallet to the configured pDOOH Treasury address. It is a manual standalone Arc Testnet transaction and is not auction settlement, an escrow deposit, or an App Kit Send implementation.
+
+Payment lifecycle callbacks expose the waiting-for-wallet and pending-transaction states. Success is reported after the transaction receipt has a successful status.
+
+## Money Representation
+
+- Demo and ERC-20 USDC application amounts use `UsdcMinorUnits`.
+- `UsdcMinorUnits` is currently represented as a safe JavaScript integer.
+- ERC-20 USDC amounts use 6 decimal places.
+- User input is parsed through `parseUSDCToMinorUnits`.
+- Display values are formatted through `formatUSDCFromMinorUnits`.
+- Legacy decimal localStorage values for the demo internal balance and demo treasury are maintained as migration/display mirrors beside minor-unit keys.
+
+Arc native USDC is used by the network for gas, but the application and escrow token operations use the standard 6-decimal ERC-20 USDC interface. Native USDC value transfer is not used inside `AuctionEscrow`.
+
+## AuctionEscrow Financial Boundary
+
+`src/AuctionEscrow.sol` is a standalone USDC escrow contract. The contract and Solidity test sources are present in the repository. The current frontend and demo auction do not call the contract, and the repository does not establish that it has been deployed.
+
+The escrow is exclusively a financial boundary:
+
+- advertiser balances are keyed by advertiser public address;
+- `deposit(amount)` credits only `msg.sender`;
+- `withdraw(amount)` returns funds only to `msg.sender`;
+- `settle(advertiser, amount, settlementId)` can be called only by the Operator;
+- settlement transfers escrowed USDC to the immutable Treasury;
+- replay protection is keyed by `settlementId`;
+- `totalEscrowed` tracks accounted advertiser balances.
+
+No pDOOH domain identifiers are stored or accepted by the escrow other than `settlementId`. In particular, screen, slot, advertisement, campaign, auction, and Business Profile identifiers are absent from the contract interface and storage.
+
+The escrow uses the standard ERC-20 USDC flow:
+
+1. The advertiser approves the escrow contract to spend an amount of USDC.
+2. `deposit` receives USDC through `transferFrom`.
+3. `withdraw` or `settle` sends USDC through `transfer`.
+
+The escrow does not use Arc native USDC value transfer.
+
+## Escrow Roles and Configuration
+
+Owner, Operator, and Treasury are separate public addresses with separate responsibilities:
+
+- Owner: controls the Operator address through the contract's ownership mechanism.
+- Operator: may execute `settle`.
+- Treasury: immutable recipient of settled USDC.
+
+The deployment script rejects zero configuration addresses, requires the configured Arc Testnet ERC-20 USDC address, requires the frontend Treasury and escrow Treasury values to match, and requires Owner, Operator, and Treasury to be distinct.
+
+No Operator Service infrastructure is represented in the current project architecture.
+
+## Current Integration Boundaries
+
+- External wallet connection is integrated with Arc Testnet.
+- External ERC-20 USDC balance reading is integrated.
+- Manual external-wallet-to-Treasury ERC-20 transfer is integrated through the payment boundary.
+- Business Profile, advertisements, auction state, internal balance, and auction payments remain demo-only.
+- `AuctionEscrow` is not integrated with the frontend, payment service, wallet transaction flow, or demo auction.

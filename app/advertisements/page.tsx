@@ -12,18 +12,7 @@ import {
   type Advertisement,
 } from "@/lib/advertisements/advertisements";
 import { getStoredBusinessName } from "@/lib/advertiser/advertiserStorage";
-import {
-  isWalletConnected,
-  subscribeToWalletChanges,
-} from "@/lib/wallet";
-
-function getWalletConnectedSnapshot() {
-  return isWalletConnected();
-}
-
-function getServerWalletConnectedSnapshot() {
-  return false;
-}
+import { useWalletStore } from "@/lib/wallet";
 
 const emptyAdvertisements: Advertisement[] = [];
 const advertisementStoreEventName = "pdooh-advertisements-store-change";
@@ -78,11 +67,9 @@ function getServerBusinessNameSnapshot() {
 }
 
 export default function AdvertisementsPage() {
-  const walletConnected = useSyncExternalStore(
-    subscribeToWalletChanges,
-    getWalletConnectedSnapshot,
-    getServerWalletConnectedSnapshot
-  );
+  const wallet = useWalletStore();
+  const walletConnected = wallet.connected;
+  const isWalletRestoring = wallet.status === "restoring";
   const businessName = useSyncExternalStore(
     subscribeToAdvertisementChanges,
     getBusinessNameSnapshot,
@@ -97,6 +84,10 @@ export default function AdvertisementsPage() {
   );
 
   function handleCreateAdvertisement() {
+    if (isWalletRestoring) {
+      return;
+    }
+
     if (!walletConnected) {
       setErrorMessage("Connect your wallet before creating advertisements.");
       return;
@@ -132,6 +123,10 @@ export default function AdvertisementsPage() {
   }
 
   function handleDeleteAdvertisement(name: string) {
+    if (isWalletRestoring) {
+      return;
+    }
+
     if (!walletConnected) {
       setErrorMessage("Connect your wallet before deleting advertisements.");
       return;
@@ -179,7 +174,7 @@ export default function AdvertisementsPage() {
           </div>
         </div>
 
-        {!walletConnected && (
+        {!walletConnected && !isWalletRestoring && (
           <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm font-medium text-yellow-300">
             Connect your wallet to create or delete advertisements.
           </div>
@@ -189,6 +184,7 @@ export default function AdvertisementsPage() {
           <CreateAdvertisementCard
             adName={adName}
             errorMessage={errorMessage}
+            isDisabled={isWalletRestoring}
             onAdNameChange={handleAdNameChange}
             onCreateAdvertisement={handleCreateAdvertisement}
           />
@@ -202,6 +198,7 @@ export default function AdvertisementsPage() {
                   <AdvertisementCard
                     key={`${advertisement.businessName}-${advertisement.name}`}
                     advertisement={advertisement}
+                    isDeleteDisabled={isWalletRestoring}
                     onDelete={handleDeleteAdvertisement}
                   />
                 ))}

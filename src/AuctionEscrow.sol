@@ -23,14 +23,7 @@ contract AuctionEscrow is Ownable2Step, ReentrancyGuard {
 
     event Deposited(address indexed advertiser, uint256 amount);
     event Withdrawn(address indexed advertiser, uint256 amount);
-    event Settled(
-        address operator,
-        address indexed advertiser,
-        bytes32 indexed settlementId,
-        bytes32 indexed screenId,
-        bytes32 slotId,
-        uint256 amount
-    );
+    event Settled(address indexed advertiser, uint256 amount, bytes32 indexed settlementId);
     event OperatorChanged(address indexed previousOperator, address indexed newOperator);
 
     error ZeroAddress();
@@ -93,20 +86,14 @@ contract AuctionEscrow is Ownable2Step, ReentrancyGuard {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function settle(
-        address advertiser,
-        uint256 amount,
-        bytes32 settlementId,
-        bytes32 screenId,
-        bytes32 slotId
-    ) external onlyOperator nonReentrant {
+    function settle(address advertiser, uint256 amount, bytes32 settlementId) external onlyOperator nonReentrant {
         if (advertiser == address(0)) {
             revert ZeroAddress();
         }
         if (amount == 0) {
             revert ZeroAmount();
         }
-        if (settlementId == bytes32(0) || screenId == bytes32(0) || slotId == bytes32(0)) {
+        if (settlementId == bytes32(0)) {
             revert ZeroIdentifier();
         }
         if (processedSettlement[settlementId]) {
@@ -124,7 +111,7 @@ contract AuctionEscrow is Ownable2Step, ReentrancyGuard {
 
         usdc.safeTransfer(treasury, amount);
 
-        emit Settled(msg.sender, advertiser, settlementId, screenId, slotId, amount);
+        emit Settled(advertiser, amount, settlementId);
     }
 
     function setOperator(address newOperator) external onlyOwner {

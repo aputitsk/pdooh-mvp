@@ -17,9 +17,11 @@ export function subscribeToWalletChanges(callback: () => void) {
     return () => {};
   }
 
+  window.addEventListener("storage", callback);
   window.addEventListener(walletChangedEventName, callback);
 
   return () => {
+    window.removeEventListener("storage", callback);
     window.removeEventListener(walletChangedEventName, callback);
   };
 }

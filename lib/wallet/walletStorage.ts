@@ -38,12 +38,3 @@ export function setStoredWalletAddress(address: string) {
 
   localStorage.setItem(STORAGE_KEYS.address, address);
 }
-
-export function resetStoredWallet() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  localStorage.removeItem(STORAGE_KEYS.connected);
-  localStorage.removeItem(STORAGE_KEYS.address);
-}

@@ -1,36 +1,58 @@
 import { useSyncExternalStore } from "react";
 import {
-  connectWallet as connectDemoWallet,
-  formatWalletAddress as formatDemoWalletAddress,
-  getWalletAddress as getDemoWalletAddress,
-  getWalletState as getDemoWalletState,
-  isWalletConnected as isDemoWalletConnected,
-  logOutWallet as logOutDemoWallet,
-} from "./mockWallet";
-import { subscribeToWalletChanges } from "./walletEvents";
-import { resetStoredWallet } from "./walletStorage";
+  connectArcWallet,
+  disconnectArcWallet,
+  formatArcWalletAddress,
+  getArcWalletState,
+  getArcWalletProviders,
+  refreshArcWalletState,
+  setArcWalletChangeListener,
+  type ArcWalletProviderOption,
+} from "@/lib/arc/arcWalletAdapter";
+import { notifyWalletChanged, subscribeToWalletChanges } from "./walletEvents";
 
 export { subscribeToWalletChanges } from "./walletEvents";
 
 export type { WalletState } from "./walletTypes";
+export {
+  useWalletUsdcBalance,
+  type WalletUsdcBalanceState,
+} from "./walletBalance";
+export {
+  sendWalletUsdcToTreasury,
+  type WalletTransactionLifecycle,
+} from "./walletTransactions";
+export type WalletProviderOption = ArcWalletProviderOption;
 
-const disconnectedWalletSnapshot = "0|";
+const restoringWalletSnapshot = "restoring|0||";
+
+setArcWalletChangeListener(notifyWalletChanged);
+void refreshArcWalletState();
 
 function getWalletSnapshot() {
   const wallet = getWalletState();
-  return `${wallet.connected ? "1" : "0"}|${wallet.address ?? ""}`;
+  return `${wallet.status}|${wallet.connected ? "1" : "0"}|${wallet.address ?? ""}|${wallet.chainId ?? ""}`;
 }
 
 function getServerWalletSnapshot() {
-  return disconnectedWalletSnapshot;
+  return restoringWalletSnapshot;
 }
 
 function parseWalletSnapshot(snapshot: string) {
-  const [connectedValue, addressValue] = snapshot.split("|");
+  const [statusValue, connectedValue, addressValue, chainIdValue] =
+    snapshot.split("|");
+  const status =
+    statusValue === "connected" ||
+    statusValue === "disconnected" ||
+    statusValue === "restoring"
+      ? statusValue
+      : "disconnected";
 
   return {
+    status,
     connected: connectedValue === "1",
     address: addressValue || null,
+    chainId: chainIdValue ? Number.parseInt(chainIdValue, 10) : null,
   };
 }
 
@@ -45,29 +67,29 @@ export function useWalletStore() {
 }
 
 export function getWalletState() {
-  return getDemoWalletState();
+  return getArcWalletState();
 }
 
 export function isWalletConnected() {
-  return isDemoWalletConnected();
+  return getArcWalletState().connected;
 }
 
 export function getWalletAddress() {
-  return getDemoWalletAddress();
+  return getArcWalletState().address;
 }
 
-export function connectWallet() {
-  return connectDemoWallet();
+export function getWalletProviders() {
+  return getArcWalletProviders();
+}
+
+export function connectWallet(providerId?: string) {
+  return connectArcWallet(providerId);
 }
 
 export function logOutWallet() {
-  logOutDemoWallet();
-}
-
-export function resetWallet() {
-  resetStoredWallet();
+  disconnectArcWallet();
 }
 
 export function formatWalletAddress(address: string) {
-  return formatDemoWalletAddress(address);
+  return formatArcWalletAddress(address);
 }

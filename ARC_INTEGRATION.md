@@ -1,47 +1,192 @@
 # pDOOH Arc Integration
 
-Status: Planned, not implemented
+Status: Partially integrated with Arc Testnet
 
-## Current Reality
+## Current Status
 
-The current MVP is a working demo built on mock modules and browser storage. There is no Arc SDK integration in the codebase yet.
+The project has an active Arc Testnet integration for:
 
-`lib/arc` exists as an empty directory. It does not currently provide an adapter, wallet connector, payment client, or balance reader.
+- connecting an injected external wallet;
+- Arc Testnet network handling;
+- reading the connected wallet's ERC-20 USDC balance;
+- manually transferring ERC-20 USDC from the connected wallet to the configured pDOOH Treasury address.
 
-## Existing Boundaries
+The Business Profile, advertisements, internal demo balance, auction state, winner selection, paid-slot state, and demo treasury remain browser-based demo features.
 
-These modules are the places to replace mock behavior later:
+The current blockchain flow is separate from the demo auction flow. There is no real auction settlement, automatic settlement after playback, blockchain auction payment, or frontend integration with `AuctionEscrow`.
 
-- `lib/wallet`: mock wallet facade used by Navbar and app pages.
-- `lib/advertiser`: Business Profile and demo balance storage.
-- `lib/advertisements`: Advertisement storage and rules.
-- `lib/auction`: bidding, winner selection, payment processing, and auction storage.
-- `lib/money/usdc.ts`: USDC parsing, formatting, and minor-unit representation.
+## Arc Testnet Configuration
 
-## Next Arc Step
+The active Arc integration uses:
 
-Create an Arc adapter boundary before replacing behavior.
+- network: Arc Testnet;
+- chain ID: `5042002`;
+- RPC URL: `https://rpc.testnet.arc.network`;
+- block explorer: `https://testnet.arcscan.app`;
+- native currency symbol: USDC;
+- ERC-20 USDC interface: `0x3600000000000000000000000000000000000000`.
 
-The adapter should provide Arc-compatible implementations for:
+Arc uses native USDC for gas with 18 decimals of precision. The standard ERC-20 USDC interface used by the application has 6 decimals. Application token amounts must not mix the native gas representation with the ERC-20 representation.
 
-- wallet connection and wallet state;
-- Test USDC balance reads;
-- payment execution;
-- any persistent storage or sync needed by advertisements and auctions.
+## Arc Wallet Integration
 
-## Migration Approach
+`lib/arc/arcWalletAdapter.ts` contains the active external wallet implementation.
 
-Replace mock modules behind existing boundaries, one area at a time:
+The current wallet flow:
 
-1. Mock wallet -> Arc-compatible wallet implementation.
-2. Mock balance storage -> Arc-compatible balance source.
-3. Mock payments -> Arc-compatible Test USDC payment flow.
-4. Browser storage sync -> Arc-compatible persistence or synchronization where needed.
+1. Discovers injected wallets through EIP-6963.
+2. Uses `window.ethereum` as a fallback when no EIP-6963 provider is announced.
+3. Requests account access from the selected provider.
+4. Switches the wallet to Arc Testnet.
+5. Adds Arc Testnet through the wallet provider when the chain is unknown.
+6. Requests the existing pDOOH sign-in signature.
+7. Initializes the Circle Viem adapter from the selected provider.
+8. Stores the active provider and tracks account and chain changes.
 
-## Rules
+The application also attempts to restore an already authorized browser-wallet session. Application disconnect is local to the pDOOH browser session and does not revoke permissions inside the external wallet.
 
-- Do not redesign pages for Arc.
-- Keep Advertiser, Business Profile, Business Name, and `Advertisement.businessName` terminology.
-- Keep USDC values in minor units internally.
-- Do not document Arc APIs until the actual SDK or adapter code exists.
-- Official Arc documentation should be checked before implementing the adapter.
+The runtime UI accesses wallet behavior through the public `lib/wallet` facade rather than importing `arcWalletAdapter.ts` directly.
+
+## Arc Testnet Network Handling
+
+The wallet adapter uses the provider methods `wallet_switchEthereumChain` and `wallet_addEthereumChain` with the configured Arc Testnet parameters.
+
+Balance reads and transaction execution verify the Arc Testnet chain ID. A connected wallet on another chain is not treated as ready for Arc balance or transfer operations.
+
+Public Arc reads use a Viem public client configured with the Arc Testnet RPC endpoint.
+
+## Read-only ERC-20 USDC Balance
+
+`lib/arc/arcBalanceAdapter.ts` reads the connected external wallet's USDC balance through the standard ERC-20 `balanceOf` interface.
+
+The balance operation:
+
+- validates the wallet address;
+- reads from the Arc Testnet ERC-20 USDC interface;
+- converts the 6-decimal token amount to the project's `UsdcMinorUnits` representation;
+- rejects values outside the safe JavaScript integer range;
+- does not submit a transaction or request a wallet signature.
+
+The external Arc USDC balance is distinct from the internal demo balance stored in the browser.
+
+## Manual ERC-20 Treasury Transfer
+
+The Advertiser page contains a manual action for transferring ERC-20 USDC from the connected external wallet to the configured pDOOH Treasury address.
+
+The current implementation uses Viem and the standard ERC-20 `transfer` function. It:
+
+1. parses the entered amount into 6-decimal USDC minor units;
+2. verifies the connected account and Arc Testnet chain;
+3. simulates the ERC-20 `transfer`;
+4. requests transaction submission from the selected browser wallet;
+5. waits for the transaction receipt;
+6. reports success only when the receipt status is successful.
+
+This transaction is a standalone wallet-to-Treasury transfer. It is not an escrow deposit, auction settlement, or automatic payment triggered by auction playback.
+
+## App Kit Status
+
+App Kit Send is not implemented.
+
+The project does not include `@circle-fin/app-kit` and does not call `AppKit`, `estimateSend`, or `kit.send()`. The installed `@circle-fin/adapter-viem-v2` package is used to initialize a Viem adapter during wallet connection, but the current Treasury transfer is executed directly through Viem and the ERC-20 `transfer` interface.
+
+The manual Treasury transfer must therefore not be described as App Kit Send.
+
+## Payment Service Boundary
+
+The runtime payment path is:
+
+`TreasuryTransferCard` → `lib/payments/paymentService.ts` → `lib/wallet/walletTransactions.ts` → `lib/arc/arcTransactionAdapter.ts`
+
+The UI does not import the Arc transaction adapter or Viem directly.
+
+Responsibilities are separated as follows:
+
+- UI: collects the amount and displays lifecycle state.
+- `paymentService`: exposes the application payment operation to the UI.
+- wallet transaction layer: parses the amount and coordinates transaction lifecycle callbacks.
+- Arc transaction adapter: performs Arc-specific account, chain, simulation, submission, and receipt handling.
+
+This payment boundary is not used by the demo auction payment logic.
+
+## Arc Adapter Boundary
+
+`lib/arc` contains:
+
+- `arcConstants.ts`: Arc Testnet network and ERC-20 USDC constants;
+- `arcConfig.ts`: public Treasury address validation;
+- `arcWalletAdapter.ts`: injected wallet and Arc network handling;
+- `arcBalanceAdapter.ts`: read-only ERC-20 USDC balance access;
+- `arcTransactionAdapter.ts`: manual ERC-20 Treasury transfer execution;
+- `arcPorts.ts`: Arc-facing wallet, balance, and payment type contracts;
+- `mockArcPorts.ts`: legacy/demo port implementations not used by the active runtime UI.
+
+Arc-specific provider and Viem behavior is kept outside the demo advertiser, advertisement, and auction modules.
+
+## Demo Auction and Blockchain Separation
+
+The demo auction operates entirely through browser state:
+
+- bids and selected advertisements are stored in `localStorage`;
+- winners are selected by demo auction logic;
+- paid slots are browser-state markers;
+- winning user amounts are subtracted from the internal demo balance;
+- the same amounts are added to the demo treasury.
+
+This flow does not:
+
+- read the external wallet's Arc USDC balance for auction eligibility;
+- submit blockchain transactions;
+- call `paymentService`;
+- call `AuctionEscrow`;
+- transfer real USDC for auction settlement.
+
+The manual external-wallet Treasury transfer is displayed in the advertiser flow but is not connected to auction state or auction payment processing.
+
+## AuctionEscrow Status
+
+`src/AuctionEscrow.sol` and Solidity test sources are present in the repository. The contract is not imported or called by the frontend, payment service, wallet transaction layer, or demo auction.
+
+The repository contains a Foundry deployment script, but the repository does not establish that `AuctionEscrow` has been deployed.
+
+The escrow is exclusively a financial boundary:
+
+- advertiser escrow balances are keyed by advertiser public address;
+- deposits credit only the caller;
+- withdrawals return funds only to the caller;
+- only the Operator may settle an advertiser balance to Treasury;
+- replay protection is keyed by `settlementId`;
+- `settlementId` is the only pDOOH domain-layer identifier accepted or stored by the escrow.
+
+Screen, slot, advertisement, campaign, auction, and Business Profile identifiers are not part of the escrow interface or storage.
+
+## ERC-20 Escrow Flow
+
+The escrow uses the standard ERC-20 USDC flow:
+
+`approve → transferFrom → transfer`
+
+1. The advertiser grants the escrow an ERC-20 USDC allowance through `approve`.
+2. `deposit` receives USDC through `transferFrom`.
+3. `withdraw` transfers USDC back to the advertiser, or `settle` transfers USDC to Treasury, through `transfer`.
+
+The escrow does not use Arc native USDC value transfer. Its token operations use the 6-decimal ERC-20 USDC interface.
+
+## Escrow Roles
+
+The escrow uses three distinct public addresses:
+
+- Owner: controls changes to the Operator address through the ownership mechanism.
+- Operator: may call `settle`.
+- Treasury: immutable recipient of settled USDC.
+
+The deployment script requires Owner, Operator, and Treasury to be different addresses. It also requires the frontend Treasury configuration to match the escrow Treasury configuration.
+
+Operator Service infrastructure is intentionally outside the current project scope and is not represented as an implemented project component.
+
+## Official Arc References
+
+- [Connect to Arc](https://docs.arc.io/arc/references/connect-to-arc)
+- [Arc Testnet contract addresses](https://docs.arc.io/arc/references/contract-addresses)
+- [Arc EVM differences](https://docs.arc.io/arc/references/evm-differences)
+- [App Kit Send quickstart](https://docs.arc.io/app-kit/quickstarts/send-tokens-same-chain)
