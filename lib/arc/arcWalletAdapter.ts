@@ -1,20 +1,22 @@
 import {
-  ARC_CHAIN_ID,
-  ARC_CHAIN_NAME,
-  ARC_EXPLORER_URL,
-  ARC_NATIVE_CURRENCY_SYMBOL,
-  ARC_RPC_URL,
-} from "./arcConstants";
-import {
   discoverInjectedWalletProviders,
   getInjectedWalletProvider,
-  type ArcWalletProviderOption,
   type BrowserWalletProvider,
 } from "./arcWalletDiscovery";
+import { normalizeWalletError } from "./arcWalletErrors";
 import {
-  isUnknownChainError,
-  normalizeWalletError,
-} from "./arcWalletErrors";
+  getCurrentChainId,
+  parseChainId,
+  switchToArcTestnet,
+} from "./arcWalletNetwork";
+import {
+  clearProviderBinding,
+  getStoredProviderBinding,
+  isAppDisconnectLocked,
+  lockAppDisconnect,
+  storeProviderBinding,
+  unlockAppDisconnect,
+} from "./arcWalletSession";
 import type { ArcWalletState } from "./arcWalletTypes";
 
 export {
@@ -48,8 +50,6 @@ const restoringWalletState: ArcWalletState = {
   chainId: null,
 };
 
-const appDisconnectedSessionKey = "pdooh-wallet-app-disconnected";
-const boundProviderSessionKey = "pdooh-wallet-bound-provider";
 const metamaskRdns = "io.metamask";
 const walletConnectTimeoutMs = 30_000;
 
@@ -62,22 +62,6 @@ let activeConnectPromise: Promise<ArcWalletConnectResult> | null = null;
 
 function isBrowser() {
   return typeof window !== "undefined";
-}
-
-function toHexChainId(chainId: number) {
-  return `0x${chainId.toString(16)}`;
-}
-
-function parseChainId(value: unknown) {
-  if (typeof value === "number") {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    return Number.parseInt(value, value.startsWith("0x") ? 16 : 10);
-  }
-
-  return null;
 }
 
 function normalizeAddress(value: unknown) {
@@ -110,125 +94,6 @@ function setWalletState(nextState: ArcWalletState) {
 
 function setDisconnectedWalletState() {
   setWalletState(disconnectedWalletState);
-}
-
-function isAppDisconnectLocked() {
-  return (
-    isBrowser() &&
-    window.sessionStorage.getItem(appDisconnectedSessionKey) === "true"
-  );
-}
-
-function lockAppDisconnect() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  window.sessionStorage.setItem(appDisconnectedSessionKey, "true");
-}
-
-function unlockAppDisconnect() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  window.sessionStorage.removeItem(appDisconnectedSessionKey);
-}
-
-function getStoredProviderBinding(): ArcWalletProviderOption | null {
-  if (!isBrowser()) {
-    return null;
-  }
-
-  const storedBinding = window.sessionStorage.getItem(boundProviderSessionKey);
-
-  if (!storedBinding) {
-    return null;
-  }
-
-  try {
-    const binding = JSON.parse(storedBinding) as Partial<ArcWalletProviderOption>;
-
-    if (typeof binding.id !== "string" || typeof binding.name !== "string") {
-      return null;
-    }
-
-    return {
-      id: binding.id,
-      name: binding.name,
-      icon: typeof binding.icon === "string" ? binding.icon : null,
-      rdns: typeof binding.rdns === "string" ? binding.rdns : null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function storeProviderBinding(provider: ArcWalletProviderOption) {
-  if (!isBrowser()) {
-    return;
-  }
-
-  const binding: ArcWalletProviderOption = {
-    id: provider.id,
-    name: provider.name,
-    icon: provider.icon,
-    rdns: provider.rdns,
-  };
-
-  window.sessionStorage.setItem(
-    boundProviderSessionKey,
-    JSON.stringify(binding)
-  );
-}
-
-function clearProviderBinding() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  window.sessionStorage.removeItem(boundProviderSessionKey);
-}
-
-async function switchToArcTestnet(provider: BrowserWalletProvider) {
-  const arcChainId = toHexChainId(ARC_CHAIN_ID);
-  const switchToArc = () =>
-    provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: arcChainId }],
-    });
-  const addArc = () =>
-    provider.request({
-      method: "wallet_addEthereumChain",
-      params: [
-        {
-          chainId: arcChainId,
-          chainName: ARC_CHAIN_NAME,
-          nativeCurrency: {
-            name: ARC_NATIVE_CURRENCY_SYMBOL,
-            symbol: ARC_NATIVE_CURRENCY_SYMBOL,
-            decimals: 18,
-          },
-          rpcUrls: [ARC_RPC_URL],
-          blockExplorerUrls: [ARC_EXPLORER_URL],
-        },
-      ],
-    });
-
-  try {
-    await switchToArc();
-  } catch (error) {
-    if (!isUnknownChainError(error)) {
-      throw normalizeWalletError(error);
-    }
-
-    await addArc();
-    await switchToArc();
-  }
-}
-
-async function getCurrentChainId(provider: BrowserWalletProvider) {
-  return parseChainId(await provider.request({ method: "eth_chainId" }));
 }
 
 async function readAuthorizedWalletState(
