@@ -1,6 +1,1 @@
-export type WalletState = {
-  status: "restoring" | "connected" | "disconnected";
-  connected: boolean;
-  address: string | null;
-  chainId?: number | null;
-};
+export type { ArcWalletState as WalletState } from "@/lib/arc/arcWalletTypes";

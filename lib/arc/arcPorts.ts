@@ -1,10 +1,10 @@
 import type { UsdcMinorUnits } from "@/lib/money/usdc";
-import type { WalletState } from "@/lib/wallet";
+import type { ArcWalletState } from "./arcWalletTypes";
 
 export type ArcWalletPort = {
-  connect: () => Promise<WalletState>;
+  connect: () => Promise<ArcWalletState>;
   disconnect: () => Promise<void>;
-  getState: () => Promise<WalletState>;
+  getState: () => Promise<ArcWalletState>;
 };
 
 export type ArcBalancePort = {

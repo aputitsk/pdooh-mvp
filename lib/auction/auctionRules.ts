@@ -47,12 +47,65 @@ export function getHighestBid<T extends { amount: UsdcMinorUnits }>(bids: T[]) {
   });
 }
 
-export function getUserBidExposure(
-  slotStates: SlotState[]
+export function getConfirmedBidExposure(
+  slotStates: SlotState[],
+  submittedBids: boolean[]
 ): UsdcMinorUnits {
-  return slotStates.reduce<UsdcMinorUnits>((totalExposure, slotState) => {
-    return totalExposure + getSlotBidAmount(slotState.bid);
-  }, 0);
+  return slotStates.reduce<UsdcMinorUnits>(
+    (totalExposure, slotState, slotIndex) => {
+      if (!submittedBids[slotIndex]) {
+        return totalExposure;
+      }
+
+      return addSafeMinorUnits(totalExposure, getSlotBidAmount(slotState.bid));
+    },
+    0
+  );
+}
+
+export function getBidExposureWithCandidate(params: {
+  slotIndex: number;
+  slotStates: SlotState[];
+  submittedBids: boolean[];
+}): UsdcMinorUnits {
+  const { slotIndex, slotStates, submittedBids } = params;
+  const confirmedExposure = getConfirmedBidExposure(
+    slotStates,
+    submittedBids
+  );
+
+  if (submittedBids[slotIndex]) {
+    return confirmedExposure;
+  }
+
+  return addSafeMinorUnits(
+    confirmedExposure,
+    getSlotBidAmount(slotStates[slotIndex]?.bid ?? "")
+  );
+}
+
+export function getTypedBidExposureThroughSlot(
+  slotStates: SlotState[],
+  slotIndex: number
+): UsdcMinorUnits {
+  return slotStates.reduce<UsdcMinorUnits>(
+    (totalExposure, slotState, currentSlotIndex) => {
+      if (currentSlotIndex > slotIndex) {
+        return totalExposure;
+      }
+
+      return addSafeMinorUnits(totalExposure, getSlotBidAmount(slotState.bid));
+    },
+    0
+  );
+}
+
+function addSafeMinorUnits(
+  current: UsdcMinorUnits,
+  amount: UsdcMinorUnits
+): UsdcMinorUnits {
+  const next = current + amount;
+  return Number.isSafeInteger(next) ? next : Number.MAX_SAFE_INTEGER;
 }
 
 function getSlotBidAmount(bid: string): UsdcMinorUnits {

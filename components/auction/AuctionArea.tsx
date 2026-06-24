@@ -1,4 +1,5 @@
 import type { Advertisement, AuctionPhase, SlotState } from "@/lib/auction";
+import { getTypedBidExposureThroughSlot } from "@/lib/auction";
 import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
 import AuctionStatusCard from "./AuctionStatusCard";
@@ -13,7 +14,8 @@ type AuctionAreaProps = {
   advertisements: Advertisement[];
   slotStates: SlotState[];
   availableAuctionCapacity: UsdcMinorUnits;
-  escrowBalance: string;
+  escrowBalance: UsdcMinorUnits | null;
+  reservedAmount: UsdcMinorUnits;
   escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
   escrowBalanceError: string | null;
   submittedBids: boolean[];
@@ -34,6 +36,7 @@ export default function AuctionArea({
   slotStates,
   availableAuctionCapacity,
   escrowBalance,
+  reservedAmount,
   escrowBalanceStatus,
   escrowBalanceError,
   submittedBids,
@@ -75,6 +78,8 @@ export default function AuctionArea({
             secondsRemaining={secondsRemaining}
             currentSlotIndex={currentSlotIndex}
             escrowBalance={escrowBalance}
+            availableAuctionCapacity={availableAuctionCapacity}
+            reservedAmount={reservedAmount}
             escrowBalanceStatus={escrowBalanceStatus}
             escrowBalanceError={escrowBalanceError}
             winners={winners}
@@ -90,6 +95,11 @@ export default function AuctionArea({
                 selectedAdvertisement={slotStates[index].selectedAdvertisement}
                 bid={slotStates[index].bid}
                 availableAuctionCapacity={availableAuctionCapacity}
+                isAggregateExposureTooHigh={
+                  !submittedBids[index] &&
+                  getTypedBidExposureThroughSlot(slotStates, index) >
+                    availableAuctionCapacity
+                }
                 isBidSubmitted={submittedBids[index]}
                 isDisabled={isAuctionDisabled}
                 disabledMessage={disabledMessage}
@@ -115,6 +125,8 @@ export default function AuctionArea({
             secondsRemaining={secondsRemaining}
             currentSlotIndex={currentSlotIndex}
             escrowBalance={escrowBalance}
+            availableAuctionCapacity={availableAuctionCapacity}
+            reservedAmount={reservedAmount}
             escrowBalanceStatus={escrowBalanceStatus}
             escrowBalanceError={escrowBalanceError}
             winners={winners}
@@ -142,6 +154,8 @@ export default function AuctionArea({
           secondsRemaining={secondsRemaining}
           currentSlotIndex={currentSlotIndex}
           escrowBalance={escrowBalance}
+          availableAuctionCapacity={availableAuctionCapacity}
+          reservedAmount={reservedAmount}
           escrowBalanceStatus={escrowBalanceStatus}
           escrowBalanceError={escrowBalanceError}
           winners={winners}

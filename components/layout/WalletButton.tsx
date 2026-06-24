@@ -55,11 +55,13 @@ function getServerHydratedSnapshot() {
 
 export default function WalletButton() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [walletProviders, setWalletProviders] = useState<
     WalletProviderOption[]
   >([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const isConnectingRef = useRef(false);
 
   const isMounted = useSyncExternalStore(
     subscribeToHydration,
@@ -98,13 +100,6 @@ export default function WalletButton() {
     return error instanceof Error ? error.message : "Wallet connection failed";
   }
 
-  async function connectSelectedWallet(providerId?: string) {
-    setConnectError(null);
-    await connectWallet(providerId);
-    setWalletProviders([]);
-    setIsMenuOpen(false);
-  }
-
   async function handleConnectClick() {
     setConnectError(null);
 
@@ -126,12 +121,34 @@ export default function WalletButton() {
     }
   }
 
-  async function handleProviderSelect(providerId: string) {
-    try {
-      await connectSelectedWallet(providerId);
-    } catch (error) {
-      setConnectError(getErrorMessage(error));
+  function handleProviderSelect(providerId: string | null) {
+    if (!providerId || isConnectingRef.current) {
+      return;
     }
+
+    isConnectingRef.current = true;
+    setIsConnecting(true);
+    setConnectError(null);
+
+    void connectWallet(providerId)
+      .then((result) => {
+        if (result.ok) {
+          setWalletProviders([]);
+          setIsMenuOpen(false);
+          return;
+        }
+
+        setConnectError(getErrorMessage(result.error));
+        setIsMenuOpen(true);
+      })
+      .catch((error: unknown) => {
+        setConnectError(getErrorMessage(error));
+        setIsMenuOpen(true);
+      })
+      .finally(() => {
+        isConnectingRef.current = false;
+        setIsConnecting(false);
+      });
   }
 
   async function handleCopyAddress(address: string) {
@@ -196,21 +213,25 @@ export default function WalletButton() {
     <div ref={menuRef} className="relative">
       <button
         type="button"
+        disabled={isConnecting}
         onClick={() => void handleConnectClick()}
-        className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-zinc-200"
+        className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-400"
       >
-        Connect wallet
+        {isConnecting ? "Connecting..." : "Connect wallet"}
       </button>
 
-      {isMenuOpen && (walletProviders.length > 0 || connectError) ? (
+      {isMenuOpen ? (
         <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
           {walletProviders.length > 0 ? (
             walletProviders.map((provider) => (
               <button
                 key={provider.id}
                 type="button"
-                onClick={() => void handleProviderSelect(provider.id)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-zinc-900"
+                disabled={
+                  isConnecting || !provider.installed || !provider.providerId
+                }
+                onClick={() => handleProviderSelect(provider.providerId)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500 disabled:hover:bg-zinc-950"
               >
                 {provider.icon ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -222,14 +243,25 @@ export default function WalletButton() {
                 ) : (
                   <span className="h-5 w-5 rounded-full bg-zinc-800" />
                 )}
-                <span className="min-w-0 truncate">{provider.name}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {provider.name}
+                </span>
+                <span className="text-xs">
+                  {provider.installed ? "Installed" : "Not installed"}
+                </span>
               </button>
             ))
-          ) : (
+          ) : connectError ? (
             <div className="px-4 py-3 text-sm font-medium text-red-400">
               {connectError}
             </div>
-          )}
+          ) : null}
+
+          {walletProviders.length > 0 && connectError ? (
+            <div className="border-t border-zinc-800 px-4 py-3 text-sm font-medium text-red-400">
+              {connectError}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

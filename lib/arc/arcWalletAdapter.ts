@@ -1,77 +1,64 @@
 import {
-  createViemAdapterFromProvider,
-  type CreateViemAdapterFromProviderParams,
-} from "@circle-fin/adapter-viem-v2";
-
-import {
   ARC_CHAIN_ID,
   ARC_CHAIN_NAME,
   ARC_EXPLORER_URL,
   ARC_NATIVE_CURRENCY_SYMBOL,
   ARC_RPC_URL,
 } from "./arcConstants";
-import type { WalletState } from "@/lib/wallet/walletTypes";
+import {
+  discoverInjectedWalletProviders,
+  getInjectedWalletProvider,
+  type ArcWalletProviderOption,
+  type BrowserWalletProvider,
+} from "./arcWalletDiscovery";
+import {
+  isUnknownChainError,
+  normalizeWalletError,
+} from "./arcWalletErrors";
+import type { ArcWalletState } from "./arcWalletTypes";
 
-export type BrowserWalletProvider =
-  CreateViemAdapterFromProviderParams["provider"] & {
-    on?: (event: string, listener: (...args: unknown[]) => void) => void;
-    removeListener?: (
-      event: string,
-      listener: (...args: unknown[]) => void
-    ) => void;
-  };
+export {
+  getArcWalletProviders,
+  type ArcWalletCatalogOption,
+  type ArcWalletProviderOption,
+  type BrowserWalletProvider,
+} from "./arcWalletDiscovery";
 
-type Eip6963ProviderDetail = {
-  info: {
-    uuid: string;
-    name: string;
-    icon: string;
-    rdns: string;
-  };
-  provider: BrowserWalletProvider;
-};
+export type ArcWalletConnectResult =
+  | {
+      ok: true;
+      address: string;
+    }
+  | {
+      ok: false;
+      error: Error;
+    };
 
-export type ArcWalletProviderOption = {
-  id: string;
-  name: string;
-  icon: string | null;
-  rdns: string | null;
-};
-
-type DiscoveredWalletProvider = ArcWalletProviderOption & {
-  provider: BrowserWalletProvider;
-};
-
-declare global {
-  interface Window {
-    ethereum?: BrowserWalletProvider;
-  }
-
-  interface WindowEventMap {
-    "eip6963:announceProvider": CustomEvent<Eip6963ProviderDetail>;
-  }
-}
-
-const disconnectedWalletState: WalletState = {
+const disconnectedWalletState: ArcWalletState = {
   status: "disconnected",
   connected: false,
   address: null,
   chainId: null,
 };
-const restoringWalletState: WalletState = {
+
+const restoringWalletState: ArcWalletState = {
   status: "restoring",
   connected: false,
   address: null,
   chainId: null,
 };
+
 const appDisconnectedSessionKey = "pdooh-wallet-app-disconnected";
 const boundProviderSessionKey = "pdooh-wallet-bound-provider";
+const metamaskRdns = "io.metamask";
+const walletConnectTimeoutMs = 30_000;
 
 let currentWalletState = restoringWalletState;
 let activeProvider: BrowserWalletProvider | null = null;
 let activeAccountsChangedListener: ((accounts: unknown) => void) | null = null;
 let activeChainChangedListener: ((chainId: unknown) => void) | null = null;
 let walletChangeListener: (() => void) | null = null;
+let activeConnectPromise: Promise<ArcWalletConnectResult> | null = null;
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -112,64 +99,11 @@ function createSignInMessage(address: string) {
   ].join("\n");
 }
 
-function normalizeWalletError(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (typeof error === "object" && error !== null) {
-    const walletError = error as {
-      code?: unknown;
-      message?: unknown;
-      shortMessage?: unknown;
-    };
-    const message =
-      typeof walletError.message === "string"
-        ? walletError.message
-        : typeof walletError.shortMessage === "string"
-          ? walletError.shortMessage
-          : "Wallet connection failed";
-
-    return walletError.code === undefined
-      ? message
-      : `${message} (code: ${String(walletError.code)})`;
-  }
-
-  return "Wallet connection failed";
-}
-
-function isUnknownChainError(error: unknown) {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-
-  const walletError = error as {
-    code?: unknown;
-    message?: unknown;
-    shortMessage?: unknown;
-  };
-  const message = `${String(walletError.message ?? "")} ${String(
-    walletError.shortMessage ?? ""
-  )}`.toLowerCase();
-
-  return (
-    walletError.code === 4902 ||
-    walletError.code === "4902" ||
-    ((walletError.code === -32603 || walletError.code === "-32603") &&
-      (message.includes("unrecognized chain id") ||
-        message.includes("unknown chain")))
-  );
-}
-
 function emitWalletChanged() {
   walletChangeListener?.();
 }
 
-function setWalletState(nextState: WalletState) {
+function setWalletState(nextState: ArcWalletState) {
   currentWalletState = nextState;
   emitWalletChanged();
 }
@@ -256,87 +190,6 @@ function clearProviderBinding() {
   window.sessionStorage.removeItem(boundProviderSessionKey);
 }
 
-function matchesProviderBinding(
-  provider: DiscoveredWalletProvider,
-  binding: ArcWalletProviderOption
-) {
-  if (binding.rdns) {
-    return provider.rdns === binding.rdns;
-  }
-
-  return provider.id === binding.id;
-}
-
-async function discoverInjectedWalletProviders(): Promise<
-  DiscoveredWalletProvider[]
-> {
-  if (!isBrowser()) {
-    return [];
-  }
-
-  const providers = new Map<string, Eip6963ProviderDetail>();
-  const onAnnounce = ((event: CustomEvent<Eip6963ProviderDetail>) => {
-    providers.set(event.detail.info.uuid, event.detail);
-  }) as EventListener;
-
-  window.addEventListener("eip6963:announceProvider", onAnnounce);
-  window.dispatchEvent(new Event("eip6963:requestProvider"));
-  await new Promise((resolve) => window.setTimeout(resolve, 250));
-  window.removeEventListener("eip6963:announceProvider", onAnnounce);
-
-  const eip6963Providers = [...providers.values()].map((detail) => ({
-    id: detail.info.uuid,
-    name: detail.info.name,
-    icon: detail.info.icon || null,
-    rdns: detail.info.rdns || null,
-    provider: detail.provider,
-  }));
-
-  if (eip6963Providers.length > 0) {
-    return eip6963Providers;
-  }
-
-  if (window.ethereum) {
-    return [
-      {
-        id: "window.ethereum",
-        name: "Browser Wallet",
-        icon: null,
-        rdns: null,
-        provider: window.ethereum,
-      },
-    ];
-  }
-
-  return [];
-}
-
-async function getInjectedWalletProvider(
-  providerId?: string
-): Promise<DiscoveredWalletProvider> {
-  const providers = await discoverInjectedWalletProviders();
-
-  if (providers.length === 0) {
-    throw new Error("No browser wallet found.");
-  }
-
-  if (!providerId) {
-    if (providers.length === 1) {
-      return providers[0];
-    }
-
-    throw new Error("Choose a browser wallet.");
-  }
-
-  const selectedProvider = providers.find((provider) => provider.id === providerId);
-
-  if (!selectedProvider) {
-    throw new Error("Selected browser wallet was not found.");
-  }
-
-  return selectedProvider;
-}
-
 async function switchToArcTestnet(provider: BrowserWalletProvider) {
   const arcChainId = toHexChainId(ARC_CHAIN_ID);
   const switchToArc = () =>
@@ -366,7 +219,7 @@ async function switchToArcTestnet(provider: BrowserWalletProvider) {
     await switchToArc();
   } catch (error) {
     if (!isUnknownChainError(error)) {
-      throw new Error(normalizeWalletError(error));
+      throw normalizeWalletError(error);
     }
 
     await addArc();
@@ -380,7 +233,7 @@ async function getCurrentChainId(provider: BrowserWalletProvider) {
 
 async function readAuthorizedWalletState(
   provider: BrowserWalletProvider
-): Promise<WalletState | null> {
+): Promise<ArcWalletState | null> {
   const [accounts, chainId] = await Promise.all([
     provider.request({ method: "eth_accounts" }),
     provider.request({ method: "eth_chainId" }),
@@ -401,10 +254,16 @@ async function readAuthorizedWalletState(
 
 async function requestWalletAddress(provider: BrowserWalletProvider) {
   const address = firstAddress(
-    await provider.request({
-      method: "eth_requestAccounts",
-      params: undefined,
-    })
+    await withTimeout(
+      Promise.resolve().then(() =>
+        provider.request({
+          method: "eth_requestAccounts",
+          params: undefined,
+        })
+      ),
+      walletConnectTimeoutMs,
+      "Wallet connection timed out. Please retry."
+    )
   );
 
   if (!address) {
@@ -412,6 +271,29 @@ async function requestWalletAddress(provider: BrowserWalletProvider) {
   }
 
   return address;
+}
+
+function withTimeout<T>(
+  request: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+
+    request.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error: unknown) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
 }
 
 async function requestSignInSignature(
@@ -464,18 +346,17 @@ function bindProviderEvents(provider: BrowserWalletProvider) {
     }
 
     const nextAddress = firstAddress(accounts);
+    const currentAddress = currentWalletState.address;
 
-    if (!nextAddress) {
-      setDisconnectedWalletState();
+    if (
+      !nextAddress ||
+      !currentWalletState.connected ||
+      !currentAddress ||
+      nextAddress.toLowerCase() !== currentAddress.toLowerCase()
+    ) {
+      disconnectArcWallet();
       return;
     }
-
-    setWalletState({
-      ...currentWalletState,
-      status: "connected",
-      connected: true,
-      address: nextAddress,
-    });
   };
   activeChainChangedListener = (chainId: unknown) => {
     if (activeProvider !== provider) {
@@ -504,20 +385,7 @@ export function getActiveArcWalletProvider() {
   return activeProvider;
 }
 
-export async function getArcWalletProviders(): Promise<
-  ArcWalletProviderOption[]
-> {
-  return (await discoverInjectedWalletProviders()).map(
-    ({ id, name, icon, rdns }) => ({
-      id,
-      name,
-      icon,
-      rdns,
-    })
-  );
-}
-
-export async function connectArcWallet(providerId?: string) {
+async function performArcWalletConnect(providerId?: string) {
   try {
     const selectedProvider = await getInjectedWalletProvider(providerId);
     const { provider } = selectedProvider;
@@ -527,11 +395,6 @@ export async function connectArcWallet(providerId?: string) {
     await switchToArcTestnet(provider);
     await requestSignInSignature(provider, address);
     unlockAppDisconnect();
-    await createViemAdapterFromProvider({
-      provider,
-      capabilities: { addressContext: "user-controlled" },
-    });
-
     bindProviderEvents(provider);
     storeProviderBinding(selectedProvider);
     setWalletState({
@@ -541,11 +404,36 @@ export async function connectArcWallet(providerId?: string) {
       chainId: await getCurrentChainId(provider),
     });
 
-    return address;
+    return {
+      ok: true,
+      address,
+    } satisfies ArcWalletConnectResult;
   } catch (error) {
-    console.warn("Arc wallet connect failed", error);
-    throw new Error(normalizeWalletError(error));
+    clearProviderBinding();
+    unbindProviderEvents();
+    setDisconnectedWalletState();
+    return {
+      ok: false,
+      error: normalizeWalletError(error),
+    } satisfies ArcWalletConnectResult;
   }
+}
+
+export function connectArcWallet(
+  providerId?: string
+): Promise<ArcWalletConnectResult> {
+  if (activeConnectPromise) {
+    return activeConnectPromise;
+  }
+
+  const connectPromise = performArcWalletConnect(providerId).finally(() => {
+    if (activeConnectPromise === connectPromise) {
+      activeConnectPromise = null;
+    }
+  });
+
+  activeConnectPromise = connectPromise;
+  return connectPromise;
 }
 
 export function disconnectArcWallet() {
@@ -565,22 +453,37 @@ export async function refreshArcWalletState() {
   }
 
   if (isAppDisconnectLocked()) {
+    clearProviderBinding();
+    unbindProviderEvents();
     setDisconnectedWalletState();
     return;
   }
 
   try {
-    const providers = await discoverInjectedWalletProviders();
+    const { eip6963 } = await discoverInjectedWalletProviders();
+
+    if (isAppDisconnectLocked()) {
+      clearProviderBinding();
+      unbindProviderEvents();
+      setDisconnectedWalletState();
+      return;
+    }
+
     const storedBinding = getStoredProviderBinding();
-    const selectedProvider = storedBinding
-      ? providers.find((provider) =>
-          matchesProviderBinding(provider, storedBinding)
-        )
-      : providers.length === 1
-        ? providers[0]
-        : null;
+
+    if (storedBinding?.rdns === metamaskRdns) {
+      clearProviderBinding();
+      unbindProviderEvents();
+      setDisconnectedWalletState();
+      return;
+    }
+
+    const selectedProvider = storedBinding?.rdns
+      ? eip6963.find((provider) => provider.rdns === storedBinding.rdns)
+      : null;
 
     if (!selectedProvider) {
+      clearProviderBinding();
       unbindProviderEvents();
       setDisconnectedWalletState();
       return;
@@ -590,6 +493,13 @@ export async function refreshArcWalletState() {
       selectedProvider.provider
     );
 
+    if (isAppDisconnectLocked()) {
+      clearProviderBinding();
+      unbindProviderEvents();
+      setDisconnectedWalletState();
+      return;
+    }
+
     bindProviderEvents(selectedProvider.provider);
     storeProviderBinding(selectedProvider);
 
@@ -598,10 +508,13 @@ export async function refreshArcWalletState() {
       return;
     }
   } catch {
+    clearProviderBinding();
     unbindProviderEvents();
     setDisconnectedWalletState();
     return;
   }
 
+  clearProviderBinding();
+  unbindProviderEvents();
   setDisconnectedWalletState();
 }

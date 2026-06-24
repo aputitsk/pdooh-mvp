@@ -14,6 +14,7 @@ type AuctionSlotCardProps = {
   selectedAdvertisement: string;
   bid: string;
   availableAuctionCapacity?: UsdcMinorUnits;
+  isAggregateExposureTooHigh?: boolean;
   isBidSubmitted?: boolean;
   isDisabled?: boolean;
   disabledMessage?: string;
@@ -28,6 +29,7 @@ export default function AuctionSlotCard({
   selectedAdvertisement,
   bid,
   availableAuctionCapacity = 0,
+  isAggregateExposureTooHigh = false,
   isBidSubmitted = false,
   isDisabled = false,
   disabledMessage,
@@ -46,6 +48,7 @@ export default function AuctionSlotCard({
     hasSelectedAdvertisement &&
     hasBidAmount &&
     !isBidTooHigh &&
+    !isAggregateExposureTooHigh &&
     !isLocked;
 
   return (
@@ -84,6 +87,12 @@ export default function AuctionSlotCard({
         {isBidTooHigh && !isDisabled && (
           <p className="text-sm text-red-400">
             Bid exceeds your available escrow capacity.
+          </p>
+        )}
+
+        {!isBidTooHigh && isAggregateExposureTooHigh && !isDisabled && (
+          <p className="text-sm text-red-400">
+            Total bids exceed available escrow capacity.
           </p>
         )}
 

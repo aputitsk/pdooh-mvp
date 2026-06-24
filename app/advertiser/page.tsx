@@ -8,6 +8,7 @@ import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
 import TreasuryTransferCard from "@/components/advertiser/TreasuryTransferCard";
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
+import { useTemporaryReservedAmount } from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
 
 export default function AdvertiserPage() {
@@ -21,6 +22,12 @@ export default function AdvertiserPage() {
   } = useDemoAdvertiserStore();
   const walletUsdcBalance = useWalletUsdcBalance();
   const walletEscrowBalance = useWalletEscrowBalance();
+  const reservedAmount = useTemporaryReservedAmount(wallet.address);
+  const availableAuctionCapacity =
+    walletEscrowBalance.status === "ready" &&
+    walletEscrowBalance.balance !== null
+      ? Math.max(walletEscrowBalance.balance - reservedAmount, 0)
+      : 0;
 
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -29,8 +36,7 @@ export default function AdvertiserPage() {
   const canShowWorkspace = wallet.connected && isBusinessProfileCreated;
   const hasAvailableAuctionCapacity =
     walletEscrowBalance.status === "ready" &&
-    walletEscrowBalance.balance !== null &&
-    walletEscrowBalance.balance > 0;
+    availableAuctionCapacity > 0;
   const canGoToAuction =
     canShowWorkspace &&
     businessName.trim().length > 0 &&

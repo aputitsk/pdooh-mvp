@@ -29,4 +29,5 @@ export const AUCTION_STORAGE_KEYS = {
   slotStates: "pdooh-auction-slot-states",
   submittedBids: "pdooh-auction-submitted-bids",
   paidSlots: "pdooh-auction-paid-slots",
+  temporaryReservations: "pdooh-auction-temporary-reservations",
 } as const;

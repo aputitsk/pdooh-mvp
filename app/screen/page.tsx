@@ -1,25 +1,50 @@
 "use client";
 
+import { useEffect } from "react";
 import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
-import { useDemoAuctionStore } from "@/lib/auction";
+import {
+  syncTemporaryAuctionReservations,
+  useDemoAuctionStore,
+  useTemporaryReservedAmount,
+} from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletStore } from "@/lib/wallet";
 
 export default function ScreenPage() {
   const auction = useDemoAuctionStore();
   const wallet = useWalletStore();
   const escrowBalance = useWalletEscrowBalance();
-  // Temporary demo capacity: the full escrow balance is available because
-  // pending accounting reservations and settlements do not exist yet.
+  const reservedAmount = useTemporaryReservedAmount(wallet.address);
+  // Temporary demo model only. Until the Accounting Layer exists, available
+  // auction capacity is escrow custody minus finalized winning reservations.
   const availableAuctionCapacity =
     escrowBalance.status === "ready" && escrowBalance.balance !== null
-      ? escrowBalance.balance
+      ? Math.max(escrowBalance.balance - reservedAmount, 0)
       : 0;
 
   const phase = auction.clock.phase;
   const currentSlotIndex = auction.clock.currentSlotIndex;
   const liveWinner =
     phase === "live" ? auction.winners[currentSlotIndex] : null;
+
+  useEffect(() => {
+    if (!wallet.connected || !wallet.address) {
+      return;
+    }
+
+    syncTemporaryAuctionReservations({
+      advertiserAddress: wallet.address,
+      clock: auction.clock,
+      winners: auction.winners,
+      winnerBidAmounts: auction.winnerBidAmounts,
+    });
+  }, [
+    auction.clock,
+    auction.winnerBidAmounts,
+    auction.winners,
+    wallet.address,
+    wallet.connected,
+  ]);
 
   if (!auction.isLoaded) {
     return (
@@ -59,7 +84,8 @@ export default function ScreenPage() {
           advertisements={auction.advertisements}
           slotStates={auction.slotStates}
           availableAuctionCapacity={availableAuctionCapacity}
-          escrowBalance={escrowBalance.formattedBalance}
+          escrowBalance={escrowBalance.balance}
+          reservedAmount={reservedAmount}
           escrowBalanceStatus={escrowBalance.status}
           escrowBalanceError={escrowBalance.error}
           submittedBids={auction.submittedBids}

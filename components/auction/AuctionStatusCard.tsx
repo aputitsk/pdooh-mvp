@@ -1,10 +1,16 @@
 import type { Advertisement, AuctionPhase } from "@/lib/auction";
+import {
+  formatUSDCFromMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
 type AuctionStatusCardProps = {
   phase: AuctionPhase | "selecting";
   secondsRemaining: number;
   currentSlotIndex: number;
-  escrowBalance: string;
+  escrowBalance: UsdcMinorUnits | null;
+  availableAuctionCapacity: UsdcMinorUnits;
+  reservedAmount: UsdcMinorUnits;
   escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
   escrowBalanceError: string | null;
   winners: Advertisement[];
@@ -15,6 +21,8 @@ export default function AuctionStatusCard({
   secondsRemaining,
   currentSlotIndex,
   escrowBalance,
+  availableAuctionCapacity,
+  reservedAmount,
   escrowBalanceStatus,
   escrowBalanceError,
   winners,
@@ -56,10 +64,9 @@ export default function AuctionStatusCard({
   };
 
   const status = getStatus();
-  const shouldShowWallet = phase !== "selecting" && phase !== "locked";
   const escrowBalanceText =
-    escrowBalanceStatus === "ready"
-      ? `${escrowBalance} Test USDC`
+    escrowBalanceStatus === "ready" && escrowBalance !== null
+      ? `${formatUSDCFromMinorUnits(escrowBalance)} Test USDC`
       : escrowBalanceStatus === "loading"
         ? "Reading balance..."
         : escrowBalanceStatus === "error"
@@ -114,21 +121,34 @@ export default function AuctionStatusCard({
           )}
         </div>
 
-        {shouldShowWallet && (
-          <>
-            <div className="h-px bg-white/10 lg:hidden" />
+        <>
+          <div className="h-px bg-white/10 lg:hidden" />
 
-            <div className="min-w-[220px] rounded-2xl border border-white/10 bg-black/20 px-5 py-4 backdrop-blur">
-              <p className="text-xs uppercase tracking-widest text-white/50">
-                Escrow Balance
-              </p>
+          <div className="min-w-[240px] rounded-2xl border border-white/10 bg-black/20 px-5 py-4 backdrop-blur">
+            <p className="text-xs uppercase tracking-widest text-white/50">
+              Escrow Balance
+            </p>
+            <p className="mt-1 break-words text-xl font-bold">
+              {escrowBalanceText}
+            </p>
 
-              <p className="mt-2 break-words text-xl font-bold">
-                {escrowBalanceText}
-              </p>
-            </div>
-          </>
-        )}
+            <p className="mt-4 text-xs uppercase tracking-widest text-white/50">
+              Available
+            </p>
+            <p className="mt-1 text-xl font-bold">
+              {escrowBalanceStatus === "ready"
+                ? `${formatUSDCFromMinorUnits(availableAuctionCapacity)} Test USDC`
+                : "—"}
+            </p>
+
+            <p className="mt-4 text-xs uppercase tracking-widest text-white/50">
+              Reserved
+            </p>
+            <p className="mt-1 text-xl font-bold">
+              {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
+            </p>
+          </div>
+        </>
       </div>
     </div>
   );

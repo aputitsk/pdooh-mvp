@@ -1,8 +1,12 @@
 import { formatUSDCFromMinorUnits } from "@/lib/money/usdc";
-import { connectWallet, getWalletState, logOutWallet } from "@/lib/wallet";
 
 import { ARC_EXPLORER_URL } from "./arcConstants";
 import type { ArcBalancePort, ArcPaymentPort, ArcWalletPort } from "./arcPorts";
+import {
+  connectArcWallet,
+  disconnectArcWallet,
+  getArcWalletState,
+} from "./arcWalletAdapter";
 
 function createMockTransactionHash(seed: string) {
   let hash = "";
@@ -16,17 +20,17 @@ function createMockTransactionHash(seed: string) {
 
 export const mockArcWalletPort: ArcWalletPort = {
   async connect() {
-    connectWallet();
+    void connectArcWallet().catch(() => undefined);
 
-    return getWalletState();
+    return getArcWalletState();
   },
 
   async disconnect() {
-    logOutWallet();
+    disconnectArcWallet();
   },
 
   async getState() {
-    return getWalletState();
+    return getArcWalletState();
   },
 };
 

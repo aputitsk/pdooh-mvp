@@ -14,7 +14,7 @@ import {
   processAllAuctionSlotPayments,
   processAuctionSlotPayment,
 } from "./auctionPayments";
-import { getUserBidExposure } from "./auctionRules";
+import { getBidExposureWithCandidate } from "./auctionRules";
 import { selectAuctionWinners } from "./auctionWinners";
 import {
   createBooleanList,
@@ -96,7 +96,13 @@ export function placeAuctionBid(
     return;
   }
 
-  if (getUserBidExposure(slotStates) > availableAuctionCapacity) {
+  if (
+    getBidExposureWithCandidate({
+      slotIndex,
+      slotStates,
+      submittedBids,
+    }) > availableAuctionCapacity
+  ) {
     return;
   }
 

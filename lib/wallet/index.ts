@@ -7,7 +7,8 @@ import {
   getArcWalletProviders,
   refreshArcWalletState,
   setArcWalletChangeListener,
-  type ArcWalletProviderOption,
+  type ArcWalletCatalogOption,
+  type ArcWalletConnectResult,
 } from "@/lib/arc/arcWalletAdapter";
 import { notifyWalletChanged, subscribeToWalletChanges } from "./walletEvents";
 
@@ -31,7 +32,7 @@ export {
   type WalletEscrowDepositLifecycle,
   type WalletEscrowDepositResult,
 } from "./walletEscrowTransactions";
-export type WalletProviderOption = ArcWalletProviderOption;
+export type WalletProviderOption = ArcWalletCatalogOption;
 
 const restoringWalletSnapshot = "restoring|0||";
 
@@ -91,8 +92,16 @@ export function getWalletProviders() {
   return getArcWalletProviders();
 }
 
-export function connectWallet(providerId?: string) {
-  return connectArcWallet(providerId);
+export function connectWallet(
+  providerId?: string
+): Promise<ArcWalletConnectResult> {
+  return connectArcWallet(providerId).catch((error: unknown) => ({
+    ok: false,
+    error:
+      error instanceof Error
+        ? error
+        : new Error("Wallet connection failed", { cause: error }),
+  }));
 }
 
 export function logOutWallet() {
