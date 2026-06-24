@@ -41,7 +41,10 @@ type DemoAuctionSnapshot = {
 
 type DemoAuctionStore = DemoAuctionSnapshot & {
   updateSlot: (slotIndex: number, nextState: Partial<SlotState>) => void;
-  placeBid: (slotIndex: number) => void;
+  placeBid: (
+    slotIndex: number,
+    availableAuctionCapacity: UsdcMinorUnits
+  ) => void;
 };
 
 const listeners = new Set<() => void>();
@@ -176,10 +179,17 @@ function updateSlot(slotIndex: number, nextState: Partial<SlotState>) {
   emitChange();
 }
 
-function placeBid(slotIndex: number) {
+function placeBid(
+  slotIndex: number,
+  availableAuctionCapacity: UsdcMinorUnits
+) {
   const snapshot = getSnapshot();
 
-  placeAuctionBid(slotIndex, snapshot.clock.phase);
+  placeAuctionBid(
+    slotIndex,
+    snapshot.clock.phase,
+    availableAuctionCapacity
+  );
   notifyAuctionStoreChanged();
   emitChange();
 }

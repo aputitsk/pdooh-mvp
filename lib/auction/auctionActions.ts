@@ -1,5 +1,8 @@
 import type { AuctionClock, SlotState } from "./auctionTypes";
-import { parseUSDCToMinorUnits } from "@/lib/money/usdc";
+import {
+  parseUSDCToMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 import {
   AUCTION_OPEN_SECONDS,
   AUCTION_PLAYBACK_SECONDS_PER_SLOT,
@@ -60,10 +63,13 @@ export function updateAuctionSlot(
   setStoredSlotStates(nextSlotStates);
 }
 
-export function placeAuctionBid(slotIndex: number, phase: string) {
+export function placeAuctionBid(
+  slotIndex: number,
+  phase: string,
+  availableAuctionCapacity: UsdcMinorUnits
+) {
   const slotStates = getStoredSlotStates();
   const submittedBids = getStoredSubmittedBids();
-  const walletBalance = getStoredWalletBalance();
   const slot = slotStates[slotIndex];
   const bidAmount = getBidAmount(slot?.bid);
 
@@ -83,7 +89,14 @@ export function placeAuctionBid(slotIndex: number, phase: string) {
     return;
   }
 
-  if (getUserBidExposure(slotStates) > walletBalance) {
+  if (
+    !Number.isSafeInteger(availableAuctionCapacity) ||
+    availableAuctionCapacity <= 0
+  ) {
+    return;
+  }
+
+  if (getUserBidExposure(slotStates) > availableAuctionCapacity) {
     return;
   }
 
@@ -116,12 +129,15 @@ export function getCurrentAuctionWinners() {
 
 export function processAuctionPayment(slotIndex: number) {
   const { winners, winnerBidAmounts } = getCurrentAuctionWinners();
+  // Legacy demo-only payment ledger. It no longer controls auction access or
+  // bid validation and remains until the Accounting Layer replaces it.
+  const legacyDemoPaymentBalance = getStoredWalletBalance();
   const result = processAuctionSlotPayment({
     slotIndex,
     paidSlots: getStoredPaidSlots(),
     winners,
     winnerBidAmounts,
-    walletBalance: getStoredWalletBalance(),
+    walletBalance: legacyDemoPaymentBalance,
     demoTreasury: getStoredDemoTreasury(),
   });
 
@@ -132,11 +148,14 @@ export function processAuctionPayment(slotIndex: number) {
 
 export function processAllUnpaidAuctionPayments() {
   const { winners, winnerBidAmounts } = getCurrentAuctionWinners();
+  // Legacy demo-only payment ledger. It is isolated from escrow-backed
+  // auction capacity and does not represent on-chain custody.
+  const legacyDemoPaymentBalance = getStoredWalletBalance();
   const result = processAllAuctionSlotPayments({
     paidSlots: getStoredPaidSlots(),
     winners,
     winnerBidAmounts,
-    walletBalance: getStoredWalletBalance(),
+    walletBalance: legacyDemoPaymentBalance,
     demoTreasury: getStoredDemoTreasury(),
   });
 

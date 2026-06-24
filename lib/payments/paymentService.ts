@@ -1,6 +1,11 @@
-import { sendWalletUsdcToTreasury } from "@/lib/wallet";
+import {
+  depositWalletUsdcToEscrow,
+  sendWalletUsdcToTreasury,
+} from "@/lib/wallet";
 
 import type {
+  EscrowDepositLifecycle,
+  EscrowDepositResult,
   PaymentTransactionHash,
   TreasuryPaymentLifecycle,
 } from "./paymentTypes";
@@ -12,7 +17,16 @@ export async function sendTreasuryPayment(
   return sendWalletUsdcToTreasury(amount, lifecycle);
 }
 
+export async function depositEscrowFunds(
+  amount: string,
+  lifecycle: EscrowDepositLifecycle = {}
+): Promise<EscrowDepositResult> {
+  return depositWalletUsdcToEscrow(amount, lifecycle);
+}
+
 export type {
+  EscrowDepositLifecycle,
+  EscrowDepositResult,
   PaymentTransactionHash,
   TreasuryPaymentLifecycle,
 } from "./paymentTypes";

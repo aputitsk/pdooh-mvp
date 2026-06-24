@@ -9,11 +9,12 @@ The project has an active Arc Testnet integration for:
 - connecting an injected external wallet;
 - Arc Testnet network handling;
 - reading the connected wallet's ERC-20 USDC balance;
-- manually transferring ERC-20 USDC from the connected wallet to the configured pDOOH Treasury address.
+- manually transferring ERC-20 USDC from the connected wallet to the configured pDOOH Treasury address;
+- independently approving and depositing ERC-20 USDC into the configured `AuctionEscrow`.
 
 The Business Profile, advertisements, internal demo balance, auction state, winner selection, paid-slot state, and demo treasury remain browser-based demo features.
 
-The current blockchain flow is separate from the demo auction flow. There is no real auction settlement, automatic settlement after playback, blockchain auction payment, or frontend integration with `AuctionEscrow`.
+The current blockchain flows are separate from the demo auction flow. There is no real auction settlement, automatic settlement after playback, blockchain auction payment, Accounting Layer, or Operator Service.
 
 ## Arc Testnet Configuration
 
@@ -103,9 +104,9 @@ The UI does not import the Arc transaction adapter or Viem directly.
 Responsibilities are separated as follows:
 
 - UI: collects the amount and displays lifecycle state.
-- `paymentService`: exposes the application payment operation to the UI.
+- `paymentService`: exposes manual Treasury transfer and independent escrow deposit operations to the UI.
 - wallet transaction layer: parses the amount and coordinates transaction lifecycle callbacks.
-- Arc transaction adapter: performs Arc-specific account, chain, simulation, submission, and receipt handling.
+- Arc transaction adapters: perform Arc-specific account, chain, contract validation, simulation, submission, and receipt handling.
 
 This payment boundary is not used by the demo auction payment logic.
 
@@ -118,6 +119,8 @@ This payment boundary is not used by the demo auction payment logic.
 - `arcWalletAdapter.ts`: injected wallet and Arc network handling;
 - `arcBalanceAdapter.ts`: read-only ERC-20 USDC balance access;
 - `arcTransactionAdapter.ts`: manual ERC-20 Treasury transfer execution;
+- `arcEscrowConfig.ts`: public escrow address validation;
+- `arcEscrowAdapter.ts`: configured escrow validation and independent `approve -> deposit` execution;
 - `arcPorts.ts`: Arc-facing wallet, balance, and payment type contracts;
 - `mockArcPorts.ts`: legacy/demo port implementations not used by the active runtime UI.
 
@@ -145,9 +148,9 @@ The manual external-wallet Treasury transfer is displayed in the advertiser flow
 
 ## AuctionEscrow Status
 
-`src/AuctionEscrow.sol` and Solidity test sources are present in the repository. The contract is not imported or called by the frontend, payment service, wallet transaction layer, or demo auction.
+`src/AuctionEscrow.sol` and Solidity test sources are present in the repository. The frontend can independently approve ERC-20 USDC and call `deposit(amount)` through the payment service, wallet transaction layer, and Arc escrow adapter.
 
-The repository contains a Foundry deployment script, but the repository does not establish that `AuctionEscrow` has been deployed.
+The demo auction does not import or call `AuctionEscrow`. No current application path calls `settle`.
 
 The escrow is exclusively a financial boundary:
 
@@ -183,6 +186,14 @@ The escrow uses three distinct public addresses:
 The deployment script requires Owner, Operator, and Treasury to be different addresses. It also requires the frontend Treasury configuration to match the escrow Treasury configuration.
 
 Operator Service infrastructure is intentionally outside the current project scope and is not represented as an implemented project component.
+
+## Planned Accounting Boundary
+
+Before any auction settlement integration, the project requires an Accounting Layer between finalized auction results and a future server-side Operator.
+
+Accounting will record the financial obligation and off-chain reservation. Escrow will continue to provide custody and will receive only `advertiser`, `amount`, and `settlementId` during a future settlement call. Treasury remains the settlement destination.
+
+Escrow custody must not be described as auction balance. The detailed planned model and lifecycle are documented in [ACCOUNTING_LAYER.md](./ACCOUNTING_LAYER.md).
 
 ## Official Arc References
 

@@ -7,7 +7,7 @@ export function hasAuctionAccess(access: AuctionAccess) {
     access.hasWallet &&
     access.hasBusinessProfile &&
     access.hasAdvertisement &&
-    access.balance > 0
+    access.availableAuctionCapacity > 0
   );
 }
 
@@ -30,7 +30,7 @@ export function canPlaceBid(params: {
     return false;
   }
 
-  if (bidAmount > access.balance) {
+  if (bidAmount > access.availableAuctionCapacity) {
     return false;
   }
 

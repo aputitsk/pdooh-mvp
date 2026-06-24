@@ -10,7 +10,8 @@ The current project deliberately combines:
 
 - a browser-based demo marketplace and auction;
 - a limited Arc Testnet blockchain integration;
-- a standalone `AuctionEscrow` financial contract that is present in the repository but is not connected to the frontend or demo auction.
+- a standalone `AuctionEscrow` financial contract with an independent frontend deposit flow that is not connected to the demo auction;
+- a planned Accounting Layer between finalized auction results and future settlement.
 
 Demo balances and demo auction payments must not be interpreted as blockchain funds or onchain settlement.
 
@@ -37,6 +38,7 @@ Demo balances and demo auction payments must not be interpreted as blockchain fu
 - Restoration of an already authorized wallet session.
 - Read-only ERC-20 USDC balance for the connected external wallet.
 - Manual ERC-20 USDC transfer from the external wallet to the configured pDOOH Treasury address.
+- Independent ERC-20 USDC `approve -> deposit` flow into the configured `AuctionEscrow`.
 - Transaction lifecycle display for wallet confirmation, pending receipt, success, and error states.
 
 ### Smart Contract Sources
@@ -45,7 +47,7 @@ Demo balances and demo auction payments must not be interpreted as blockchain fu
 - Foundry deployment script.
 - Solidity test sources and `MockUSDC`.
 
-The repository does not establish that `AuctionEscrow` has been deployed. The contract and Solidity test sources are present, but Solidity test execution is not implied by their presence.
+The application contains a configured escrow deposit path. Solidity test source presence does not by itself imply that the tests were executed in the current environment.
 
 ## Product Flow
 
@@ -83,7 +85,7 @@ This flow does not submit blockchain transactions and does not call the payment 
 
 ### AuctionEscrow Status
 
-`AuctionEscrow` exists as a separate financial layer for ERC-20 USDC custody and settlement. It is not exposed in the current UI and is not called by the demo auction, payment service, or wallet transaction flow.
+`AuctionEscrow` exists as a separate financial layer for ERC-20 USDC custody and settlement. Its deposit operation is exposed through the current UI, payment service, wallet transaction layer, and Arc escrow adapter. It is not called by the demo auction.
 
 Its standard ERC-20 flow is:
 
@@ -116,9 +118,24 @@ These components use browser storage and client-side demo logic.
 - Arc Testnet network configuration.
 - Read-only ERC-20 USDC balance.
 - Manual ERC-20 Treasury transfer.
+- Independent ERC-20 escrow deposit.
 - Standalone `AuctionEscrow` source and deployment tooling.
 
 The blockchain components do not perform auction settlement in the current project.
+
+### Planned Accounting Layer
+
+The planned boundary is:
+
+`Auction Engine -> Accounting Layer -> future Operator -> AuctionEscrow -> Treasury`
+
+- Auction Engine produces the domain result.
+- Accounting records the financial obligation, reservation, domain context, status, and canonical `settlementId`.
+- A future server-side Operator may execute settlement.
+- Escrow provides custody.
+- Treasury receives successful settlement transfers.
+
+Escrow balance is not auction balance. Detailed rules are defined in [ACCOUNTING_LAYER.md](./ACCOUNTING_LAYER.md).
 
 ## Payment Service Boundary
 
@@ -158,9 +175,9 @@ Operator Service infrastructure is outside the current project scope.
 - The manual Treasury transfer is not linked to an advertisement, auction slot, winner, or playback event.
 - There is no real auction settlement.
 - There are no blockchain auction payments.
-- `AuctionEscrow` is not connected to the frontend.
-- `AuctionEscrow` is not connected to the payment service.
+- `AuctionEscrow` is connected to the frontend and payment service only for independent deposits.
 - `AuctionEscrow` is not connected to the demo auction.
+- No current application path calls `settle`.
+- Accounting Layer is designed but not implemented.
 - App Kit Send is not implemented.
-- The project does not establish an `AuctionEscrow` deployment.
 - Operator Service is not implemented or represented as current infrastructure.

@@ -4,37 +4,38 @@ import { useState } from "react";
 import AdvertisementsCard from "@/components/advertiser/AdvertisementsCard";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
-import InternalWalletCard from "@/components/advertiser/InternalWalletCard";
+import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
 import TreasuryTransferCard from "@/components/advertiser/TreasuryTransferCard";
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
-import { useWalletUsdcBalance } from "@/lib/wallet";
+import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
 
 export default function AdvertiserPage() {
   const {
     wallet,
     businessName,
     isBusinessProfileCreated,
-    balance,
-    formattedBalance,
     advertisements,
     setBusinessName,
     createBusinessProfile,
-    depositTestUSDC,
   } = useDemoAdvertiserStore();
   const walletUsdcBalance = useWalletUsdcBalance();
+  const walletEscrowBalance = useWalletEscrowBalance();
 
-  const [depositAmount, setDepositAmount] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   const isWalletRestoring = wallet.status === "restoring";
   const canShowBusinessProfile = wallet.connected;
   const canShowWorkspace = wallet.connected && isBusinessProfileCreated;
+  const hasAvailableAuctionCapacity =
+    walletEscrowBalance.status === "ready" &&
+    walletEscrowBalance.balance !== null &&
+    walletEscrowBalance.balance > 0;
   const canGoToAuction =
     canShowWorkspace &&
     businessName.trim().length > 0 &&
     advertisements.length > 0 &&
-    balance > 0;
+    hasAvailableAuctionCapacity;
 
   function handleCreateBusinessProfile() {
     const result = createBusinessProfile(businessName);
@@ -43,14 +44,6 @@ export default function AdvertiserPage() {
       setSuccessMessage(
         "Demo Advertisement has been created for your business."
       );
-    }
-  }
-
-  function handleDepositTestUSDC() {
-    const isDeposited = depositTestUSDC(depositAmount);
-
-    if (isDeposited) {
-      setDepositAmount("");
     }
   }
 
@@ -67,9 +60,8 @@ export default function AdvertiserPage() {
           </h1>
 
           <p className="mt-3 max-w-2xl text-white/60">
-            Connect your wallet, create your business profile, fund your
-            internal wallet, manage advertisements, and join the private pDOOH
-            auction.
+            Connect your wallet, fund escrow, create your business profile,
+            manage advertisements, and join the private pDOOH auction.
           </p>
         </div>
 
@@ -90,7 +82,18 @@ export default function AdvertiserPage() {
           />
 
           {wallet.connected && (
-            <TreasuryTransferCard onSuccess={walletUsdcBalance.refresh} />
+            <>
+              <TreasuryTransferCard onSuccess={walletUsdcBalance.refresh} />
+              <EscrowDepositCard
+                escrowBalance={walletEscrowBalance.formattedBalance}
+                escrowBalanceStatus={walletEscrowBalance.status}
+                escrowBalanceError={walletEscrowBalance.error}
+                onSuccess={() => {
+                  walletUsdcBalance.refresh();
+                  walletEscrowBalance.refresh();
+                }}
+              />
+            </>
           )}
 
           {isWalletRestoring && (
@@ -111,23 +114,16 @@ export default function AdvertiserPage() {
           )}
 
           {!isWalletRestoring && canShowWorkspace && (
-            <>
-              <InternalWalletCard
-                balance={formattedBalance}
-                depositAmount={depositAmount}
-                onDepositAmountChange={setDepositAmount}
-                onDeposit={handleDepositTestUSDC}
-              />
-
-              <AdvertisementsCard advertisementCount={advertisements.length} />
-            </>
+            <AdvertisementsCard advertisementCount={advertisements.length} />
           )}
 
           {!isWalletRestoring && canGoToAuction && (
             <ReadyForAuctionCard
               businessName={businessName}
               advertisementCount={advertisements.length}
-              balance={formattedBalance}
+              balance={walletEscrowBalance.formattedBalance}
+              balanceStatus={walletEscrowBalance.status}
+              balanceError={walletEscrowBalance.error}
             />
           )}
         </div>

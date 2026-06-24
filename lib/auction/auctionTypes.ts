@@ -49,7 +49,7 @@ export type AuctionAccess = {
   hasWallet: boolean;
   hasBusinessProfile: boolean;
   hasAdvertisement: boolean;
-  balance: UsdcMinorUnits;
+  availableAuctionCapacity: UsdcMinorUnits;
 };
 
 export type AuctionState = {

@@ -19,9 +19,18 @@ export {
   type WalletUsdcBalanceState,
 } from "./walletBalance";
 export {
+  useWalletEscrowBalance,
+  type WalletEscrowBalanceState,
+} from "./walletEscrowBalance";
+export {
   sendWalletUsdcToTreasury,
   type WalletTransactionLifecycle,
 } from "./walletTransactions";
+export {
+  depositWalletUsdcToEscrow,
+  type WalletEscrowDepositLifecycle,
+  type WalletEscrowDepositResult,
+} from "./walletEscrowTransactions";
 export type WalletProviderOption = ArcWalletProviderOption;
 
 const restoringWalletSnapshot = "restoring|0||";

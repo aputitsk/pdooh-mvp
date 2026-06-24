@@ -3,11 +3,18 @@
 import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
 import { useDemoAuctionStore } from "@/lib/auction";
-import { useWalletStore } from "@/lib/wallet";
+import { useWalletEscrowBalance, useWalletStore } from "@/lib/wallet";
 
 export default function ScreenPage() {
   const auction = useDemoAuctionStore();
   const wallet = useWalletStore();
+  const escrowBalance = useWalletEscrowBalance();
+  // Temporary demo capacity: the full escrow balance is available because
+  // pending accounting reservations and settlements do not exist yet.
+  const availableAuctionCapacity =
+    escrowBalance.status === "ready" && escrowBalance.balance !== null
+      ? escrowBalance.balance
+      : 0;
 
   const phase = auction.clock.phase;
   const currentSlotIndex = auction.clock.currentSlotIndex;
@@ -51,7 +58,10 @@ export default function ScreenPage() {
           slots={[...auction.slots]}
           advertisements={auction.advertisements}
           slotStates={auction.slotStates}
-          walletBalance={auction.walletBalance}
+          availableAuctionCapacity={availableAuctionCapacity}
+          escrowBalance={escrowBalance.formattedBalance}
+          escrowBalanceStatus={escrowBalance.status}
+          escrowBalanceError={escrowBalance.error}
           submittedBids={auction.submittedBids}
           winners={auction.winners}
           isWalletConnected={wallet.connected}
@@ -66,7 +76,9 @@ export default function ScreenPage() {
               bid: value,
             })
           }
-          onPlaceBid={auction.placeBid}
+          onPlaceBid={(slot) =>
+            auction.placeBid(slot, availableAuctionCapacity)
+          }
         />
       </section>
     </main>

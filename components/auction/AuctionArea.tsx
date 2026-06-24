@@ -12,7 +12,10 @@ type AuctionAreaProps = {
   slots: string[];
   advertisements: Advertisement[];
   slotStates: SlotState[];
-  walletBalance: UsdcMinorUnits;
+  availableAuctionCapacity: UsdcMinorUnits;
+  escrowBalance: string;
+  escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
+  escrowBalanceError: string | null;
   submittedBids: boolean[];
   winners: Advertisement[];
   isWalletConnected: boolean;
@@ -29,7 +32,10 @@ export default function AuctionArea({
   slots,
   advertisements,
   slotStates,
-  walletBalance,
+  availableAuctionCapacity,
+  escrowBalance,
+  escrowBalanceStatus,
+  escrowBalanceError,
   submittedBids,
   winners,
   isWalletConnected,
@@ -38,10 +44,19 @@ export default function AuctionArea({
   onBidChange,
   onPlaceBid,
 }: AuctionAreaProps) {
-  const isAuctionDisabled = !isWalletConnected || isWalletRestoring;
+  const hasAvailableAuctionCapacity =
+    escrowBalanceStatus === "ready" && availableAuctionCapacity > 0;
+  const isAuctionDisabled =
+    !isWalletConnected || isWalletRestoring || !hasAvailableAuctionCapacity;
   const disabledMessage = isWalletRestoring
     ? undefined
-    : "Connect your wallet to select advertisements and place bids.";
+    : !isWalletConnected
+      ? "Connect your wallet to select advertisements and place bids."
+      : escrowBalanceStatus === "loading"
+        ? "Reading escrow capacity..."
+        : escrowBalanceStatus === "error"
+          ? escrowBalanceError ?? "Unable to read escrow capacity."
+          : "Deposit USDC into escrow before placing bids.";
 
   return (
     <div>
@@ -59,7 +74,9 @@ export default function AuctionArea({
             phase={phase}
             secondsRemaining={secondsRemaining}
             currentSlotIndex={currentSlotIndex}
-            walletBalance={walletBalance}
+            escrowBalance={escrowBalance}
+            escrowBalanceStatus={escrowBalanceStatus}
+            escrowBalanceError={escrowBalanceError}
             winners={winners}
           />
 
@@ -72,7 +89,7 @@ export default function AuctionArea({
                 advertisements={advertisements}
                 selectedAdvertisement={slotStates[index].selectedAdvertisement}
                 bid={slotStates[index].bid}
-                walletBalance={walletBalance}
+                availableAuctionCapacity={availableAuctionCapacity}
                 isBidSubmitted={submittedBids[index]}
                 isDisabled={isAuctionDisabled}
                 disabledMessage={disabledMessage}
@@ -97,7 +114,9 @@ export default function AuctionArea({
             phase={phase}
             secondsRemaining={secondsRemaining}
             currentSlotIndex={currentSlotIndex}
-            walletBalance={walletBalance}
+            escrowBalance={escrowBalance}
+            escrowBalanceStatus={escrowBalanceStatus}
+            escrowBalanceError={escrowBalanceError}
             winners={winners}
           />
 
@@ -122,7 +141,9 @@ export default function AuctionArea({
           phase={phase}
           secondsRemaining={secondsRemaining}
           currentSlotIndex={currentSlotIndex}
-          walletBalance={walletBalance}
+          escrowBalance={escrowBalance}
+          escrowBalanceStatus={escrowBalanceStatus}
+          escrowBalanceError={escrowBalanceError}
           winners={winners}
         />
       )}

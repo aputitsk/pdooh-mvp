@@ -65,9 +65,12 @@ const restoringWalletState: WalletState = {
   chainId: null,
 };
 const appDisconnectedSessionKey = "pdooh-wallet-app-disconnected";
+const boundProviderSessionKey = "pdooh-wallet-bound-provider";
 
 let currentWalletState = restoringWalletState;
 let activeProvider: BrowserWalletProvider | null = null;
+let activeAccountsChangedListener: ((accounts: unknown) => void) | null = null;
+let activeChainChangedListener: ((chainId: unknown) => void) | null = null;
 let walletChangeListener: (() => void) | null = null;
 
 function isBrowser() {
@@ -198,6 +201,72 @@ function unlockAppDisconnect() {
   window.sessionStorage.removeItem(appDisconnectedSessionKey);
 }
 
+function getStoredProviderBinding(): ArcWalletProviderOption | null {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  const storedBinding = window.sessionStorage.getItem(boundProviderSessionKey);
+
+  if (!storedBinding) {
+    return null;
+  }
+
+  try {
+    const binding = JSON.parse(storedBinding) as Partial<ArcWalletProviderOption>;
+
+    if (typeof binding.id !== "string" || typeof binding.name !== "string") {
+      return null;
+    }
+
+    return {
+      id: binding.id,
+      name: binding.name,
+      icon: typeof binding.icon === "string" ? binding.icon : null,
+      rdns: typeof binding.rdns === "string" ? binding.rdns : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function storeProviderBinding(provider: ArcWalletProviderOption) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  const binding: ArcWalletProviderOption = {
+    id: provider.id,
+    name: provider.name,
+    icon: provider.icon,
+    rdns: provider.rdns,
+  };
+
+  window.sessionStorage.setItem(
+    boundProviderSessionKey,
+    JSON.stringify(binding)
+  );
+}
+
+function clearProviderBinding() {
+  if (!isBrowser()) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(boundProviderSessionKey);
+}
+
+function matchesProviderBinding(
+  provider: DiscoveredWalletProvider,
+  binding: ArcWalletProviderOption
+) {
+  if (binding.rdns) {
+    return provider.rdns === binding.rdns;
+  }
+
+  return provider.id === binding.id;
+}
+
 async function discoverInjectedWalletProviders(): Promise<
   DiscoveredWalletProvider[]
 > {
@@ -244,7 +313,7 @@ async function discoverInjectedWalletProviders(): Promise<
 
 async function getInjectedWalletProvider(
   providerId?: string
-): Promise<BrowserWalletProvider> {
+): Promise<DiscoveredWalletProvider> {
   const providers = await discoverInjectedWalletProviders();
 
   if (providers.length === 0) {
@@ -253,7 +322,7 @@ async function getInjectedWalletProvider(
 
   if (!providerId) {
     if (providers.length === 1) {
-      return providers[0].provider;
+      return providers[0];
     }
 
     throw new Error("Choose a browser wallet.");
@@ -265,7 +334,7 @@ async function getInjectedWalletProvider(
     throw new Error("Selected browser wallet was not found.");
   }
 
-  return selectedProvider.provider;
+  return selectedProvider;
 }
 
 async function switchToArcTestnet(provider: BrowserWalletProvider) {
@@ -360,40 +429,67 @@ async function requestSignInSignature(
   });
 }
 
+function unbindProviderEvents() {
+  if (activeProvider && activeAccountsChangedListener) {
+    activeProvider.removeListener?.(
+      "accountsChanged",
+      activeAccountsChangedListener
+    );
+  }
+
+  if (activeProvider && activeChainChangedListener) {
+    activeProvider.removeListener?.("chainChanged", activeChainChangedListener);
+  }
+
+  activeProvider = null;
+  activeAccountsChangedListener = null;
+  activeChainChangedListener = null;
+}
+
 function bindProviderEvents(provider: BrowserWalletProvider) {
-  if (activeProvider === provider) {
+  if (
+    activeProvider === provider &&
+    activeAccountsChangedListener &&
+    activeChainChangedListener
+  ) {
     return;
   }
 
-  activeProvider?.removeListener?.("accountsChanged", handleAccountsChanged);
-  activeProvider?.removeListener?.("chainChanged", handleChainChanged);
+  unbindProviderEvents();
 
   activeProvider = provider;
-  activeProvider.on?.("accountsChanged", handleAccountsChanged);
-  activeProvider.on?.("chainChanged", handleChainChanged);
-}
+  activeAccountsChangedListener = (accounts: unknown) => {
+    if (activeProvider !== provider) {
+      return;
+    }
 
-function handleAccountsChanged(accounts: unknown) {
-  const nextAddress = firstAddress(accounts);
+    const nextAddress = firstAddress(accounts);
 
-  if (!nextAddress) {
-    setDisconnectedWalletState();
-    return;
-  }
+    if (!nextAddress) {
+      setDisconnectedWalletState();
+      return;
+    }
 
-  setWalletState({
-    ...currentWalletState,
-    status: "connected",
-    connected: true,
-    address: nextAddress,
-  });
-}
+    setWalletState({
+      ...currentWalletState,
+      status: "connected",
+      connected: true,
+      address: nextAddress,
+    });
+  };
+  activeChainChangedListener = (chainId: unknown) => {
+    if (activeProvider !== provider) {
+      return;
+    }
 
-function handleChainChanged(chainId: unknown) {
-  setWalletState({
-    ...currentWalletState,
-    chainId: parseChainId(chainId),
-  });
+    setWalletState({
+      ...currentWalletState,
+      chainId: parseChainId(chainId),
+    });
+  };
+
+  activeProvider.on?.("accountsChanged", activeAccountsChangedListener);
+  activeProvider.on?.("chainChanged", activeChainChangedListener);
 }
 
 export function setArcWalletChangeListener(listener: () => void) {
@@ -423,9 +519,8 @@ export async function getArcWalletProviders(): Promise<
 
 export async function connectArcWallet(providerId?: string) {
   try {
-    const provider = await getInjectedWalletProvider(providerId);
-
-    bindProviderEvents(provider);
+    const selectedProvider = await getInjectedWalletProvider(providerId);
+    const { provider } = selectedProvider;
 
     const address = await requestWalletAddress(provider);
 
@@ -437,6 +532,8 @@ export async function connectArcWallet(providerId?: string) {
       capabilities: { addressContext: "user-controlled" },
     });
 
+    bindProviderEvents(provider);
+    storeProviderBinding(selectedProvider);
     setWalletState({
       connected: true,
       status: "connected",
@@ -453,6 +550,8 @@ export async function connectArcWallet(providerId?: string) {
 
 export function disconnectArcWallet() {
   lockAppDisconnect();
+  clearProviderBinding();
+  unbindProviderEvents();
   setDisconnectedWalletState();
 }
 
@@ -472,17 +571,34 @@ export async function refreshArcWalletState() {
 
   try {
     const providers = await discoverInjectedWalletProviders();
+    const storedBinding = getStoredProviderBinding();
+    const selectedProvider = storedBinding
+      ? providers.find((provider) =>
+          matchesProviderBinding(provider, storedBinding)
+        )
+      : providers.length === 1
+        ? providers[0]
+        : null;
 
-    for (const { provider } of providers) {
-      const walletState = await readAuthorizedWalletState(provider);
+    if (!selectedProvider) {
+      unbindProviderEvents();
+      setDisconnectedWalletState();
+      return;
+    }
 
-      if (walletState) {
-        bindProviderEvents(provider);
-        setWalletState(walletState);
-        return;
-      }
+    const walletState = await readAuthorizedWalletState(
+      selectedProvider.provider
+    );
+
+    bindProviderEvents(selectedProvider.provider);
+    storeProviderBinding(selectedProvider);
+
+    if (walletState) {
+      setWalletState(walletState);
+      return;
     }
   } catch {
+    unbindProviderEvents();
     setDisconnectedWalletState();
     return;
   }

@@ -1,14 +1,12 @@
 import type { Advertisement, AuctionPhase } from "@/lib/auction";
-import {
-  formatUSDCFromMinorUnits,
-  type UsdcMinorUnits,
-} from "@/lib/money/usdc";
 
 type AuctionStatusCardProps = {
   phase: AuctionPhase | "selecting";
   secondsRemaining: number;
   currentSlotIndex: number;
-  walletBalance: UsdcMinorUnits;
+  escrowBalance: string;
+  escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
+  escrowBalanceError: string | null;
   winners: Advertisement[];
 };
 
@@ -16,7 +14,9 @@ export default function AuctionStatusCard({
   phase,
   secondsRemaining,
   currentSlotIndex,
-  walletBalance,
+  escrowBalance,
+  escrowBalanceStatus,
+  escrowBalanceError,
   winners,
 }: AuctionStatusCardProps) {
   const getStatus = () => {
@@ -57,6 +57,14 @@ export default function AuctionStatusCard({
 
   const status = getStatus();
   const shouldShowWallet = phase !== "selecting" && phase !== "locked";
+  const escrowBalanceText =
+    escrowBalanceStatus === "ready"
+      ? `${escrowBalance} Test USDC`
+      : escrowBalanceStatus === "loading"
+        ? "Reading balance..."
+        : escrowBalanceStatus === "error"
+          ? escrowBalanceError
+          : "Connect wallet";
 
   return (
     <div
@@ -112,14 +120,11 @@ export default function AuctionStatusCard({
 
             <div className="min-w-[220px] rounded-2xl border border-white/10 bg-black/20 px-5 py-4 backdrop-blur">
               <p className="text-xs uppercase tracking-widest text-white/50">
-                Internal Wallet
+                Escrow Balance
               </p>
 
-              <p className="mt-2 text-3xl font-bold">
-                {formatUSDCFromMinorUnits(walletBalance)}
-                <span className="ml-2 text-base font-medium text-white/60">
-                  Test USDC
-                </span>
+              <p className="mt-2 break-words text-xl font-bold">
+                {escrowBalanceText}
               </p>
             </div>
           </>

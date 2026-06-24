@@ -4,12 +4,13 @@ Status: Current hybrid demo and Arc Testnet MVP
 
 ## Architecture Summary
 
-The project combines two intentionally separate areas:
+The project combines three intentionally separate areas:
 
 - a browser-based demo domain for advertiser onboarding, advertisements, auctions, internal balances, winner selection, and demo payments;
-- an Arc Testnet integration layer for an external wallet, ERC-20 USDC balance reads, and a manual wallet-to-treasury USDC transfer.
+- an Arc Testnet integration layer for an external wallet, ERC-20 USDC balance reads, a manual wallet-to-treasury USDC transfer, and an independent escrow deposit flow;
+- a planned Accounting Layer between finalized auction results and future escrow settlement.
 
-The demo auction does not execute blockchain settlement. `AuctionEscrow` exists as a separate financial boundary and is not connected to the frontend or the current auction runtime.
+The demo auction does not execute blockchain settlement. `AuctionEscrow` is connected to the frontend only for the independent `approve -> deposit` flow. It is not connected to the current auction runtime.
 
 ## Project Structure
 
@@ -19,8 +20,8 @@ The demo auction does not execute blockchain settlement. `AuctionEscrow` exists 
 - `lib/advertisements/`: demo advertisement types, rules, and storage.
 - `lib/auction/`: demo auction clock, bids, winner selection, payments, and storage.
 - `lib/wallet/`: wallet-facing application facade, wallet state hooks, Arc USDC balance hook, and wallet transaction orchestration.
-- `lib/payments/`: payment boundary used by the UI.
-- `lib/arc/`: Arc Testnet constants, configuration, ports, wallet adapter, balance adapter, and transaction adapter.
+- `lib/payments/`: payment boundary used by the UI for manual Treasury transfers and independent escrow deposits.
+- `lib/arc/`: Arc Testnet constants, configuration, wallet adapter, balance adapter, transaction adapter, and escrow adapter.
 - `lib/money/`: USDC parsing, formatting, and minor-unit representation.
 - `src/`: Solidity contracts.
 - `script/`: Foundry deployment scripts.
@@ -78,6 +79,7 @@ Application disconnect is local to the pDOOH session and is recorded in `session
 - `arcWalletAdapter.ts`: injected wallet discovery, Arc Testnet switching, wallet session state, and Circle Viem adapter initialization.
 - `arcBalanceAdapter.ts`: reads the external wallet's USDC balance through the standard ERC-20 `balanceOf` interface.
 - `arcTransactionAdapter.ts`: simulates, submits, and waits for the current wallet-to-treasury ERC-20 USDC transfer.
+- `arcEscrowAdapter.ts`: validates the configured escrow and performs the independent ERC-20 `approve -> deposit` flow.
 - `arcPorts.ts`: Arc-facing wallet, balance, and payment port types.
 
 The demo domain does not import Arc SDK or Viem modules.
@@ -107,7 +109,7 @@ Arc native USDC is used by the network for gas, but the application and escrow t
 
 ## AuctionEscrow Financial Boundary
 
-`src/AuctionEscrow.sol` is a standalone USDC escrow contract. The contract and Solidity test sources are present in the repository. The current frontend and demo auction do not call the contract, and the repository does not establish that it has been deployed.
+`src/AuctionEscrow.sol` is a standalone USDC escrow contract. The current frontend can call `deposit(amount)` through the payment, wallet, and Arc adapter boundaries. The demo auction does not call the contract.
 
 The escrow is exclusively a financial boundary:
 
@@ -141,10 +143,31 @@ The deployment script rejects zero configuration addresses, requires the configu
 
 No Operator Service infrastructure is represented in the current project architecture.
 
+## Planned Accounting Layer
+
+The planned Accounting Layer sits between the Auction Engine and future escrow settlement:
+
+`Auction Engine -> Accounting Layer -> future Operator -> AuctionEscrow -> Treasury`
+
+Responsibilities remain separate:
+
+- Auction Engine produces the domain result.
+- Accounting records the financial obligation, domain context, canonical `settlementId`, lifecycle, and off-chain reservation.
+- A future server-side Operator may execute settlement.
+- Escrow provides ERC-20 USDC custody and settlement replay protection.
+- Treasury is the immutable settlement destination.
+
+Escrow balance is custody, not auction balance. The Accounting Layer calculates unresolved reservations without adding auction identifiers to the contract.
+
+The planned record, identifier rules, status lifecycle, reservation formula, exclusions, and risks are defined in [ACCOUNTING_LAYER.md](./ACCOUNTING_LAYER.md).
+
 ## Current Integration Boundaries
 
 - External wallet connection is integrated with Arc Testnet.
 - External ERC-20 USDC balance reading is integrated.
 - Manual external-wallet-to-Treasury ERC-20 transfer is integrated through the payment boundary.
+- Independent external-wallet-to-escrow `approve -> deposit` is integrated through the payment boundary.
 - Business Profile, advertisements, auction state, internal balance, and auction payments remain demo-only.
-- `AuctionEscrow` is not integrated with the frontend, payment service, wallet transaction flow, or demo auction.
+- `AuctionEscrow` deposit is integrated with the frontend, payment service, and wallet transaction flow.
+- `AuctionEscrow` is not integrated with the demo auction, and no application path calls `settle`.
+- The Accounting Layer and Operator Service are not implemented.

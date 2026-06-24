@@ -13,7 +13,7 @@ type AuctionSlotCardProps = {
   advertisements: Advertisement[];
   selectedAdvertisement: string;
   bid: string;
-  walletBalance?: UsdcMinorUnits;
+  availableAuctionCapacity?: UsdcMinorUnits;
   isBidSubmitted?: boolean;
   isDisabled?: boolean;
   disabledMessage?: string;
@@ -27,7 +27,7 @@ export default function AuctionSlotCard({
   advertisements,
   selectedAdvertisement,
   bid,
-  walletBalance = 0,
+  availableAuctionCapacity = 0,
   isBidSubmitted = false,
   isDisabled = false,
   disabledMessage,
@@ -38,7 +38,8 @@ export default function AuctionSlotCard({
   const bidAmount = getBidAmount(bid);
   const hasSelectedAdvertisement = selectedAdvertisement.trim().length > 0;
   const hasBidAmount = bid.trim().length > 0 && bidAmount > 0;
-  const isBidTooHigh = hasBidAmount && bidAmount > walletBalance;
+  const isBidTooHigh =
+    hasBidAmount && bidAmount > availableAuctionCapacity;
   const isLocked = isBidSubmitted || isDisabled;
 
   const canPlaceBid =
@@ -82,7 +83,7 @@ export default function AuctionSlotCard({
 
         {isBidTooHigh && !isDisabled && (
           <p className="text-sm text-red-400">
-            Bid exceeds your Internal Wallet balance.
+            Bid exceeds your available escrow capacity.
           </p>
         )}
 
