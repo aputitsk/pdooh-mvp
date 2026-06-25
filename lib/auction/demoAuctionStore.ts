@@ -37,13 +37,15 @@ type DemoAuctionSnapshot = {
   paidSlots: boolean[];
   winners: Advertisement[];
   winnerBidAmounts: UsdcMinorUnits[];
+  winnerAdvertiserAddresses: (`0x${string}` | null)[];
 };
 
 type DemoAuctionStore = DemoAuctionSnapshot & {
   updateSlot: (slotIndex: number, nextState: Partial<SlotState>) => void;
   placeBid: (
     slotIndex: number,
-    availableAuctionCapacity: UsdcMinorUnits
+    availableAuctionCapacity: UsdcMinorUnits,
+    advertiserAddress: `0x${string}`
   ) => void;
 };
 
@@ -70,6 +72,7 @@ const serverSnapshot: DemoAuctionSnapshot = {
   paidSlots: createBooleanList(false),
   winners: createDefaultWinners(),
   winnerBidAmounts: AUCTION_SLOTS.map(() => 0),
+  winnerAdvertiserAddresses: AUCTION_SLOTS.map(() => null),
 };
 
 let cachedSnapshot: DemoAuctionSnapshot | null = null;
@@ -141,11 +144,12 @@ function getSnapshot(): DemoAuctionSnapshot {
   const slotStates = getStoredSlotStates();
   const submittedBids = getStoredSubmittedBids();
   const advertisements = getStoredAdvertisements();
-  const { winners, winnerBidAmounts } = selectAuctionWinners({
+  const { winners, winnerBidAmounts, winnerAdvertiserAddresses } =
+    selectAuctionWinners({
     slotStates,
     submittedBids,
     advertisements,
-  });
+    });
 
   cachedSnapshot = {
     isLoaded: true,
@@ -159,6 +163,7 @@ function getSnapshot(): DemoAuctionSnapshot {
     paidSlots: getStoredPaidSlots(),
     winners,
     winnerBidAmounts,
+    winnerAdvertiserAddresses,
   };
 
   cachedSnapshotSecond = currentSecond;
@@ -181,14 +186,16 @@ function updateSlot(slotIndex: number, nextState: Partial<SlotState>) {
 
 function placeBid(
   slotIndex: number,
-  availableAuctionCapacity: UsdcMinorUnits
+  availableAuctionCapacity: UsdcMinorUnits,
+  advertiserAddress: `0x${string}`
 ) {
   const snapshot = getSnapshot();
 
   placeAuctionBid(
     slotIndex,
     snapshot.clock.phase,
-    availableAuctionCapacity
+    availableAuctionCapacity,
+    advertiserAddress
   );
   notifyAuctionStoreChanged();
   emitChange();

@@ -66,7 +66,8 @@ export function updateAuctionSlot(
 export function placeAuctionBid(
   slotIndex: number,
   phase: string,
-  availableAuctionCapacity: UsdcMinorUnits
+  availableAuctionCapacity: UsdcMinorUnits,
+  advertiserAddress: `0x${string}`
 ) {
   const slotStates = getStoredSlotStates();
   const submittedBids = getStoredSubmittedBids();
@@ -109,7 +110,13 @@ export function placeAuctionBid(
   const nextSubmittedBids = submittedBids.map((isSubmitted, index) => {
     return index === slotIndex ? true : isSubmitted;
   });
+  const nextSlotStates = slotStates.map((slotState, index) => {
+    return index === slotIndex
+      ? { ...slotState, advertiserAddress }
+      : slotState;
+  });
 
+  setStoredSlotStates(nextSlotStates);
   setStoredSubmittedBids(nextSubmittedBids);
 }
 

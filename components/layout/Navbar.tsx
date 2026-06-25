@@ -20,6 +20,23 @@ const appLinks = [
   },
 ];
 
+function BrandLogo() {
+  return (
+    <span className="flex items-center gap-3">
+      <img
+        src="/logo27.png"
+        alt="pDOOH"
+        className="h-17 w-auto shrink-1"
+        draggable={false}
+      />
+
+      <span className="text-xl font-bold tracking-tight text-white">
+        pDOOH
+      </span>
+    </span>
+  );
+}
+
 export default function Navbar() {
   const pathname = usePathname();
   const isLandingPage = pathname === "/";
@@ -31,8 +48,8 @@ export default function Navbar() {
   if (isLandingPage) {
     return (
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6 text-white">
-        <Link href="/" className="text-xl font-bold">
-          pDOOH
+        <Link href="/" aria-label="pDOOH Home">
+          <BrandLogo />
         </Link>
 
         <Link
@@ -47,8 +64,8 @@ export default function Navbar() {
 
   return (
     <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6 text-white">
-      <Link href="/" className="text-xl font-bold">
-        pDOOH
+      <Link href="/" aria-label="pDOOH Home">
+        <BrandLogo />
       </Link>
 
       <div className="flex items-center gap-2">

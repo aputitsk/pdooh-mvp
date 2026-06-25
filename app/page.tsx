@@ -6,21 +6,43 @@ export default function Home() {
           Built for Arc · Test USDC · Demo Mode
         </div>
 
-        <h1 className="max-w-4xl text-5xl font-bold tracking-tight md:text-7xl">
-          Private pDOOH Auctions with Instant USDC Settlement
+        <h1 className="max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
+          pDOOH Auction Demo
         </h1>
 
-        <p className="mt-6 max-w-2xl text-lg text-white/60">
-          Private auctions for digital advertising screens. Advertisers create
-          ads, bid on screen slots, and only the winner is revealed.
-        </p>
+        <div className="mt-8 max-w-3xl space-y-5 text-lg leading-8 text-white/65">
+          <p>
+            This application demonstrates a simplified pDOOH advertising
+            auction running on Arc Testnet. It is designed to showcase the
+            auction workflow, escrow deposits, automated settlement, and wallet
+            integration rather than a complete production advertising platform.
+          </p>
 
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-left text-sm text-white/70">
-          <p className="font-semibold text-white">⚠️ Demo Mode</p>
-          <p className="mt-2">• Arc Testnet</p>
-          <p>• Test USDC only</p>
-          <p>• Built-in Demo Bot participates in every auction</p>
-          <p>• Demo Bot always submits a fixed hidden bid of 0.02 USDC</p>
+          <p>
+            <span className="font-semibold text-white">
+              Digital Out-of-Home (DOOH)
+            </span>{" "}
+            is digital advertising displayed on public screens such as
+            billboards, shopping malls, airports, and transit stations.
+          </p>
+
+          <p>
+            The application uses{" "}
+            <span className="font-semibold text-white">Test USDC</span> as the
+            payment currency for advertising placements.{" "}
+            <span className="font-semibold text-white">Test USDC</span> is also
+            used to pay network transaction fees on Arc Testnet, allowing the
+            complete auction and settlement workflow to be demonstrated without
+            using real funds.
+          </p>
+
+          <p>
+            To demonstrate competitive bidding, every auction includes a
+            built-in{" "}
+            <span className="font-semibold text-white">Demo Bot</span> with a
+            fixed, unchanging bid of{" "}
+            <span className="font-semibold text-white">0.02 Test USDC</span>.
+          </p>
         </div>
       </section>
     </main>

@@ -8,6 +8,7 @@ import {
 export type AuctionWinnersResult = {
   winners: Advertisement[];
   winnerBidAmounts: UsdcMinorUnits[];
+  winnerAdvertiserAddresses: (`0x${string}` | null)[];
 };
 
 export function selectAuctionWinners(params: {
@@ -46,10 +47,20 @@ export function selectAuctionWinners(params: {
 
     return userBid;
   });
+  const winnerAdvertiserAddresses = slotStates.map((slot, index) => {
+    const winner = winners[index];
+
+    if (winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName) {
+      return null;
+    }
+
+    return slot.advertiserAddress ?? null;
+  });
 
   return {
     winners,
     winnerBidAmounts,
+    winnerAdvertiserAddresses,
   };
 }
 

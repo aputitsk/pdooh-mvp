@@ -14,6 +14,7 @@ export type AuctionBidSource = "advertiser" | "bot";
 export type SlotState = {
   selectedAdvertisement: string;
   bid: string;
+  advertiserAddress: `0x${string}` | null;
 };
 
 export type AuctionSlot = {
@@ -28,6 +29,7 @@ export type AuctionBid = {
   advertisementId: string;
   amount: UsdcMinorUnits;
   source: AuctionBidSource;
+  advertiserAddress: `0x${string}`;
 };
 
 export type AuctionWinner = {
@@ -35,6 +37,7 @@ export type AuctionWinner = {
   advertisementId: string;
   amount: UsdcMinorUnits;
   source: AuctionBidSource;
+  advertiserAddress: `0x${string}` | null;
 };
 
 export type AuctionClock = {

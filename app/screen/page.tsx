@@ -3,12 +3,92 @@
 import { useEffect } from "react";
 import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
+import { createPendingSettlementRecords } from "@/lib/accounting/accountingFacade";
+import {
+  markSettlementFailed,
+  markSettlementProcessing,
+  markSettlementSettled,
+  type SettlementRecord,
+} from "@/lib/accounting/settlementRecords";
+import {
+  createBrowserSettlementRepository,
+  type SettlementRepository,
+} from "@/lib/accounting/settlementRepository";
+import { ARC_CHAIN_ID } from "@/lib/arc/arcConstants";
+import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
 import {
   syncTemporaryAuctionReservations,
   useDemoAuctionStore,
   useTemporaryReservedAmount,
 } from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletStore } from "@/lib/wallet";
+
+const ACCOUNTING_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
+
+type OperatorProcessResponse = {
+  ok: boolean;
+  status?: "settled" | "already_settled";
+  transactionHash?: `0x${string}`;
+  error?: string;
+};
+
+function serializeSettlementRecord(record: SettlementRecord) {
+  return {
+    ...record,
+    result: {
+      ...record.result,
+      amountMinorUnits: record.result.amountMinorUnits.toString(),
+    },
+  };
+}
+
+async function processSettlementRecord(
+  repository: SettlementRepository,
+  record: SettlementRecord
+) {
+  if (record.status !== "pending" && record.status !== "failed") {
+    return;
+  }
+
+  const processingRecord = markSettlementProcessing(
+    record,
+    new Date().toISOString()
+  );
+  repository.update(processingRecord);
+
+  try {
+    const response = await fetch("/api/operator/process", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(serializeSettlementRecord(processingRecord)),
+    });
+    const result = (await response.json()) as OperatorProcessResponse;
+
+    if (
+      !response.ok ||
+      !result.ok ||
+      (result.status !== "settled" && result.status !== "already_settled")
+    ) {
+      throw new Error(result.error || "Settlement processing failed.");
+    }
+
+    repository.update(
+      markSettlementSettled(
+        processingRecord,
+        result.transactionHash,
+        new Date().toISOString()
+      )
+    );
+  } catch (error) {
+    repository.update(
+      markSettlementFailed(
+        processingRecord,
+        error instanceof Error ? error.message : "Settlement processing failed.",
+        new Date().toISOString()
+      )
+    );
+  }
+}
 
 export default function ScreenPage() {
   const auction = useDemoAuctionStore();
@@ -44,6 +124,59 @@ export default function ScreenPage() {
     auction.winners,
     wallet.address,
     wallet.connected,
+  ]);
+
+  useEffect(() => {
+    const repository = createBrowserSettlementRepository();
+
+    repository.listByStatus("failed").forEach((record) => {
+      void processSettlementRecord(repository, record);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (
+      !auction.isLoaded ||
+      (auction.clock.phase !== "locked" && auction.clock.phase !== "live")
+    ) {
+      return;
+    }
+
+    let escrowAddress: `0x${string}`;
+
+    try {
+      escrowAddress = getArcEscrowAddress();
+    } catch {
+      return;
+    }
+
+    const records = createPendingSettlementRecords({
+      snapshot: {
+        phase: auction.clock.phase,
+        cycleId: auction.clock.cycleId,
+        chainId: ARC_CHAIN_ID,
+        escrowAddress,
+        slotIds: ACCOUNTING_SLOT_IDS,
+        winners: auction.winners,
+        winnerBidAmounts: auction.winnerBidAmounts,
+        winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
+      },
+      nowIso: new Date().toISOString(),
+    });
+    const repository = createBrowserSettlementRepository();
+
+    records.forEach((record) => {
+      if (repository.saveIfAbsent(record)) {
+        void processSettlementRecord(repository, record);
+      }
+    });
+  }, [
+    auction.clock.cycleId,
+    auction.clock.phase,
+    auction.isLoaded,
+    auction.winnerAdvertiserAddresses,
+    auction.winnerBidAmounts,
+    auction.winners,
   ]);
 
   if (!auction.isLoaded) {
@@ -103,7 +236,12 @@ export default function ScreenPage() {
             })
           }
           onPlaceBid={(slot) =>
-            auction.placeBid(slot, availableAuctionCapacity)
+            wallet.address &&
+            auction.placeBid(
+              slot,
+              availableAuctionCapacity,
+              wallet.address as `0x${string}`
+            )
           }
         />
       </section>

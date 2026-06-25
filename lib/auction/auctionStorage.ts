@@ -10,6 +10,7 @@ export function createEmptySlotStates(): SlotState[] {
   return AUCTION_SLOTS.map(() => ({
     selectedAdvertisement: "",
     bid: "",
+    advertiserAddress: null,
   }));
 }
 
