@@ -35,7 +35,7 @@ export default function AdvertisementCard({
 
       <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-5">
         <p className="text-sm text-white/40">
-          Available for hidden bidding
+          Available for bidding
         </p>
 
         <button

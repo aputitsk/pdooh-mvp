@@ -14,6 +14,10 @@ type AuctionAreaProps = {
   advertisements: Advertisement[];
   slotStates: SlotState[];
   availableAuctionCapacity: UsdcMinorUnits;
+  displayedAvailableAuctionCapacity: UsdcMinorUnits;
+  walletBalance: string;
+  walletBalanceStatus: "idle" | "loading" | "ready" | "error";
+  walletBalanceError: string | null;
   escrowBalance: UsdcMinorUnits | null;
   reservedAmount: UsdcMinorUnits;
   escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
@@ -35,6 +39,10 @@ export default function AuctionArea({
   advertisements,
   slotStates,
   availableAuctionCapacity,
+  displayedAvailableAuctionCapacity,
+  walletBalance,
+  walletBalanceStatus,
+  walletBalanceError,
   escrowBalance,
   reservedAmount,
   escrowBalanceStatus,
@@ -69,8 +77,11 @@ export default function AuctionArea({
             phase={phase}
             secondsRemaining={secondsRemaining}
             currentSlotIndex={currentSlotIndex}
+            walletBalance={walletBalance}
+            walletBalanceStatus={walletBalanceStatus}
+            walletBalanceError={walletBalanceError}
             escrowBalance={escrowBalance}
-            availableAuctionCapacity={availableAuctionCapacity}
+            availableAuctionCapacity={displayedAvailableAuctionCapacity}
             reservedAmount={reservedAmount}
             escrowBalanceStatus={escrowBalanceStatus}
             escrowBalanceError={escrowBalanceError}
@@ -83,6 +94,7 @@ export default function AuctionArea({
                 key={time}
                 slotNumber={index + 1}
                 time={time}
+                secondsRemaining={secondsRemaining}
                 advertisements={advertisements}
                 selectedAdvertisement={slotStates[index].selectedAdvertisement}
                 bid={slotStates[index].bid}
@@ -116,8 +128,11 @@ export default function AuctionArea({
             phase={phase}
             secondsRemaining={secondsRemaining}
             currentSlotIndex={currentSlotIndex}
+            walletBalance={walletBalance}
+            walletBalanceStatus={walletBalanceStatus}
+            walletBalanceError={walletBalanceError}
             escrowBalance={escrowBalance}
-            availableAuctionCapacity={availableAuctionCapacity}
+            availableAuctionCapacity={displayedAvailableAuctionCapacity}
             reservedAmount={reservedAmount}
             escrowBalanceStatus={escrowBalanceStatus}
             escrowBalanceError={escrowBalanceError}
@@ -130,7 +145,7 @@ export default function AuctionArea({
             </p>
 
             <p className="mt-2 text-neutral-500">
-              Hidden bids are locked. Winners and advertisements are revealed.
+              Bids are locked. Winners and advertisements are revealed.
             </p>
           </div>
 
@@ -145,8 +160,11 @@ export default function AuctionArea({
           phase={phase}
           secondsRemaining={secondsRemaining}
           currentSlotIndex={currentSlotIndex}
+          walletBalance={walletBalance}
+          walletBalanceStatus={walletBalanceStatus}
+          walletBalanceError={walletBalanceError}
           escrowBalance={escrowBalance}
-          availableAuctionCapacity={availableAuctionCapacity}
+          availableAuctionCapacity={displayedAvailableAuctionCapacity}
           reservedAmount={reservedAmount}
           escrowBalanceStatus={escrowBalanceStatus}
           escrowBalanceError={escrowBalanceError}

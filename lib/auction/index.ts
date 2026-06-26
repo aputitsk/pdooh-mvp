@@ -4,4 +4,5 @@ export * from "./auctionTimer";
 export * from "./auctionWinners";
 export * from "./auctionPayments";
 export * from "./temporaryReservations";
+export * from "./liveSlotCompletion";
 export * from "./demoAuctionStore";

@@ -10,6 +10,7 @@ import HiddenBidInput from "./HiddenBidInput";
 type AuctionSlotCardProps = {
   slotNumber: number;
   time: string;
+  secondsRemaining: number;
   advertisements: Advertisement[];
   selectedAdvertisement: string;
   bid: string;
@@ -25,6 +26,7 @@ type AuctionSlotCardProps = {
 
 export default function AuctionSlotCard({
   slotNumber,
+  secondsRemaining,
   advertisements,
   selectedAdvertisement,
   bid,
@@ -53,8 +55,13 @@ export default function AuctionSlotCard({
 
   return (
     <div className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5">
-      <div className="mb-5 flex items-start justify-between">
-        <h3 className="text-lg font-semibold">Slot {slotNumber}</h3>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold">Slot {slotNumber}</h3>
+          <p className="mt-1 text-xs font-semibold text-emerald-400">
+            {secondsRemaining} sec remaining
+          </p>
+        </div>
 
         <span
           className={

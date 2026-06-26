@@ -1,11 +1,13 @@
+import TreasuryBalanceWidget from "@/components/home/TreasuryBalanceWidget";
+
 const blockchainAdvantages = [
   {
     title: "Immutable History",
     text: "Escrow deposits, settlements, fees, and advertising payments are recorded on-chain.",
   },
   {
-    title: "Automated Settlement",
-    text: "Smart contracts execute settlements according to predefined rules.",
+    title: "Automated & Deterministic Settlement",
+    text: "Smart contracts execute auction settlements automatically according to predefined rules, ensuring predictable and verifiable execution.",
   },
   {
     title: "Revenue Distribution",
@@ -16,33 +18,34 @@ const blockchainAdvantages = [
     text: "The architecture can support on-chain proof-of-play verification for displayed ads.",
   },
 ];
-
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#05060A] px-6 py-8 text-white">
-      <section className="mx-auto flex min-h-[82vh] max-w-6xl flex-col items-center justify-center text-center">
-        <div className="mb-5 rounded-full border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm text-blue-200">
-          Built for Arc · Test USDC · Demo Mode
+      <section className="relative mx-auto flex min-h-[82vh] max-w-6xl flex-col items-center justify-center">
+        <div className="mb-6 w-full max-w-[60rem] md:absolute md:right-0 md:top-0 md:mb-0 md:w-[220px]">
+          <TreasuryBalanceWidget />
         </div>
 
-        <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-          pDOOH Auction Demo
-        </h1>
+        <div className="text-center">
+          <div className="mb-5 rounded-full border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm text-blue-200">
+            Built for Arc В· Test USDC В· Demo Mode
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight md:text-5xl">
+            pDOOH Auction Demo
+          </h1>
+        </div>
 
-        <div className="mt-6 max-w-4xl space-y-5 text-pretty text-lg leading-8 text-white/65">
+        <div className="mt-8 w-full max-w-[60rem] space-y-5 text-left text-base leading-8 text-white/65">
           <p>
             This application demonstrates a simplified pDOOH advertising auction
             running on Arc Testnet. It showcases the auction workflow, escrow
             deposits, automated settlement, and wallet integration rather than
-            <span className="whitespace-nowrap"> a complete</span> production
-            advertising platform.
+            a complete production advertising platform.
           </p>
 
           <p>
             The application uses{" "}
-            <span className="whitespace-nowrap font-semibold text-white">
-              Test USDC
-            </span>{" "}
+            <span className="font-semibold text-white">Test USDC</span>{" "}
             as the payment currency for advertising placements and for network
             transaction fees on Arc Testnet.
           </p>
@@ -55,7 +58,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="mt-7 max-w-4xl text-pretty rounded-2xl border border-neutral-800 bg-neutral-900/40 px-6 py-4 text-sm leading-6 text-neutral-400">
+        <div className="mt-7 w-full max-w-[60rem] rounded-2xl border border-neutral-800 bg-neutral-900/40 px-6 py-4 text-left text-sm leading-6 text-neutral-400">
           <span className="font-semibold text-white">
             Digital Out-of-Home (DOOH)
           </span>{" "}
@@ -68,11 +71,11 @@ export default function Home() {
             Why Blockchain?
           </h2>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-5 md:grid-cols-2">
             {blockchainAdvantages.map((item) => (
               <div
                 key={item.title}
-                className="min-h-[138px] rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 text-left"
+                className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 text-left"
               >
                 <h3 className="text-base font-semibold leading-6 text-white">
                   {item.title}

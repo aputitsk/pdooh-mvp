@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
 import { createPendingSettlementRecords } from "@/lib/accounting/accountingFacade";
+import {
+  getEscrowSettlementReflectionSnapshot,
+  getReflectedSettledAmount,
+  subscribeToEscrowSettlementReflection,
+  syncEscrowCycleBaseline,
+} from "@/lib/accounting/escrowSettlementReflection";
+import { deriveActiveSlotReservedAmount } from "@/lib/accounting/slotReservedAmount";
+import {
+  getSettlementRecordSnapshot,
+  listBrowserSettlementRecords,
+  notifySettlementRecordsChanged,
+  subscribeToSettlementRecordChanges,
+} from "@/lib/accounting/settlementRecordSync";
 import {
   markSettlementFailed,
   markSettlementProcessing,
@@ -17,11 +30,17 @@ import {
 import { ARC_CHAIN_ID } from "@/lib/arc/arcConstants";
 import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
 import {
+  getConfirmedBidExposure,
+  getSettlementEligibleLiveSlotIds,
   syncTemporaryAuctionReservations,
   useDemoAuctionStore,
   useTemporaryReservedAmount,
 } from "@/lib/auction";
-import { useWalletEscrowBalance, useWalletStore } from "@/lib/wallet";
+import {
+  useWalletEscrowBalance,
+  useWalletStore,
+  useWalletUsdcBalance,
+} from "@/lib/wallet";
 
 const ACCOUNTING_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
 
@@ -44,7 +63,9 @@ function serializeSettlementRecord(record: SettlementRecord) {
 
 async function processSettlementRecord(
   repository: SettlementRepository,
-  record: SettlementRecord
+  record: SettlementRecord,
+  onRepositoryChange?: () => void,
+  onSettlementComplete?: () => void
 ) {
   if (record.status !== "pending" && record.status !== "failed") {
     return;
@@ -55,6 +76,7 @@ async function processSettlementRecord(
     new Date().toISOString()
   );
   repository.update(processingRecord);
+  onRepositoryChange?.();
 
   try {
     const response = await fetch("/api/operator/process", {
@@ -79,6 +101,8 @@ async function processSettlementRecord(
         new Date().toISOString()
       )
     );
+    onRepositoryChange?.();
+    onSettlementComplete?.();
   } catch (error) {
     repository.update(
       markSettlementFailed(
@@ -87,25 +111,108 @@ async function processSettlementRecord(
         new Date().toISOString()
       )
     );
+    onRepositoryChange?.();
   }
 }
 
 export default function ScreenPage() {
   const auction = useDemoAuctionStore();
   const wallet = useWalletStore();
+  const walletUsdcBalance = useWalletUsdcBalance();
   const escrowBalance = useWalletEscrowBalance();
   const reservedAmount = useTemporaryReservedAmount(wallet.address);
+  useSyncExternalStore(
+    subscribeToSettlementRecordChanges,
+    getSettlementRecordSnapshot,
+    getSettlementRecordSnapshot
+  );
+  useSyncExternalStore(
+    subscribeToEscrowSettlementReflection,
+    getEscrowSettlementReflectionSnapshot,
+    getEscrowSettlementReflectionSnapshot
+  );
+  const settlementRecords = listBrowserSettlementRecords();
   // Temporary demo model only. Until the Accounting Layer exists, available
   // auction capacity is escrow custody minus finalized winning reservations.
   const availableAuctionCapacity =
     escrowBalance.status === "ready" && escrowBalance.balance !== null
       ? Math.max(escrowBalance.balance - reservedAmount, 0)
       : 0;
-
   const phase = auction.clock.phase;
   const currentSlotIndex = auction.clock.currentSlotIndex;
+  const submittedBidsKey = auction.submittedBids.join("|");
   const liveWinner =
     phase === "live" ? auction.winners[currentSlotIndex] : null;
+  const refreshWalletUsdcBalance = walletUsdcBalance.refresh;
+  const refreshEscrowBalance = escrowBalance.refresh;
+  const syncSettlementRecords = useCallback(() => {
+    notifySettlementRecordsChanged();
+  }, []);
+
+  useEffect(() => {
+    if (
+      escrowBalance.status !== "ready" ||
+      escrowBalance.balance === null ||
+      !wallet.address
+    ) {
+      return;
+    }
+
+    syncEscrowCycleBaseline({
+      cycleId: auction.clock.cycleId,
+      advertiserAddress: wallet.address as `0x${string}`,
+      escrowBalance: escrowBalance.balance,
+    });
+  }, [
+    auction.clock.cycleId,
+    escrowBalance.balance,
+    escrowBalance.status,
+    wallet.address,
+  ]);
+
+  const reflectedSettledAmount =
+    escrowBalance.status === "ready"
+      ? getReflectedSettledAmount({
+          cycleId: auction.clock.cycleId,
+          advertiserAddress: wallet.address as `0x${string}` | null,
+          escrowBalance: escrowBalance.balance,
+        })
+      : 0;
+  const confirmedBidExposure = getConfirmedBidExposure(
+    auction.slotStates,
+    auction.submittedBids
+  );
+  const displayedOpenBidExposure =
+    auction.clock.phase === "open" ? confirmedBidExposure : 0;
+  const displayedFinalizedReservedAmount =
+    auction.clock.phase === "open"
+      ? 0
+      : deriveActiveSlotReservedAmount({
+          cycleId: auction.clock.cycleId,
+          advertiserAddress: wallet.address as `0x${string}` | null,
+          slotIds: ACCOUNTING_SLOT_IDS,
+          winnerBidAmounts: auction.winnerBidAmounts,
+          winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
+          settlementRecords,
+          reflectedSettledAmount,
+        });
+  const displayedReservedAmount =
+    displayedFinalizedReservedAmount + displayedOpenBidExposure;
+  const displayedAvailableAuctionCapacity =
+    escrowBalance.status === "ready" && escrowBalance.balance !== null
+      ? Math.max(escrowBalance.balance - displayedReservedAmount, 0)
+      : 0;
+
+  useEffect(() => {
+    refreshWalletUsdcBalance();
+    refreshEscrowBalance();
+  }, [
+    auction.clock.cycleId,
+    auction.clock.phase,
+    submittedBidsKey,
+    refreshEscrowBalance,
+    refreshWalletUsdcBalance,
+  ]);
 
   useEffect(() => {
     if (!wallet.connected || !wallet.address) {
@@ -130,15 +237,24 @@ export default function ScreenPage() {
     const repository = createBrowserSettlementRepository();
 
     repository.listByStatus("failed").forEach((record) => {
-      void processSettlementRecord(repository, record);
+      void processSettlementRecord(repository, record, syncSettlementRecords, () => {
+        refreshWalletUsdcBalance();
+        refreshEscrowBalance();
+      });
     });
-  }, []);
+  }, [refreshEscrowBalance, refreshWalletUsdcBalance, syncSettlementRecords]);
 
   useEffect(() => {
-    if (
-      !auction.isLoaded ||
-      (auction.clock.phase !== "locked" && auction.clock.phase !== "live")
-    ) {
+    if (!auction.isLoaded || auction.clock.phase !== "live") {
+      return;
+    }
+
+    const settlementEligibleSlotIds = getSettlementEligibleLiveSlotIds(
+      auction.clock,
+      ACCOUNTING_SLOT_IDS
+    );
+
+    if (settlementEligibleSlotIds.length === 0) {
       return;
     }
 
@@ -156,7 +272,7 @@ export default function ScreenPage() {
         cycleId: auction.clock.cycleId,
         chainId: ARC_CHAIN_ID,
         escrowAddress,
-        slotIds: ACCOUNTING_SLOT_IDS,
+        slotIds: settlementEligibleSlotIds,
         winners: auction.winners,
         winnerBidAmounts: auction.winnerBidAmounts,
         winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
@@ -167,16 +283,25 @@ export default function ScreenPage() {
 
     records.forEach((record) => {
       if (repository.saveIfAbsent(record)) {
-        void processSettlementRecord(repository, record);
+        syncSettlementRecords();
+        void processSettlementRecord(repository, record, syncSettlementRecords, () => {
+          refreshWalletUsdcBalance();
+          refreshEscrowBalance();
+        });
       }
     });
   }, [
+    auction.clock,
     auction.clock.cycleId,
+    auction.clock.elapsedInCycle,
     auction.clock.phase,
     auction.isLoaded,
     auction.winnerAdvertiserAddresses,
     auction.winnerBidAmounts,
     auction.winners,
+    refreshEscrowBalance,
+    refreshWalletUsdcBalance,
+    syncSettlementRecords,
   ]);
 
   if (!auction.isLoaded) {
@@ -202,8 +327,12 @@ export default function ScreenPage() {
           advertisements={auction.advertisements}
           slotStates={auction.slotStates}
           availableAuctionCapacity={availableAuctionCapacity}
+          displayedAvailableAuctionCapacity={displayedAvailableAuctionCapacity}
+          walletBalance={walletUsdcBalance.formattedBalance}
+          walletBalanceStatus={walletUsdcBalance.status}
+          walletBalanceError={walletUsdcBalance.error}
           escrowBalance={escrowBalance.balance}
-          reservedAmount={reservedAmount}
+          reservedAmount={displayedReservedAmount}
           escrowBalanceStatus={escrowBalance.status}
           escrowBalanceError={escrowBalance.error}
           submittedBids={auction.submittedBids}

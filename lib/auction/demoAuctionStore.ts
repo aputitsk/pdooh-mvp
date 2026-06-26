@@ -76,7 +76,6 @@ const serverSnapshot: DemoAuctionSnapshot = {
 };
 
 let cachedSnapshot: DemoAuctionSnapshot | null = null;
-let cachedSnapshotSecond = -1;
 let cachedSnapshotVersion = 0;
 let snapshotVersion = 0;
 
@@ -130,11 +129,8 @@ function subscribe(listener: () => void) {
 }
 
 function getSnapshot(): DemoAuctionSnapshot {
-  const currentSecond = Math.floor(Date.now() / 1000);
-
   if (
     cachedSnapshot &&
-    cachedSnapshotSecond === currentSecond &&
     cachedSnapshotVersion === snapshotVersion
   ) {
     return cachedSnapshot;
@@ -166,7 +162,6 @@ function getSnapshot(): DemoAuctionSnapshot {
     winnerAdvertiserAddresses,
   };
 
-  cachedSnapshotSecond = currentSecond;
   cachedSnapshotVersion = snapshotVersion;
 
   return cachedSnapshot;
