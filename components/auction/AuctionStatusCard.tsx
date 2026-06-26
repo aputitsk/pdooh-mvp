@@ -36,7 +36,7 @@ export default function AuctionStatusCard({
           color: "text-emerald-400",
           title: "● AUCTION OPEN",
           main: `${secondsRemaining} sec remaining`,
-          description: "Submit hidden bids for Slot 1, Slot 2 and Slot 3.",
+          description: "Submit bids for Slot 1, Slot 2 and Slot 3.",
         };
 
       case "selecting":

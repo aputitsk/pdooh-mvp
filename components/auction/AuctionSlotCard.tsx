@@ -86,7 +86,7 @@ export default function AuctionSlotCard({
 
         {isBidTooHigh && !isDisabled && (
           <p className="text-sm text-red-400">
-            Bid exceeds your available escrow capacity.
+            Bid exceeds your available escrow balance.
           </p>
         )}
 
@@ -98,7 +98,7 @@ export default function AuctionSlotCard({
 
         {isBidSubmitted && (
           <p className="text-sm text-blue-400">
-            Hidden bid confirmed for this slot.
+            Bid confirmed for this slot.
           </p>
         )}
 
@@ -108,7 +108,7 @@ export default function AuctionSlotCard({
           disabled={!canPlaceBid}
           className="w-full rounded-xl bg-white px-4 py-3 font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
         >
-          {isBidSubmitted ? "Bid Confirmed" : "Place Hidden Bid"}
+          {isBidSubmitted ? "Bid Confirmed" : "Place Bid"}
         </button>
       </div>
     </div>

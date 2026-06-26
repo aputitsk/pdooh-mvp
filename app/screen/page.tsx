@@ -192,21 +192,6 @@ export default function ScreenPage() {
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-10 text-white">
       <section className="mx-auto max-w-6xl">
-        <div className="mb-8">
-          <p className="mb-2 text-sm font-medium text-neutral-400">
-            pDOOH Auction
-          </p>
-
-          <h1 className="text-4xl font-bold tracking-tight">
-            Live DOOH Screen
-          </h1>
-
-          <p className="mt-4 max-w-2xl text-neutral-400">
-            Bid for private advertising slots. All bids are hidden. Only the
-            winner is revealed.
-          </p>
-        </div>
-
         <LiveScreen winner={liveWinner} />
 
         <AuctionArea

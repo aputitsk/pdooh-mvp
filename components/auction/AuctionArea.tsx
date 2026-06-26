@@ -65,14 +65,6 @@ export default function AuctionArea({
     <div>
       {phase === "open" && (
         <>
-          <div className="mb-5">
-            <h2 className="text-2xl font-semibold">Available Time Slots</h2>
-
-            <p className="mt-2 text-sm text-neutral-400">
-              Choose a slot, select an advertisement, and place a hidden bid.
-            </p>
-          </div>
-
           <AuctionStatusCard
             phase={phase}
             secondsRemaining={secondsRemaining}

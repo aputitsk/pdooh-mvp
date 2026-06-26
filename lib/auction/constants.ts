@@ -2,7 +2,7 @@ import { parseUSDCToMinorUnits } from "@/lib/money/usdc";
 
 export const AUCTION_SLOTS = ["Slot 1", "Slot 2", "Slot 3"] as const;
 
-export const AUCTION_OPEN_SECONDS = 40;
+export const AUCTION_OPEN_SECONDS = 60;
 export const AUCTION_SELECTING_SECONDS = 2;
 export const AUCTION_PLAYBACK_SECONDS_PER_SLOT = 10;
 

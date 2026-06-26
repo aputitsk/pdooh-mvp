@@ -10,7 +10,7 @@ export default function HiddenBidInput({
   return (
     <div>
       <label className="mb-2 block text-sm font-medium text-neutral-300">
-        Hidden Bid
+        Your Bid
       </label>
 
       <div className="flex rounded-xl border border-neutral-700 bg-neutral-950">
@@ -28,10 +28,6 @@ export default function HiddenBidInput({
           Test USDC
         </div>
       </div>
-
-      <p className="mt-2 text-xs leading-5 text-neutral-500">
-        Your bid is private and will never be shown to other participants.
-      </p>
     </div>
   );
 }

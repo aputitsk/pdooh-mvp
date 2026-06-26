@@ -8,7 +8,7 @@ export default function DemoModeCard() {
           </p>
 
           <h2 className="mt-1 text-2xl font-bold">
-            Private Auction Rules
+            Auction Rules
           </h2>
         </div>
 
@@ -18,21 +18,24 @@ export default function DemoModeCard() {
       </div>
 
       <div className="mt-6 space-y-3 text-sm text-neutral-400">
-        <p>• All bids are completely hidden.</p>
-
-        <p>• Only the winning advertisement is revealed.</p>
-
-        <p>• Highest hidden bid wins.</p>
-
-        <p>• If bids are equal, the earliest bid wins.</p>
-
-        <p>• Demo Bot always participates in every auction.</p>
-
-        <p>• Demo Bot always places a hidden bid of 0.02 Test USDC.</p>
+        <p>
+          Wait until the slot auction opens. Each auction cycle gives
+          advertisers 1 minute to place bids.
+        </p>
 
         <p>
-          • Demo Bot participates publicly, but its bid is never shown during or
-          after the auction.
+          Select one of your advertisements, enter your bid amount, and confirm
+          it with the bid button.
+        </p>
+
+        <p>
+          After the auction closes, each available slot plays the winning
+          advertisement for 10 seconds.
+        </p>
+
+        <p>
+          To demonstrate competitive bidding, every auction includes a built-in
+          Demo Bot with a fixed, unchanging bid of 0.02 Test USDC.
         </p>
       </div>
     </div>
