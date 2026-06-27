@@ -103,12 +103,6 @@ export default function AuctionSlotCard({
           </p>
         )}
 
-        {isBidSubmitted && (
-          <p className="text-sm text-blue-400">
-            Bid confirmed for this slot.
-          </p>
-        )}
-
         <button
           type="button"
           onClick={onPlaceBid}

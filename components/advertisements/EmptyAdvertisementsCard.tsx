@@ -12,16 +12,9 @@ export default function EmptyAdvertisementsCard() {
       </h2>
 
       <p className="mx-auto mt-4 max-w-md text-white/50">
-        Create your first advertisement to participate in private pDOOH
+        Create your first advertisement to participate in pDOOH
         auctions.
       </p>
-
-      <Link
-        href="/advertiser"
-        className="mt-8 inline-flex items-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-neutral-200"
-      >
-        Create Advertisement
-      </Link>
     </div>
   );
 }

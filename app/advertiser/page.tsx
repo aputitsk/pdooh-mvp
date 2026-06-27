@@ -6,7 +6,6 @@ import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
 import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
-import TreasuryTransferCard from "@/components/advertiser/TreasuryTransferCard";
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
 import { useTemporaryReservedAmount } from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
@@ -20,9 +19,11 @@ export default function AdvertiserPage() {
     setBusinessName,
     createBusinessProfile,
   } = useDemoAdvertiserStore();
+
   const walletUsdcBalance = useWalletUsdcBalance();
   const walletEscrowBalance = useWalletEscrowBalance();
   const reservedAmount = useTemporaryReservedAmount(wallet.address);
+
   const availableAuctionCapacity =
     walletEscrowBalance.status === "ready" &&
     walletEscrowBalance.balance !== null
@@ -34,9 +35,11 @@ export default function AdvertiserPage() {
   const isWalletRestoring = wallet.status === "restoring";
   const canShowBusinessProfile = wallet.connected;
   const canShowWorkspace = wallet.connected && isBusinessProfileCreated;
+
   const hasAvailableAuctionCapacity =
     walletEscrowBalance.status === "ready" &&
     availableAuctionCapacity > 0;
+
   const canGoToAuction =
     canShowWorkspace &&
     businessName.trim().length > 0 &&
@@ -87,9 +90,23 @@ export default function AdvertiserPage() {
             usdcBalanceError={walletUsdcBalance.error}
           />
 
-          {wallet.connected && (
+          {isWalletRestoring && (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+              <div className="h-5 w-32 rounded-full bg-white/10" />
+              <div className="mt-4 h-8 w-64 rounded-full bg-white/10" />
+              <div className="mt-5 h-12 rounded-xl bg-white/5" />
+            </div>
+          )}
+
+          {!isWalletRestoring && canShowBusinessProfile && (
             <>
-              <TreasuryTransferCard onSuccess={walletUsdcBalance.refresh} />
+              <CreateBusinessProfileCard
+                businessName={businessName}
+                isBusinessProfileCreated={isBusinessProfileCreated}
+                onBusinessNameChange={setBusinessName}
+                onCreateBusinessProfile={handleCreateBusinessProfile}
+              />
+
               <EscrowDepositCard
                 escrowBalance={walletEscrowBalance.formattedBalance}
                 escrowBalanceStatus={walletEscrowBalance.status}
@@ -100,23 +117,6 @@ export default function AdvertiserPage() {
                 }}
               />
             </>
-          )}
-
-          {isWalletRestoring && (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-              <div className="h-5 w-32 rounded-full bg-white/10" />
-              <div className="mt-4 h-8 w-64 rounded-full bg-white/10" />
-              <div className="mt-5 h-12 rounded-xl bg-white/5" />
-            </div>
-          )}
-
-          {!isWalletRestoring && canShowBusinessProfile && (
-            <CreateBusinessProfileCard
-              businessName={businessName}
-              isBusinessProfileCreated={isBusinessProfileCreated}
-              onBusinessNameChange={setBusinessName}
-              onCreateBusinessProfile={handleCreateBusinessProfile}
-            />
           )}
 
           {!isWalletRestoring && canShowWorkspace && (

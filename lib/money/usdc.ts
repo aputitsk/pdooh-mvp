@@ -1,5 +1,6 @@
 export const USDC_DECIMALS = 6;
 export const USDC_MINOR_UNITS = 1_000_000;
+export const USDC_DISPLAY_DECIMALS = 2;
 
 export type UsdcMinorUnits = number;
 
@@ -47,18 +48,17 @@ export function formatUSDCFromMinorUnits(amount: UsdcMinorUnits): string {
     throw new RangeError("USDC minor units cannot be negative.");
   }
 
-  const wholePart = Math.trunc(amount / USDC_MINOR_UNITS);
-  const fractionalPart = amount % USDC_MINOR_UNITS;
+  const roundedAmount = Math.round(
+    amount / 10 ** (USDC_DECIMALS - USDC_DISPLAY_DECIMALS)
+  );
 
-  if (fractionalPart === 0) {
-    return String(wholePart);
-  }
+  const wholePart = Math.trunc(roundedAmount / 10 ** USDC_DISPLAY_DECIMALS);
+  const fractionalPart = roundedAmount % 10 ** USDC_DISPLAY_DECIMALS;
 
-  const trimmedFractionalPart = String(fractionalPart)
-    .padStart(USDC_DECIMALS, "0")
-    .replace(/0+$/, "");
-
-  return `${wholePart}.${trimmedFractionalPart}`;
+  return `${wholePart}.${String(fractionalPart).padStart(
+    USDC_DISPLAY_DECIMALS,
+    "0"
+  )}`;
 }
 
 export function isValidUSDCInput(value: string): boolean {

@@ -7,12 +7,19 @@ export type { Advertisement } from "./advertisementTypes";
 
 const DEFAULT_ADVERTISEMENT_NAME = "Demo Advertisement";
 
-export function getAdvertisements(): Advertisement[] {
-  return getStoredAdvertisements().sort((a, b) => a.name.localeCompare(b.name));
+export function getAdvertisements(
+  walletAddress?: string | null
+): Advertisement[] {
+  return getStoredAdvertisements(walletAddress).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 }
 
-export function saveAdvertisements(advertisements: Advertisement[]) {
-  setStoredAdvertisements(advertisements);
+export function saveAdvertisements(
+  advertisements: Advertisement[],
+  walletAddress?: string | null
+) {
+  setStoredAdvertisements(advertisements, walletAddress);
 }
 
 export function advertisementExists(
@@ -29,40 +36,47 @@ export function advertisementExists(
 
 export function addAdvertisement(
   advertisements: Advertisement[],
-  advertisement: Advertisement
+  advertisement: Advertisement,
+  walletAddress?: string | null
 ) {
   const nextAdvertisements = [...advertisements, advertisement].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
 
-  saveAdvertisements(nextAdvertisements);
+  saveAdvertisements(nextAdvertisements, walletAddress);
 
   return nextAdvertisements;
 }
 
 export function deleteAdvertisement(
   advertisements: Advertisement[],
-  name: string
+  name: string,
+  walletAddress?: string | null
 ) {
   const nextAdvertisements = advertisements.filter(
     (advertisement) => advertisement.name !== name
   );
 
-  saveAdvertisements(nextAdvertisements);
+  saveAdvertisements(nextAdvertisements, walletAddress);
 
   return nextAdvertisements;
 }
 
 export function createDefaultAdvertisement(
   advertisements: Advertisement[],
-  businessName: string
+  businessName: string,
+  walletAddress?: string | null
 ) {
   if (advertisements.length > 0) {
     return advertisements;
   }
 
-  return addAdvertisement(advertisements, {
-    name: DEFAULT_ADVERTISEMENT_NAME,
-    businessName,
-  });
+  return addAdvertisement(
+    advertisements,
+    {
+      name: DEFAULT_ADVERTISEMENT_NAME,
+      businessName,
+    },
+    walletAddress
+  );
 }

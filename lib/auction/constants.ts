@@ -19,7 +19,6 @@ export const DEMO_BOT_ADVERTISEMENT = {
 } as const;
 
 export const AUCTION_STORAGE_KEYS = {
-  ads: "pdooh-ads",
   balance: "pdooh-balance",
   balanceMinorUnits: "pdooh-balance-minor-units",
   demoTreasury: "pdooh-demo-treasury",

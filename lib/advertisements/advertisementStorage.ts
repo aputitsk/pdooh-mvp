@@ -1,19 +1,27 @@
 import type { Advertisement } from "./advertisementTypes";
 
-const STORAGE_KEYS = {
-  advertisements: "pdooh-ads",
-};
-
 function isBrowser() {
   return typeof window !== "undefined";
 }
 
-export function getStoredAdvertisements() {
+function getAdvertisementsStorageKey(walletAddress: string | null | undefined) {
+  const normalizedAddress = walletAddress?.toLowerCase();
+
+  return normalizedAddress ? `pdooh:${normalizedAddress}:ads` : null;
+}
+
+export function getStoredAdvertisements(walletAddress?: string | null) {
   if (!isBrowser()) {
     return [];
   }
 
-  const stored = localStorage.getItem(STORAGE_KEYS.advertisements);
+  const key = getAdvertisementsStorageKey(walletAddress);
+
+  if (!key) {
+    return [];
+  }
+
+  const stored = localStorage.getItem(key);
 
   if (!stored) {
     return [];
@@ -26,13 +34,19 @@ export function getStoredAdvertisements() {
   }
 }
 
-export function setStoredAdvertisements(advertisements: Advertisement[]) {
+export function setStoredAdvertisements(
+  advertisements: Advertisement[],
+  walletAddress?: string | null
+) {
   if (!isBrowser()) {
     return;
   }
 
-  localStorage.setItem(
-    STORAGE_KEYS.advertisements,
-    JSON.stringify(advertisements)
-  );
+  const key = getAdvertisementsStorageKey(walletAddress);
+
+  if (!key) {
+    return;
+  }
+
+  localStorage.setItem(key, JSON.stringify(advertisements));
 }

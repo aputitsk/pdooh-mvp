@@ -49,14 +49,22 @@ function notifyDemoStorageChange() {
 function subscribeToDemoStorage(onStoreChange: () => void) {
   window.addEventListener("storage", onStoreChange);
   window.addEventListener(demoStorageEventName, onStoreChange);
+  const unsubscribeFromWalletChanges = subscribeToWalletChanges(onStoreChange);
 
   const syncInterval = window.setInterval(onStoreChange, 500);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
     window.removeEventListener(demoStorageEventName, onStoreChange);
+    unsubscribeFromWalletChanges();
     window.clearInterval(syncInterval);
   };
+}
+
+function getCurrentWalletAddress() {
+  const wallet = getWalletState();
+
+  return wallet.connected ? wallet.address : null;
 }
 
 function getWalletSnapshot() {
@@ -79,7 +87,7 @@ function getServerWalletSnapshot() {
 }
 
 function getBusinessNameSnapshot() {
-  return getStoredBusinessName();
+  return getStoredBusinessName(getCurrentWalletAddress());
 }
 
 function getServerBusinessNameSnapshot() {
@@ -87,7 +95,7 @@ function getServerBusinessNameSnapshot() {
 }
 
 function getBusinessProfileCreatedSnapshot() {
-  return getStoredBusinessProfileCreated();
+  return getStoredBusinessProfileCreated(getCurrentWalletAddress());
 }
 
 function getServerBusinessProfileCreatedSnapshot() {
@@ -95,7 +103,7 @@ function getServerBusinessProfileCreatedSnapshot() {
 }
 
 function getBalanceSnapshot() {
-  return getStoredAdvertiserBalance();
+  return getStoredAdvertiserBalance(getCurrentWalletAddress());
 }
 
 function getServerBalanceSnapshot() {
@@ -103,7 +111,7 @@ function getServerBalanceSnapshot() {
 }
 
 function getAdvertisementsSnapshot() {
-  const nextAdvertisements = getAdvertisements();
+  const nextAdvertisements = getAdvertisements(getCurrentWalletAddress());
   const nextAdvertisementsJson = JSON.stringify(nextAdvertisements);
 
   if (nextAdvertisementsJson === cachedAdvertisementsJson) {
@@ -120,26 +128,28 @@ function getServerAdvertisementsSnapshot() {
 }
 
 function setBusinessName(businessName: string) {
-  setStoredBusinessName(businessName);
+  setStoredBusinessName(businessName, getCurrentWalletAddress());
   notifyDemoStorageChange();
 }
 
 function createBusinessProfile(
   businessName: string
 ): CreateBusinessProfileResult {
+  const walletAddress = getCurrentWalletAddress();
   const trimmedBusinessName = businessName.trim();
 
-  if (!trimmedBusinessName) {
+  if (!walletAddress || !trimmedBusinessName) {
     return { createdDefaultAdvertisement: false };
   }
 
-  setStoredBusinessName(trimmedBusinessName);
-  setStoredBusinessProfileCreated(true);
+  setStoredBusinessName(trimmedBusinessName, walletAddress);
+  setStoredBusinessProfileCreated(true, walletAddress);
 
-  const currentAdvertisements = getAdvertisements();
+  const currentAdvertisements = getAdvertisements(walletAddress);
   const nextAdvertisements = createDefaultAdvertisement(
     currentAdvertisements,
-    trimmedBusinessName
+    trimmedBusinessName,
+    walletAddress
   );
 
   notifyDemoStorageChange();
@@ -151,7 +161,12 @@ function createBusinessProfile(
 }
 
 function depositTestUSDC(amount: string) {
+  const walletAddress = getCurrentWalletAddress();
   let deposit: UsdcMinorUnits;
+
+  if (!walletAddress) {
+    return false;
+  }
 
   try {
     deposit = parseUSDCToMinorUnits(amount);
@@ -163,10 +178,10 @@ function depositTestUSDC(amount: string) {
     return false;
   }
 
-  const savedBalance = getStoredAdvertiserBalance();
+  const savedBalance = getStoredAdvertiserBalance(walletAddress);
   const nextBalance = savedBalance + deposit;
 
-  setStoredAdvertiserBalance(nextBalance);
+  setStoredAdvertiserBalance(nextBalance, walletAddress);
   notifyDemoStorageChange();
 
   return true;

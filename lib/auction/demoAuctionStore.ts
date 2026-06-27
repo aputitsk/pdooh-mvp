@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 
 import type { Advertisement, AuctionClock, SlotState } from "./auctionTypes";
 import type { UsdcMinorUnits } from "@/lib/money/usdc";
+import { getWalletState, subscribeToWalletChanges } from "@/lib/wallet";
 import { getAuctionClock } from "./auctionTimer";
 import { AUCTION_SLOTS } from "./constants";
 import {
@@ -115,6 +116,8 @@ function subscribe(listener: () => void) {
 
   window.addEventListener("storage", handleStorageChange);
   window.addEventListener(auctionStoreEventName, handleStorageChange);
+  const unsubscribeFromWalletChanges =
+    subscribeToWalletChanges(handleStorageChange);
 
   const interval = window.setInterval(syncAndEmitChange, 500);
 
@@ -124,8 +127,15 @@ function subscribe(listener: () => void) {
     listeners.delete(listener);
     window.removeEventListener("storage", handleStorageChange);
     window.removeEventListener(auctionStoreEventName, handleStorageChange);
+    unsubscribeFromWalletChanges();
     window.clearInterval(interval);
   };
+}
+
+function getCurrentWalletAddress() {
+  const wallet = getWalletState();
+
+  return wallet.connected ? wallet.address : null;
 }
 
 function getSnapshot(): DemoAuctionSnapshot {
@@ -139,7 +149,7 @@ function getSnapshot(): DemoAuctionSnapshot {
   const clock = getAuctionClock(getAuctionStart());
   const slotStates = getStoredSlotStates();
   const submittedBids = getStoredSubmittedBids();
-  const advertisements = getStoredAdvertisements();
+  const advertisements = getStoredAdvertisements(getCurrentWalletAddress());
   const { winners, winnerBidAmounts, winnerAdvertiserAddresses } =
     selectAuctionWinners({
     slotStates,
@@ -185,6 +195,14 @@ function placeBid(
   advertiserAddress: `0x${string}`
 ) {
   const snapshot = getSnapshot();
+  const slot = snapshot.slotStates[slotIndex];
+  const hasWalletAdvertisement = snapshot.advertisements.some(
+    (advertisement) => advertisement.name === slot?.selectedAdvertisement
+  );
+
+  if (!hasWalletAdvertisement) {
+    return;
+  }
 
   placeAuctionBid(
     slotIndex,

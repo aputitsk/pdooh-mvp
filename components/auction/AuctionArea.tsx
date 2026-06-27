@@ -123,36 +123,20 @@ export default function AuctionArea({
       )}
 
       {phase === "locked" && (
-        <>
-          <AuctionStatusCard
-            phase={phase}
-            secondsRemaining={secondsRemaining}
-            currentSlotIndex={currentSlotIndex}
-            walletBalance={walletBalance}
-            walletBalanceStatus={walletBalanceStatus}
-            walletBalanceError={walletBalanceError}
-            escrowBalance={escrowBalance}
-            availableAuctionCapacity={displayedAvailableAuctionCapacity}
-            reservedAmount={reservedAmount}
-            escrowBalanceStatus={escrowBalanceStatus}
-            escrowBalanceError={escrowBalanceError}
-            winners={winners}
-          />
-
-          <div className="rounded-3xl border border-neutral-800 bg-neutral-900 p-6">
-            <p className="text-sm font-medium text-neutral-400">
-              Auction is closed
-            </p>
-
-            <p className="mt-2 text-neutral-500">
-              Bids are locked. Winners and advertisements are revealed.
-            </p>
-          </div>
-
-          <div className="mt-6">
-            <DemoModeCard />
-          </div>
-        </>
+        <AuctionStatusCard
+          phase={phase}
+          secondsRemaining={secondsRemaining}
+          currentSlotIndex={currentSlotIndex}
+          walletBalance={walletBalance}
+          walletBalanceStatus={walletBalanceStatus}
+          walletBalanceError={walletBalanceError}
+          escrowBalance={escrowBalance}
+          availableAuctionCapacity={displayedAvailableAuctionCapacity}
+          reservedAmount={reservedAmount}
+          escrowBalanceStatus={escrowBalanceStatus}
+          escrowBalanceError={escrowBalanceError}
+          winners={winners}
+        />
       )}
 
       {phase === "live" && (

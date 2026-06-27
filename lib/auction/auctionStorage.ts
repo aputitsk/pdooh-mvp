@@ -1,5 +1,6 @@
 import type { Advertisement, SlotState } from "./auctionTypes";
 import { AUCTION_STORAGE_KEYS, AUCTION_SLOTS } from "./constants";
+import { getStoredAdvertisements as getStoredWalletAdvertisements } from "@/lib/advertisements/advertisementStorage";
 import {
   formatUSDCFromMinorUnits,
   parseUSDCToMinorUnits,
@@ -133,8 +134,8 @@ export function getAuctionStart() {
   return now;
 }
 
-export function getStoredAdvertisements() {
-  return readAuctionJson<Advertisement[]>(AUCTION_STORAGE_KEYS.ads, []);
+export function getStoredAdvertisements(walletAddress?: string | null) {
+  return getStoredWalletAdvertisements(walletAddress) as Advertisement[];
 }
 
 export function getStoredWalletBalance() {

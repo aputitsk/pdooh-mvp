@@ -12,7 +12,11 @@ import {
   type Advertisement,
 } from "@/lib/advertisements/advertisements";
 import { getStoredBusinessName } from "@/lib/advertiser/advertiserStorage";
-import { useWalletStore } from "@/lib/wallet";
+import {
+  getWalletState,
+  subscribeToWalletChanges,
+  useWalletStore,
+} from "@/lib/wallet";
 
 const emptyAdvertisements: Advertisement[] = [];
 const advertisementStoreEventName = "pdooh-advertisements-store-change";
@@ -27,12 +31,14 @@ function subscribeToAdvertisementChanges(onStoreChange: () => void) {
 
   window.addEventListener("storage", onStoreChange);
   window.addEventListener(advertisementStoreEventName, onStoreChange);
+  const unsubscribeFromWalletChanges = subscribeToWalletChanges(onStoreChange);
 
   const syncInterval = window.setInterval(onStoreChange, 500);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
     window.removeEventListener(advertisementStoreEventName, onStoreChange);
+    unsubscribeFromWalletChanges();
     window.clearInterval(syncInterval);
   };
 }
@@ -42,7 +48,10 @@ function notifyAdvertisementChanges() {
 }
 
 function getAdvertisementsSnapshot() {
-  const nextAdvertisements = getAdvertisements();
+  const wallet = getWalletState();
+  const nextAdvertisements = getAdvertisements(
+    wallet.connected ? wallet.address : null
+  );
   const nextAdvertisementsJson = JSON.stringify(nextAdvertisements);
 
   if (nextAdvertisementsJson === cachedAdvertisementsJson) {
@@ -59,7 +68,9 @@ function getServerAdvertisementsSnapshot() {
 }
 
 function getBusinessNameSnapshot() {
-  return getStoredBusinessName();
+  const wallet = getWalletState();
+
+  return getStoredBusinessName(wallet.connected ? wallet.address : null);
 }
 
 function getServerBusinessNameSnapshot() {
@@ -68,7 +79,7 @@ function getServerBusinessNameSnapshot() {
 
 export default function AdvertisementsPage() {
   const wallet = useWalletStore();
-  const walletConnected = wallet.connected;
+  const walletConnected = wallet.connected && Boolean(wallet.address);
   const isWalletRestoring = wallet.status === "restoring";
   const businessName = useSyncExternalStore(
     subscribeToAdvertisementChanges,
@@ -110,10 +121,14 @@ export default function AdvertisementsPage() {
       return;
     }
 
-    const nextAdvertisements = addAdvertisement(advertisements, {
-      name: adName.trim(),
-      businessName,
-    });
+    const nextAdvertisements = addAdvertisement(
+      advertisements,
+      {
+        name: adName.trim(),
+        businessName,
+      },
+      wallet.address
+    );
 
     cachedAdvertisements = nextAdvertisements;
     cachedAdvertisementsJson = JSON.stringify(nextAdvertisements);
@@ -132,7 +147,11 @@ export default function AdvertisementsPage() {
       return;
     }
 
-    const nextAdvertisements = deleteAdvertisement(advertisements, name);
+    const nextAdvertisements = deleteAdvertisement(
+      advertisements,
+      name,
+      wallet.address
+    );
     cachedAdvertisements = nextAdvertisements;
     cachedAdvertisementsJson = JSON.stringify(nextAdvertisements);
     notifyAdvertisementChanges();

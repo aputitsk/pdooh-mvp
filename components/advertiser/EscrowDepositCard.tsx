@@ -41,6 +41,7 @@ export default function EscrowDepositCard({
     string | null
   >(null);
   const [error, setError] = useState<string | null>(null);
+
   const isBusy =
     status === "validating" ||
     status === "approval_waiting" ||
@@ -101,6 +102,7 @@ export default function EscrowDepositCard({
             : status === "deposit_pending"
               ? "Waiting for deposit..."
               : "Deposit to Escrow";
+
   const escrowBalanceText =
     escrowBalanceStatus === "ready"
       ? `${escrowBalance} Test USDC`
@@ -112,13 +114,19 @@ export default function EscrowDepositCard({
 
   return (
     <div className="rounded-3xl border border-blue-400/30 bg-blue-400/[0.06] p-6">
-      <h2 className="text-xl font-bold">Escrow Deposit Test</h2>
+      <p className="text-sm font-medium text-white/40">Step 3</p>
+
+      <h2 className="mt-2 text-xl font-bold">
+        Escrow Deposit Test USDC
+      </h2>
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
         <p className="text-sm text-white/50">Escrow Balance</p>
+
         <p className="mt-1 break-words font-semibold text-white/80">
           {escrowBalanceText}
         </p>
+
         <p className="mt-2 text-xs text-white/40">
           Custodied in AuctionEscrow and separate from the external wallet
           balance.
@@ -134,7 +142,10 @@ export default function EscrowDepositCard({
         This custody balance is not connected to auction calculations yet.
       </p>
 
-      <label className="mt-5 block text-sm text-white/60" htmlFor="escrow-usdc">
+      <label
+        className="mt-5 block text-sm text-white/60"
+        htmlFor="escrow-usdc"
+      >
         Amount in Test USDC
       </label>
 
@@ -162,6 +173,7 @@ export default function EscrowDepositCard({
           <p className="text-sm font-semibold text-white/70">
             Approval transaction
           </p>
+
           <p className="mt-2 break-all font-mono text-xs text-white/50">
             {approvalTransactionHash}
           </p>
@@ -173,6 +185,7 @@ export default function EscrowDepositCard({
           <p className="text-sm font-semibold text-white/70">
             Deposit transaction
           </p>
+
           <p className="mt-2 break-all font-mono text-xs text-white/50">
             {depositTransactionHash}
           </p>

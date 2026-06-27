@@ -28,7 +28,7 @@ export default function Home() {
 
         <div className="text-center">
           <div className="mb-5 rounded-full border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm text-blue-200">
-            Built for Arc В· Test USDC В· Demo Mode
+            Built for Arc · Test USDC · Demo Mode
           </div>
           <h1 className="text-3xl font-bold tracking-tight md:text-5xl">
             pDOOH Auction Demo
