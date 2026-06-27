@@ -133,15 +133,6 @@ export default function EscrowDepositCard({
         </p>
       </div>
 
-      <p className="mt-2 text-sm text-blue-100/70">
-        This independent Arc Testnet flow requires two wallet transactions:
-        exact USDC approval followed by an escrow deposit.
-      </p>
-
-      <p className="mt-2 text-sm text-blue-100/70">
-        This custody balance is not connected to auction calculations yet.
-      </p>
-
       <label
         className="mt-5 block text-sm text-white/60"
         htmlFor="escrow-usdc"

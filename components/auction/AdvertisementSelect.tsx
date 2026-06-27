@@ -29,16 +29,21 @@ export default function AdvertisementSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-sm text-neutral-300 outline-none"
+        className={`w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-sm outline-none transition ${
+          value ? "text-white" : "text-neutral-500"
+        }`}
       >
-        <option value="">Select advertisement</option>
+        <option value="" disabled>
+          Select advertisement
+        </option>
 
         {sortedAdvertisements.map((ad) => (
           <option
             key={`${ad.businessName}-${ad.name}`}
             value={ad.name}
+            className="text-white"
           >
-            {ad.businessName} — {ad.name}
+            {ad.name}
           </option>
         ))}
       </select>

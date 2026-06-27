@@ -14,16 +14,16 @@ export default function AdvertisementCard({
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 transition hover:border-white/20">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-widest text-white/40">
             Advertisement
           </p>
 
-          <h2 className="mt-2 text-2xl font-bold text-white">
+          <h2 className="mt-2 break-words text-2xl font-bold text-white">
             {advertisement.name}
           </h2>
 
-          <p className="mt-2 text-sm text-white/50">
+          <p className="mt-2 break-words text-sm text-white/50">
             {advertisement.businessName}
           </p>
         </div>

@@ -58,7 +58,7 @@ export default function ReadyForAuctionCard({
 
       <p className="mt-6 text-sm text-white/60">
         Your business profile meets all requirements to participate in the
-        private pDOOH auction.
+        pDOOH auction.
       </p>
 
       <Link

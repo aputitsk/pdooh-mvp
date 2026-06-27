@@ -31,6 +31,7 @@ export default function AdvertiserPage() {
       : 0;
 
   const [successMessage, setSuccessMessage] = useState("");
+  const [showBusinessNameError, setShowBusinessNameError] = useState(false);
 
   const isWalletRestoring = wallet.status === "restoring";
   const canShowBusinessProfile = wallet.connected;
@@ -46,7 +47,22 @@ export default function AdvertiserPage() {
     advertisements.length > 0 &&
     hasAvailableAuctionCapacity;
 
+  function handleBusinessNameChange(value: string) {
+    setBusinessName(value);
+
+    if (value.trim().length > 0) {
+      setShowBusinessNameError(false);
+    }
+  }
+
   function handleCreateBusinessProfile() {
+    if (businessName.trim().length === 0) {
+      setShowBusinessNameError(true);
+      return;
+    }
+
+    setShowBusinessNameError(false);
+
     const result = createBusinessProfile(businessName);
 
     if (result.createdDefaultAdvertisement) {
@@ -103,7 +119,8 @@ export default function AdvertiserPage() {
               <CreateBusinessProfileCard
                 businessName={businessName}
                 isBusinessProfileCreated={isBusinessProfileCreated}
-                onBusinessNameChange={setBusinessName}
+                showBusinessNameError={showBusinessNameError}
+                onBusinessNameChange={handleBusinessNameChange}
                 onCreateBusinessProfile={handleCreateBusinessProfile}
               />
 

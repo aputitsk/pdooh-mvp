@@ -1,6 +1,7 @@
 type CreateBusinessProfileCardProps = {
   businessName: string;
   isBusinessProfileCreated: boolean;
+  showBusinessNameError: boolean;
   onBusinessNameChange: (value: string) => void;
   onCreateBusinessProfile: () => void;
 };
@@ -8,6 +9,7 @@ type CreateBusinessProfileCardProps = {
 export default function CreateBusinessProfileCard({
   businessName,
   isBusinessProfileCreated,
+  showBusinessNameError,
   onBusinessNameChange,
   onCreateBusinessProfile,
 }: CreateBusinessProfileCardProps) {
@@ -45,9 +47,28 @@ export default function CreateBusinessProfileCard({
         value={businessName}
         onChange={(e) => onBusinessNameChange(e.target.value)}
         disabled={isBusinessProfileCreated}
+        maxLength={20}
         placeholder="Miami Retail Group"
-        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-default disabled:text-white/40"
+        className={`mt-2 w-full rounded-xl border bg-black/30 px-4 py-3 outline-none transition disabled:cursor-default ${
+          isBusinessProfileCreated
+            ? "text-green-400 disabled:text-green-400"
+            : "text-white disabled:text-white/40"
+        } ${
+          showBusinessNameError
+            ? "border-red-500 focus:border-red-500"
+            : "border-white/10 focus:border-white/30"
+        }`}
       />
+
+      <p className="mt-2 text-right text-xs text-white/40">
+        {businessName.length} / 20
+      </p>
+
+      {showBusinessNameError && (
+        <p className="mt-2 text-sm text-red-400">
+          Business name is required.
+        </p>
+      )}
 
       <button
         type="button"

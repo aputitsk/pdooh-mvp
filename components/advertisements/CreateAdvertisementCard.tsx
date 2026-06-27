@@ -18,7 +18,9 @@ export default function CreateAdvertisementCard({
       <div>
         <p className="text-sm text-white/40">Create</p>
 
-        <h2 className="mt-1 text-2xl font-bold">Create Advertisement</h2>
+        <h2 className="mt-1 text-2xl font-bold">
+          Create Advertisement
+        </h2>
 
         <p className="mt-2 text-sm text-white/50">
           Create a simple text advertisement for the MVP.
@@ -33,12 +35,19 @@ export default function CreateAdvertisementCard({
         value={adName}
         onChange={(e) => onAdNameChange(e.target.value)}
         disabled={isDisabled}
+        maxLength={30}
         placeholder="Summer Sale"
         className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-not-allowed disabled:text-white/40"
       />
 
+      <p className="mt-2 text-right text-xs text-white/40">
+        {adName.length} / 30
+      </p>
+
       {errorMessage && (
-        <p className="mt-2 text-sm text-red-400">{errorMessage}</p>
+        <p className="mt-2 text-sm text-red-400">
+          {errorMessage}
+        </p>
       )}
 
       <button
