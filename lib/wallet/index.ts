@@ -29,8 +29,11 @@ export {
 } from "./walletTransactions";
 export {
   depositWalletUsdcToEscrow,
+  withdrawWalletUsdcFromEscrow,
   type WalletEscrowDepositLifecycle,
   type WalletEscrowDepositResult,
+  type WalletEscrowWithdrawLifecycle,
+  type WalletEscrowWithdrawResult,
 } from "./walletEscrowTransactions";
 export type WalletProviderOption = ArcWalletCatalogOption;
 

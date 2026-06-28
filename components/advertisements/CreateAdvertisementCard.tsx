@@ -1,7 +1,10 @@
+import { ADVERTISEMENT_NAME_MAX_LENGTH } from "@/lib/advertisements/advertisements";
+
 type CreateAdvertisementCardProps = {
   adName: string;
   errorMessage?: string;
   isDisabled?: boolean;
+  isCreateSuccessVisible?: boolean;
   onAdNameChange: (value: string) => void;
   onCreateAdvertisement: () => void;
 };
@@ -10,6 +13,7 @@ export default function CreateAdvertisementCard({
   adName,
   errorMessage = "",
   isDisabled = false,
+  isCreateSuccessVisible = false,
   onAdNameChange,
   onCreateAdvertisement,
 }: CreateAdvertisementCardProps) {
@@ -19,7 +23,7 @@ export default function CreateAdvertisementCard({
         <p className="text-sm text-white/40">Create</p>
 
         <h2 className="mt-1 text-2xl font-bold">
-          Create Advertisement
+          Create New Advertisement
         </h2>
 
         <p className="mt-2 text-sm text-white/50">
@@ -35,13 +39,13 @@ export default function CreateAdvertisementCard({
         value={adName}
         onChange={(e) => onAdNameChange(e.target.value)}
         disabled={isDisabled}
-        maxLength={30}
+        maxLength={ADVERTISEMENT_NAME_MAX_LENGTH}
         placeholder="Summer Sale"
         className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-not-allowed disabled:text-white/40"
       />
 
       <p className="mt-2 text-right text-xs text-white/40">
-        {adName.length} / 30
+        {adName.length} / {ADVERTISEMENT_NAME_MAX_LENGTH}
       </p>
 
       {errorMessage && (
@@ -53,10 +57,14 @@ export default function CreateAdvertisementCard({
       <button
         type="button"
         onClick={onCreateAdvertisement}
-        disabled={isDisabled}
-        className="mt-5 w-full rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
+        disabled={isDisabled || isCreateSuccessVisible}
+        className={`mt-5 w-full rounded-full px-6 py-3 font-semibold transition disabled:cursor-not-allowed ${
+          isCreateSuccessVisible
+            ? "bg-emerald-500/20 text-emerald-300"
+            : "bg-white text-black hover:bg-white/80 disabled:bg-white/20 disabled:text-white/40"
+        }`}
       >
-        Create Advertisement
+        {isCreateSuccessVisible ? "✓ Created" : "Create Advertisement"}
       </button>
     </div>
   );

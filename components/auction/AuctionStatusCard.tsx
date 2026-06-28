@@ -56,12 +56,12 @@ export default function AuctionStatusCard({
     <div className="mb-6 rounded-3xl border border-white/10 bg-neutral-900 p-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm font-semibold text-emerald-400">Live</p>
-
-          {isLive && (
-            <p className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-white/70">
-              {secondsRemaining} sec remaining
+          {isLive ? (
+            <p className="whitespace-nowrap text-sm font-semibold text-emerald-400">
+              🟢 LIVE • Next auction in {secondsRemaining} sec
             </p>
+          ) : (
+            <p className="text-sm font-semibold text-emerald-400">Live</p>
           )}
         </div>
 

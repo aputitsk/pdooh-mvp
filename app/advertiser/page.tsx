@@ -18,6 +18,7 @@ export default function AdvertiserPage() {
     advertisements,
     setBusinessName,
     createBusinessProfile,
+    updateBusinessProfileName,
   } = useDemoAdvertiserStore();
 
   const walletUsdcBalance = useWalletUsdcBalance();
@@ -32,6 +33,8 @@ export default function AdvertiserPage() {
 
   const [successMessage, setSuccessMessage] = useState("");
   const [showBusinessNameError, setShowBusinessNameError] = useState(false);
+  const [isEditingBusinessName, setIsEditingBusinessName] = useState(false);
+  const [editableBusinessName, setEditableBusinessName] = useState("");
 
   const isWalletRestoring = wallet.status === "restoring";
   const canShowBusinessProfile = wallet.connected;
@@ -70,6 +73,51 @@ export default function AdvertiserPage() {
         "Demo Advertisement has been created for your business."
       );
     }
+  }
+
+  function handleStartBusinessNameEdit() {
+    if (!wallet.connected) {
+      return;
+    }
+
+    setEditableBusinessName(businessName);
+    setShowBusinessNameError(false);
+    setIsEditingBusinessName(true);
+  }
+
+  function handleEditableBusinessNameChange(value: string) {
+    setEditableBusinessName(value);
+
+    if (value.trim().length > 0) {
+      setShowBusinessNameError(false);
+    }
+  }
+
+  function handleSaveBusinessNameEdit() {
+    if (!wallet.connected) {
+      return;
+    }
+
+    if (editableBusinessName.trim().length === 0) {
+      setShowBusinessNameError(true);
+      return;
+    }
+
+    const isUpdated = updateBusinessProfileName(editableBusinessName);
+
+    if (!isUpdated) {
+      return;
+    }
+
+    setShowBusinessNameError(false);
+    setIsEditingBusinessName(false);
+    setSuccessMessage("Business Profile has been updated.");
+  }
+
+  function handleCancelBusinessNameEdit() {
+    setEditableBusinessName(businessName);
+    setShowBusinessNameError(false);
+    setIsEditingBusinessName(false);
   }
 
   return (
@@ -118,16 +166,25 @@ export default function AdvertiserPage() {
             <>
               <CreateBusinessProfileCard
                 businessName={businessName}
+                editableBusinessName={editableBusinessName}
                 isBusinessProfileCreated={isBusinessProfileCreated}
+                isEditingBusinessName={isEditingBusinessName}
                 showBusinessNameError={showBusinessNameError}
+                isEditDisabled={!wallet.connected}
                 onBusinessNameChange={handleBusinessNameChange}
+                onEditableBusinessNameChange={handleEditableBusinessNameChange}
                 onCreateBusinessProfile={handleCreateBusinessProfile}
+                onStartBusinessNameEdit={handleStartBusinessNameEdit}
+                onSaveBusinessNameEdit={handleSaveBusinessNameEdit}
+                onCancelBusinessNameEdit={handleCancelBusinessNameEdit}
               />
 
               <EscrowDepositCard
                 escrowBalance={walletEscrowBalance.formattedBalance}
+                escrowBalanceMinorUnits={walletEscrowBalance.balance}
                 escrowBalanceStatus={walletEscrowBalance.status}
                 escrowBalanceError={walletEscrowBalance.error}
+                reservedAmount={reservedAmount}
                 onSuccess={() => {
                   walletUsdcBalance.refresh();
                   walletEscrowBalance.refresh();

@@ -1,11 +1,14 @@
 import {
   depositWalletUsdcToEscrow,
   sendWalletUsdcToTreasury,
+  withdrawWalletUsdcFromEscrow,
 } from "@/lib/wallet";
 
 import type {
   EscrowDepositLifecycle,
   EscrowDepositResult,
+  EscrowWithdrawLifecycle,
+  EscrowWithdrawResult,
   PaymentTransactionHash,
   TreasuryPaymentLifecycle,
 } from "./paymentTypes";
@@ -24,9 +27,18 @@ export async function depositEscrowFunds(
   return depositWalletUsdcToEscrow(amount, lifecycle);
 }
 
+export async function withdrawEscrowFunds(
+  amount: string,
+  lifecycle: EscrowWithdrawLifecycle = {}
+): Promise<EscrowWithdrawResult> {
+  return withdrawWalletUsdcFromEscrow(amount, lifecycle);
+}
+
 export type {
   EscrowDepositLifecycle,
   EscrowDepositResult,
+  EscrowWithdrawLifecycle,
+  EscrowWithdrawResult,
   PaymentTransactionHash,
   TreasuryPaymentLifecycle,
 } from "./paymentTypes";

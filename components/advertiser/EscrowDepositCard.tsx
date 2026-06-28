@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 
-import { depositEscrowFunds } from "@/lib/payments/paymentService";
+import {
+  depositEscrowFunds,
+  withdrawEscrowFunds,
+} from "@/lib/payments/paymentService";
+import {
+  parseUSDCToMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
-type DepositStatus =
+type EscrowActionStatus =
   | "idle"
   | "validating"
   | "approval_waiting"
@@ -12,14 +19,19 @@ type DepositStatus =
   | "approval_confirmed"
   | "deposit_waiting"
   | "deposit_pending"
+  | "withdraw_waiting"
+  | "withdraw_pending"
   | "success"
+  | "withdraw_success"
   | "error";
 
 type EscrowDepositCardProps = {
   onSuccess: () => void;
   escrowBalance: string;
+  escrowBalanceMinorUnits: UsdcMinorUnits | null;
   escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
   escrowBalanceError: string | null;
+  reservedAmount: UsdcMinorUnits;
 };
 
 function getErrorMessage(error: unknown) {
@@ -29,15 +41,20 @@ function getErrorMessage(error: unknown) {
 export default function EscrowDepositCard({
   onSuccess,
   escrowBalance,
+  escrowBalanceMinorUnits,
   escrowBalanceStatus,
   escrowBalanceError,
+  reservedAmount,
 }: EscrowDepositCardProps) {
   const [amount, setAmount] = useState("");
-  const [status, setStatus] = useState<DepositStatus>("idle");
+  const [status, setStatus] = useState<EscrowActionStatus>("idle");
   const [approvalTransactionHash, setApprovalTransactionHash] = useState<
     string | null
   >(null);
   const [depositTransactionHash, setDepositTransactionHash] = useState<
+    string | null
+  >(null);
+  const [withdrawTransactionHash, setWithdrawTransactionHash] = useState<
     string | null
   >(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,12 +65,20 @@ export default function EscrowDepositCard({
     status === "approval_pending" ||
     status === "approval_confirmed" ||
     status === "deposit_waiting" ||
-    status === "deposit_pending";
+    status === "deposit_pending" ||
+    status === "withdraw_waiting" ||
+    status === "withdraw_pending";
+  const canWithdraw =
+    escrowBalanceStatus === "ready" &&
+    escrowBalanceMinorUnits !== null &&
+    escrowBalanceMinorUnits > 0 &&
+    reservedAmount === 0;
 
   async function handleDeposit() {
     setStatus("validating");
     setApprovalTransactionHash(null);
     setDepositTransactionHash(null);
+    setWithdrawTransactionHash(null);
     setError(null);
 
     try {
@@ -89,6 +114,56 @@ export default function EscrowDepositCard({
     }
   }
 
+  async function handleWithdraw() {
+    setStatus("validating");
+    setApprovalTransactionHash(null);
+    setDepositTransactionHash(null);
+    setWithdrawTransactionHash(null);
+    setError(null);
+
+    try {
+      const withdrawAmount = parseUSDCToMinorUnits(amount);
+
+      if (reservedAmount > 0) {
+        throw new Error("Withdraw is disabled while funds are reserved.");
+      }
+
+      if (withdrawAmount <= 0) {
+        throw new Error("Enter an escrow withdraw amount greater than zero.");
+      }
+
+      if (
+        escrowBalanceStatus !== "ready" ||
+        escrowBalanceMinorUnits === null ||
+        escrowBalanceMinorUnits <= 0
+      ) {
+        throw new Error("No escrow balance is available to withdraw.");
+      }
+
+      if (withdrawAmount > escrowBalanceMinorUnits) {
+        throw new Error("Withdraw amount exceeds your escrow balance.");
+      }
+
+      const result = await withdrawEscrowFunds(amount, {
+        onWithdrawWalletRequest() {
+          setStatus("withdraw_waiting");
+        },
+        onWithdrawPending(transactionHash) {
+          setWithdrawTransactionHash(transactionHash);
+          setStatus("withdraw_pending");
+        },
+      });
+
+      setWithdrawTransactionHash(result.withdrawTransactionHash);
+      setStatus("withdraw_success");
+      setAmount("");
+      onSuccess();
+    } catch (withdrawError) {
+      setStatus("error");
+      setError(getErrorMessage(withdrawError));
+    }
+  }
+
   const buttonLabel =
     status === "validating"
       ? "Validating escrow..."
@@ -102,6 +177,12 @@ export default function EscrowDepositCard({
             : status === "deposit_pending"
               ? "Waiting for deposit..."
               : "Deposit to Escrow";
+  const withdrawButtonLabel =
+    status === "withdraw_waiting"
+      ? "Confirm withdraw in wallet..."
+      : status === "withdraw_pending"
+        ? "Waiting for withdraw..."
+        : "Withdraw";
 
   const escrowBalanceText =
     escrowBalanceStatus === "ready"
@@ -150,14 +231,33 @@ export default function EscrowDepositCard({
         className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-wait disabled:text-white/40"
       />
 
-      <button
-        type="button"
-        onClick={handleDeposit}
-        disabled={isBusy}
-        className="mt-5 w-full rounded-full bg-blue-300 px-6 py-3 font-semibold text-black transition hover:bg-blue-200 disabled:cursor-wait disabled:bg-white/10 disabled:text-white/40"
+      <div
+        className={
+          canWithdraw
+            ? "mt-5 flex flex-col gap-3 sm:flex-row"
+            : "mt-5"
+        }
       >
-        {buttonLabel}
-      </button>
+        <button
+          type="button"
+          onClick={handleDeposit}
+          disabled={isBusy}
+          className="min-h-12 w-full rounded-full bg-blue-300 px-6 py-3 font-semibold text-black transition hover:bg-blue-200 disabled:cursor-wait disabled:bg-white/10 disabled:text-white/40"
+        >
+          {buttonLabel}
+        </button>
+
+        {canWithdraw && (
+          <button
+            type="button"
+            onClick={handleWithdraw}
+            disabled={isBusy}
+            className="min-h-12 w-full rounded-full border border-white/10 bg-black/30 px-6 py-3 font-semibold text-white/80 transition hover:border-white/25 hover:bg-white/10 disabled:cursor-wait disabled:border-white/10 disabled:bg-white/10 disabled:text-white/40"
+          >
+            {withdrawButtonLabel}
+          </button>
+        )}
+      </div>
 
       {approvalTransactionHash && (
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
@@ -183,9 +283,27 @@ export default function EscrowDepositCard({
         </div>
       )}
 
+      {withdrawTransactionHash && (
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+          <p className="text-sm font-semibold text-white/70">
+            Withdraw transaction
+          </p>
+
+          <p className="mt-2 break-all font-mono text-xs text-white/50">
+            {withdrawTransactionHash}
+          </p>
+        </div>
+      )}
+
       {status === "success" && (
         <p className="mt-4 text-sm font-semibold text-emerald-300">
           Escrow deposit confirmed
+        </p>
+      )}
+
+      {status === "withdraw_success" && (
+        <p className="mt-4 text-sm font-semibold text-emerald-300">
+          Escrow withdraw confirmed
         </p>
       )}
 

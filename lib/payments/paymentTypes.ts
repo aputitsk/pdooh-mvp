@@ -17,3 +17,12 @@ export type EscrowDepositResult = {
   approvalTransactionHash: PaymentTransactionHash;
   depositTransactionHash: PaymentTransactionHash;
 };
+
+export type EscrowWithdrawLifecycle = {
+  onWithdrawWalletRequest?: () => void;
+  onWithdrawPending?: (transactionHash: PaymentTransactionHash) => void;
+};
+
+export type EscrowWithdrawResult = {
+  withdrawTransactionHash: PaymentTransactionHash;
+};

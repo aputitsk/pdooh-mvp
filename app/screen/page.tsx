@@ -29,6 +29,7 @@ import {
 } from "@/lib/accounting/settlementRepository";
 import { ARC_CHAIN_ID } from "@/lib/arc/arcConstants";
 import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
+import { AUCTION_TOTAL_CYCLE_SECONDS } from "@/lib/auction/constants";
 import {
   getConfirmedBidExposure,
   getSettlementEligibleLiveSlotIds,
@@ -140,6 +141,13 @@ export default function ScreenPage() {
       : 0;
   const phase = auction.clock.phase;
   const currentSlotIndex = auction.clock.currentSlotIndex;
+  const displaySecondsRemaining =
+    phase === "live"
+      ? Math.max(
+          AUCTION_TOTAL_CYCLE_SECONDS - auction.clock.elapsedInCycle,
+          0
+        )
+      : auction.clock.secondsRemaining;
   const submittedBidsKey = auction.submittedBids.join("|");
   const liveWinner =
     phase === "live" ? auction.winners[currentSlotIndex] : null;
@@ -321,7 +329,7 @@ export default function ScreenPage() {
 
         <AuctionArea
           phase={phase}
-          secondsRemaining={auction.clock.secondsRemaining}
+          secondsRemaining={displaySecondsRemaining}
           currentSlotIndex={currentSlotIndex}
           slots={[...auction.slots]}
           advertisements={auction.advertisements}

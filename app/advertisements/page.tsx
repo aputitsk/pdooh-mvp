@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import AdvertisementCard from "@/components/advertisements/AdvertisementCard";
 import CreateAdvertisementCard from "@/components/advertisements/CreateAdvertisementCard";
 import EmptyAdvertisementsCard from "@/components/advertisements/EmptyAdvertisementsCard";
 import {
+  ADVERTISEMENT_NAME_MAX_LENGTH,
   addAdvertisement,
   advertisementExists,
+  advertisementExistsExcept,
   deleteAdvertisement,
   getAdvertisements,
+  updateAdvertisementName,
   type Advertisement,
 } from "@/lib/advertisements/advertisements";
 import { getStoredBusinessName } from "@/lib/advertiser/advertiserStorage";
@@ -20,6 +23,7 @@ import {
 
 const emptyAdvertisements: Advertisement[] = [];
 const advertisementStoreEventName = "pdooh-advertisements-store-change";
+const ADVERTISEMENTS_PAGE_SIZE = 6;
 
 let cachedAdvertisements = emptyAdvertisements;
 let cachedAdvertisementsJson = "";
@@ -88,11 +92,44 @@ export default function AdvertisementsPage() {
   );
   const [adName, setAdName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isCreateSuccessVisible, setIsCreateSuccessVisible] =
+    useState(false);
+  const [editingAdvertisementName, setEditingAdvertisementName] =
+    useState("");
+  const [editableAdvertisementName, setEditableAdvertisementName] =
+    useState("");
+  const [editErrorMessage, setEditErrorMessage] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const advertisements = useSyncExternalStore(
     subscribeToAdvertisementChanges,
     getAdvertisementsSnapshot,
     getServerAdvertisementsSnapshot
   );
+  const totalPages = Math.max(
+    1,
+    Math.ceil(advertisements.length / ADVERTISEMENTS_PAGE_SIZE)
+  );
+  const visiblePage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (visiblePage - 1) * ADVERTISEMENTS_PAGE_SIZE;
+  const paginatedAdvertisements = advertisements.slice(
+    pageStartIndex,
+    pageStartIndex + ADVERTISEMENTS_PAGE_SIZE
+  );
+  const shouldShowPagination = advertisements.length > ADVERTISEMENTS_PAGE_SIZE;
+
+  useEffect(() => {
+    if (!isCreateSuccessVisible) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsCreateSuccessVisible(false);
+    }, 2000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isCreateSuccessVisible]);
 
   function handleCreateAdvertisement() {
     if (isWalletRestoring) {
@@ -106,6 +143,13 @@ export default function AdvertisementsPage() {
 
     if (!adName.trim()) {
       setErrorMessage("Enter an advertisement name.");
+      return;
+    }
+
+    if (adName.trim().length > ADVERTISEMENT_NAME_MAX_LENGTH) {
+      setErrorMessage(
+        `Advertisement name must be ${ADVERTISEMENT_NAME_MAX_LENGTH} characters or fewer.`
+      );
       return;
     }
 
@@ -135,6 +179,7 @@ export default function AdvertisementsPage() {
     notifyAdvertisementChanges();
     setAdName("");
     setErrorMessage("");
+    setIsCreateSuccessVisible(true);
   }
 
   function handleDeleteAdvertisement(name: string) {
@@ -157,12 +202,94 @@ export default function AdvertisementsPage() {
     notifyAdvertisementChanges();
   }
 
+  function handleStartAdvertisementEdit(name: string) {
+    if (isWalletRestoring) {
+      return;
+    }
+
+    if (!walletConnected) {
+      setErrorMessage("Connect your wallet before editing advertisements.");
+      return;
+    }
+
+    setEditingAdvertisementName(name);
+    setEditableAdvertisementName(name);
+    setEditErrorMessage("");
+    setErrorMessage("");
+  }
+
+  function handleEditableAdvertisementNameChange(value: string) {
+    setEditableAdvertisementName(value);
+
+    if (editErrorMessage) {
+      setEditErrorMessage("");
+    }
+  }
+
+  function handleSaveAdvertisementEdit(currentName: string) {
+    if (isWalletRestoring) {
+      return;
+    }
+
+    if (!walletConnected) {
+      setErrorMessage("Connect your wallet before editing advertisements.");
+      return;
+    }
+
+    const nextName = editableAdvertisementName.trim();
+
+    if (!nextName) {
+      setEditErrorMessage("Advertisement name is required.");
+      return;
+    }
+
+    if (nextName.length > ADVERTISEMENT_NAME_MAX_LENGTH) {
+      setEditErrorMessage(
+        `Advertisement name must be ${ADVERTISEMENT_NAME_MAX_LENGTH} characters or fewer.`
+      );
+      return;
+    }
+
+    if (advertisementExistsExcept(advertisements, nextName, currentName)) {
+      setEditErrorMessage("Advertisement with this name already exists.");
+      return;
+    }
+
+    const nextAdvertisements = updateAdvertisementName(
+      advertisements,
+      currentName,
+      nextName,
+      wallet.address
+    );
+
+    cachedAdvertisements = nextAdvertisements;
+    cachedAdvertisementsJson = JSON.stringify(nextAdvertisements);
+    notifyAdvertisementChanges();
+    setEditingAdvertisementName("");
+    setEditableAdvertisementName("");
+    setEditErrorMessage("");
+  }
+
+  function handleCancelAdvertisementEdit() {
+    setEditingAdvertisementName("");
+    setEditableAdvertisementName("");
+    setEditErrorMessage("");
+  }
+
   function handleAdNameChange(value: string) {
     setAdName(value);
 
     if (errorMessage) {
       setErrorMessage("");
     }
+  }
+
+  function handlePreviousPage() {
+    setCurrentPage((page) => Math.max(page - 1, 1));
+  }
+
+  function handleNextPage() {
+    setCurrentPage((page) => Math.min(page + 1, totalPages));
   }
 
   const advertisementCount = advertisements.length;
@@ -204,6 +331,7 @@ export default function AdvertisementsPage() {
             adName={adName}
             errorMessage={errorMessage}
             isDisabled={isWalletRestoring}
+            isCreateSuccessVisible={isCreateSuccessVisible}
             onAdNameChange={handleAdNameChange}
             onCreateAdvertisement={handleCreateAdvertisement}
           />
@@ -212,16 +340,60 @@ export default function AdvertisementsPage() {
             {advertisements.length === 0 ? (
               <EmptyAdvertisementsCard />
             ) : (
-              <div className="grid gap-5 md:grid-cols-2">
-                {advertisements.map((advertisement) => (
-                  <AdvertisementCard
-                    key={`${advertisement.businessName}-${advertisement.name}`}
-                    advertisement={advertisement}
-                    isDeleteDisabled={isWalletRestoring}
-                    onDelete={handleDeleteAdvertisement}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {paginatedAdvertisements.map((advertisement) => (
+                    <AdvertisementCard
+                      key={`${advertisement.businessName}-${advertisement.name}`}
+                      advertisement={advertisement}
+                      editableName={editableAdvertisementName}
+                      errorMessage={
+                        editingAdvertisementName === advertisement.name
+                          ? editErrorMessage
+                          : ""
+                      }
+                      isEditing={
+                        editingAdvertisementName === advertisement.name
+                      }
+                      isDeleteDisabled={isWalletRestoring}
+                      isEditDisabled={isWalletRestoring}
+                      onEditableNameChange={
+                        handleEditableAdvertisementNameChange
+                      }
+                      onStartEdit={handleStartAdvertisementEdit}
+                      onSaveEdit={handleSaveAdvertisementEdit}
+                      onCancelEdit={handleCancelAdvertisementEdit}
+                      onDelete={handleDeleteAdvertisement}
+                    />
+                  ))}
+                </div>
+
+                {shouldShowPagination && (
+                  <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                      type="button"
+                      onClick={handlePreviousPage}
+                      disabled={visiblePage === 1}
+                      className="rounded-full border border-white/10 px-4 py-2 font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                    >
+                      Prev
+                    </button>
+
+                    <p className="text-center font-medium">
+                      Page {visiblePage} of {totalPages}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={handleNextPage}
+                      disabled={visiblePage === totalPages}
+                      className="rounded-full border border-white/10 px-4 py-2 font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

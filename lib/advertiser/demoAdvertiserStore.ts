@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import {
   createDefaultAdvertisement,
   getAdvertisements,
+  updateAdvertisementsBusinessName,
   type Advertisement,
 } from "@/lib/advertisements/advertisements";
 import {
@@ -160,6 +161,25 @@ function createBusinessProfile(
   };
 }
 
+function updateBusinessProfileName(businessName: string) {
+  const walletAddress = getCurrentWalletAddress();
+  const trimmedBusinessName = businessName.trim();
+
+  if (!walletAddress || !trimmedBusinessName) {
+    return false;
+  }
+
+  setStoredBusinessName(trimmedBusinessName, walletAddress);
+  updateAdvertisementsBusinessName(
+    getAdvertisements(walletAddress),
+    trimmedBusinessName,
+    walletAddress
+  );
+  notifyDemoStorageChange();
+
+  return true;
+}
+
 function depositTestUSDC(amount: string) {
   const walletAddress = getCurrentWalletAddress();
   let deposit: UsdcMinorUnits;
@@ -227,6 +247,7 @@ export function useDemoAdvertiserStore() {
     advertisements,
     setBusinessName,
     createBusinessProfile,
+    updateBusinessProfileName,
     depositTestUSDC,
   };
 }

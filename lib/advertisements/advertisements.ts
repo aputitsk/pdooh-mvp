@@ -6,13 +6,15 @@ import type { Advertisement } from "./advertisementTypes";
 export type { Advertisement } from "./advertisementTypes";
 
 const DEFAULT_ADVERTISEMENT_NAME = "Demo Advertisement";
+export const ADVERTISEMENT_NAME_MAX_LENGTH = 30;
+
+type AdvertisementInput = Omit<Advertisement, "createdAt"> &
+  Partial<Pick<Advertisement, "createdAt">>;
 
 export function getAdvertisements(
   walletAddress?: string | null
 ): Advertisement[] {
-  return getStoredAdvertisements(walletAddress).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  return sortAdvertisementsByCreatedAt(getStoredAdvertisements(walletAddress));
 }
 
 export function saveAdvertisements(
@@ -34,13 +36,72 @@ export function advertisementExists(
   );
 }
 
+export function advertisementExistsExcept(
+  advertisements: Advertisement[],
+  name: string,
+  currentName: string
+) {
+  const normalized = name.trim().toLowerCase();
+  const normalizedCurrentName = currentName.trim().toLowerCase();
+
+  return advertisements.some((advertisement) => {
+    const advertisementName = advertisement.name.trim().toLowerCase();
+
+    return (
+      advertisementName === normalized &&
+      advertisementName !== normalizedCurrentName
+    );
+  });
+}
+
 export function addAdvertisement(
   advertisements: Advertisement[],
-  advertisement: Advertisement,
+  advertisement: AdvertisementInput,
   walletAddress?: string | null
 ) {
-  const nextAdvertisements = [...advertisements, advertisement].sort((a, b) =>
-    a.name.localeCompare(b.name)
+  const nextAdvertisements = sortAdvertisementsByCreatedAt([
+    {
+      ...advertisement,
+      createdAt: getValidCreatedAt(advertisement.createdAt, Date.now()),
+    },
+    ...advertisements,
+  ]);
+
+  saveAdvertisements(nextAdvertisements, walletAddress);
+
+  return nextAdvertisements;
+}
+
+export function updateAdvertisementName(
+  advertisements: Advertisement[],
+  currentName: string,
+  nextName: string,
+  walletAddress?: string | null
+) {
+  const trimmedNextName = nextName.trim();
+  const nextAdvertisements = sortAdvertisementsByCreatedAt(
+    advertisements.map((advertisement) =>
+      advertisement.name === currentName
+        ? { ...advertisement, name: trimmedNextName }
+        : advertisement
+    )
+  );
+
+  saveAdvertisements(nextAdvertisements, walletAddress);
+
+  return nextAdvertisements;
+}
+
+export function updateAdvertisementsBusinessName(
+  advertisements: Advertisement[],
+  businessName: string,
+  walletAddress?: string | null
+) {
+  const nextAdvertisements = sortAdvertisementsByCreatedAt(
+    advertisements.map((advertisement) => ({
+      ...advertisement,
+      businessName,
+    }))
   );
 
   saveAdvertisements(nextAdvertisements, walletAddress);
@@ -79,4 +140,20 @@ export function createDefaultAdvertisement(
     },
     walletAddress
   );
+}
+
+function sortAdvertisementsByCreatedAt(advertisements: Advertisement[]) {
+  return [...advertisements].sort(
+    (a, b) => getCreatedAtForSort(b) - getCreatedAtForSort(a)
+  );
+}
+
+function getCreatedAtForSort(advertisement: Advertisement) {
+  return getValidCreatedAt(advertisement.createdAt, 0);
+}
+
+function getValidCreatedAt(value: number | undefined, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : fallback;
 }

@@ -50,6 +50,13 @@ const auctionEscrowAbi = [
   },
   {
     type: "function",
+    name: "withdraw",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "balanceOf",
     stateMutability: "view",
     inputs: [{ name: "advertiser", type: "address" }],
@@ -97,6 +104,15 @@ export type ArcEscrowDepositResult = {
   depositTransactionHash: Hash;
 };
 
+export type ArcEscrowWithdrawLifecycle = {
+  onWithdrawWalletRequest?: () => void;
+  onWithdrawPending?: (transactionHash: Hash) => void;
+};
+
+export type ArcEscrowWithdrawResult = {
+  withdrawTransactionHash: Hash;
+};
+
 function parseChainId(value: unknown) {
   if (typeof value === "number") {
     return value;
@@ -122,6 +138,16 @@ function assertValidDepositAmount(amount: UsdcMinorUnits) {
 
   if (amount <= 0) {
     throw new RangeError("Escrow deposit amount must be greater than zero.");
+  }
+}
+
+function assertValidWithdrawAmount(amount: UsdcMinorUnits) {
+  if (!Number.isSafeInteger(amount)) {
+    throw new TypeError("USDC amount must be a safe integer in minor units.");
+  }
+
+  if (amount <= 0) {
+    throw new RangeError("Escrow withdraw amount must be greater than zero.");
   }
 }
 
@@ -302,5 +328,37 @@ export async function depositArcUsdcToEscrow(
   return {
     approvalTransactionHash,
     depositTransactionHash,
+  };
+}
+
+export async function withdrawArcUsdcFromEscrow(
+  amount: UsdcMinorUnits,
+  lifecycle: ArcEscrowWithdrawLifecycle = {}
+): Promise<ArcEscrowWithdrawResult> {
+  assertValidWithdrawAmount(amount);
+
+  const escrowAddress = getArcEscrowAddress();
+
+  await validateArcEscrowContract(escrowAddress);
+
+  const withdrawContext = await getEscrowTransactionContext();
+  const { request: withdrawRequest } = await arcPublicClient.simulateContract({
+    account: withdrawContext.account,
+    address: escrowAddress,
+    abi: auctionEscrowAbi,
+    functionName: "withdraw",
+    args: [BigInt(amount)],
+  });
+
+  lifecycle.onWithdrawWalletRequest?.();
+
+  const withdrawTransactionHash =
+    await withdrawContext.walletClient.writeContract(withdrawRequest);
+
+  lifecycle.onWithdrawPending?.(withdrawTransactionHash);
+  await waitForSuccessfulArcTransaction(withdrawTransactionHash);
+
+  return {
+    withdrawTransactionHash,
   };
 }
