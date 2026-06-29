@@ -1,0 +1,15 @@
+.background {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.background::before,
+.background::after {
+  display: none;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}

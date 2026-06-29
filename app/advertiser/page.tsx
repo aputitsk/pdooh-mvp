@@ -6,6 +6,7 @@ import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
 import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
+import AppBackground from "@/components/layout/AppBackground";
 import { getUnresolvedSettlementReservedAmount } from "@/lib/accounting/unresolvedSettlementReservedAmount";
 import {
   getSettlementRecordSnapshot,
@@ -156,7 +157,7 @@ export default function AdvertiserPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#05060A] px-6 py-10 text-white">
+    <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-5xl">
         <div>
           <p className="text-sm font-medium text-white/40">
@@ -243,6 +244,6 @@ export default function AdvertiserPage() {
           )}
         </div>
       </section>
-    </main>
+    </AppBackground>
   );
 }

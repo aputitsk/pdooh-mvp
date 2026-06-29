@@ -1,3 +1,4 @@
+import AppBackground from "@/components/layout/AppBackground";
 import TreasuryBalanceWidget from "@/components/home/TreasuryBalanceWidget";
 
 const blockchainAdvantages = [
@@ -20,7 +21,7 @@ const blockchainAdvantages = [
 ];
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#05060A] px-6 py-8 text-white">
+    <AppBackground className="px-6 py-8">
       <section className="relative mx-auto flex min-h-[82vh] max-w-6xl flex-col items-center justify-center">
         <div className="mb-6 w-full max-w-[60rem] md:absolute md:right-0 md:top-0 md:mb-0 md:w-[220px]">
           <TreasuryBalanceWidget />
@@ -89,6 +90,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </main>
+    </AppBackground>
   );
 }

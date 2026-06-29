@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
+import AppBackground from "@/components/layout/AppBackground";
 import { createPendingSettlementRecords } from "@/lib/accounting/accountingFacade";
 import {
   getUnresolvedSettlementReservedAmount,
@@ -618,16 +619,16 @@ export default function ScreenPage() {
 
   if (!auction.isLoaded) {
     return (
-      <main className="min-h-screen bg-neutral-950 px-6 py-10 text-white">
+      <AppBackground className="px-6 py-10">
         <section className="mx-auto max-w-6xl">
           <p className="text-neutral-400">Loading auction...</p>
         </section>
-      </main>
+      </AppBackground>
     );
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 px-6 py-10 text-white">
+    <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-6xl">
         <LiveScreen winner={liveWinner} />
 
@@ -668,6 +669,6 @@ export default function ScreenPage() {
           onPlaceBid={handlePlaceBid}
         />
       </section>
-    </main>
+    </AppBackground>
   );
 }

@@ -1,3 +1,7 @@
+import { DEMO_BOT_ADVERTISEMENT } from "@/lib/auction/constants";
+
+import PremiumBillboard from "./PremiumBillboard";
+
 type Advertisement = {
   name: string;
   businessName: string;
@@ -7,7 +11,20 @@ type LiveScreenProps = {
   winner: Advertisement | null;
 };
 
+function isDemoBotAdvertisement(winner: Advertisement) {
+  return winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName;
+}
+
 export default function LiveScreen({ winner }: LiveScreenProps) {
+  if (winner && !isDemoBotAdvertisement(winner)) {
+    return (
+      <PremiumBillboard
+        businessName={winner.businessName}
+        advertisementName={winner.name}
+      />
+    );
+  }
+
   return (
     <div className="mb-10 rounded-3xl border border-neutral-800 bg-neutral-900 p-6">
       <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed border-neutral-700 bg-black">

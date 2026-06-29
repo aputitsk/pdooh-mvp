@@ -1,0 +1,10 @@
+.navShell {
+  position: relative;
+  z-index: 20;
+  background: transparent;
+}
+
+.glassPanel {
+  position: relative;
+  z-index: 1;
+}

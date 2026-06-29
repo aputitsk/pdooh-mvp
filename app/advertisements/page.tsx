@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import AdvertisementCard from "@/components/advertisements/AdvertisementCard";
 import CreateAdvertisementCard from "@/components/advertisements/CreateAdvertisementCard";
 import EmptyAdvertisementsCard from "@/components/advertisements/EmptyAdvertisementsCard";
+import AppBackground from "@/components/layout/AppBackground";
 import {
   ADVERTISEMENT_NAME_MAX_LENGTH,
   addAdvertisement,
@@ -297,7 +298,7 @@ export default function AdvertisementsPage() {
     advertisementCount === 1 ? "Advertisement" : "Advertisements";
 
   return (
-    <main className="min-h-screen bg-[#05060A] px-6 py-10 text-white">
+    <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-6xl">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
@@ -398,6 +399,6 @@ export default function AdvertisementsPage() {
           </div>
         </div>
       </section>
-    </main>
+    </AppBackground>
   );
 }
