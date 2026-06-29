@@ -2,16 +2,20 @@
 import { createFinalizedAuctionResultsFromWinnersSnapshot, type FinalizedWinnerResult } from "./finalizedWinnerResults.ts";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { createPendingSettlementRecord, type SettlementRecord } from "./settlementRecords.ts";
+import type { SignedBidAuthorization } from "@/lib/auction";
 
 export type AccountingAuctionSnapshot = {
   phase: string;
   cycleId: number | string;
   chainId: number;
   escrowAddress: `0x${string}`;
+  treasuryAddress: `0x${string}`;
+  usdcAddress: `0x${string}`;
   slotIds: readonly string[];
   winners: readonly FinalizedWinnerResult[];
   winnerBidAmounts: readonly number[];
   winnerAdvertiserAddresses: readonly (`0x${string}` | null)[];
+  winnerBidAuthorizations: readonly (SignedBidAuthorization | null)[];
 };
 
 export type CreatePendingSettlementRecordsParams = {

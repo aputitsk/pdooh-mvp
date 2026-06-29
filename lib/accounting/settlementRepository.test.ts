@@ -31,9 +31,12 @@ function createRecord(slotId: string, amountMinorUnits: bigint) {
     {
       chainId: 5_042_002,
       escrowAddress: "0x1111111111111111111111111111111111111111",
+      treasuryAddress: "0x3333333333333333333333333333333333333333",
+      usdcAddress: "0x3600000000000000000000000000000000000000",
       cycleId: "cycle-7",
       slotId,
       advertiserAddress: "0x2222222222222222222222222222222222222222",
+      businessName: "Acme",
       advertisementName: `Advertisement ${slotId}`,
       amountMinorUnits,
     },

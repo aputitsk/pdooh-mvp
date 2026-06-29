@@ -1,4 +1,8 @@
-import type { AuctionClock, SlotState } from "./auctionTypes";
+import type {
+  AuctionClock,
+  SignedBidAuthorization,
+  SlotState,
+} from "./auctionTypes";
 import {
   parseUSDCToMinorUnits,
   type UsdcMinorUnits,
@@ -67,7 +71,8 @@ export function placeAuctionBid(
   slotIndex: number,
   phase: string,
   availableAuctionCapacity: UsdcMinorUnits,
-  advertiserAddress: `0x${string}`
+  advertiserAddress: `0x${string}`,
+  bidAuthorization: SignedBidAuthorization
 ) {
   const slotStates = getStoredSlotStates();
   const submittedBids = getStoredSubmittedBids();
@@ -75,26 +80,26 @@ export function placeAuctionBid(
   const bidAmount = getBidAmount(slot?.bid);
 
   if (phase !== "open") {
-    return;
+    return false;
   }
 
   if (submittedBids[slotIndex]) {
-    return;
+    return false;
   }
 
   if (!slot?.selectedAdvertisement) {
-    return;
+    return false;
   }
 
   if (!bidAmount || bidAmount <= 0) {
-    return;
+    return false;
   }
 
   if (
     !Number.isSafeInteger(availableAuctionCapacity) ||
     availableAuctionCapacity <= 0
   ) {
-    return;
+    return false;
   }
 
   if (
@@ -104,7 +109,7 @@ export function placeAuctionBid(
       submittedBids,
     }) > availableAuctionCapacity
   ) {
-    return;
+    return false;
   }
 
   const nextSubmittedBids = submittedBids.map((isSubmitted, index) => {
@@ -112,12 +117,14 @@ export function placeAuctionBid(
   });
   const nextSlotStates = slotStates.map((slotState, index) => {
     return index === slotIndex
-      ? { ...slotState, advertiserAddress }
+      ? { ...slotState, advertiserAddress, bidAuthorization }
       : slotState;
   });
 
   setStoredSlotStates(nextSlotStates);
   setStoredSubmittedBids(nextSubmittedBids);
+
+  return true;
 }
 
 function getBidAmount(bid: string | undefined) {

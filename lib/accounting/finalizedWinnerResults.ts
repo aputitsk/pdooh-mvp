@@ -1,5 +1,6 @@
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { createFinalizedAuctionResult } from "./finalizedAuctionResults.ts";
+import type { SignedBidAuthorization } from "@/lib/auction";
 import type { FinalizedAuctionResult } from "./settlementRecords.ts";
 
 export type FinalizedWinnerResult = {
@@ -12,10 +13,13 @@ type CreateFinalizedAuctionResultsFromWinnersSnapshotParams = {
   cycleId: number | string;
   chainId: number;
   escrowAddress: `0x${string}`;
+  treasuryAddress: `0x${string}`;
+  usdcAddress: `0x${string}`;
   slotIds: readonly string[];
   winners: readonly FinalizedWinnerResult[];
   winnerBidAmounts: readonly number[];
   winnerAdvertiserAddresses: readonly (`0x${string}` | null)[];
+  winnerBidAuthorizations: readonly (SignedBidAuthorization | null)[];
 };
 
 export function createFinalizedAuctionResultsFromWinnersSnapshot(
@@ -43,11 +47,15 @@ export function createFinalizedAuctionResultsFromWinnersSnapshot(
     const result = createFinalizedAuctionResult({
       chainId: params.chainId,
       escrowAddress: params.escrowAddress,
+      treasuryAddress: params.treasuryAddress,
+      usdcAddress: params.usdcAddress,
       cycleId,
       slotId,
       advertiserAddress: params.winnerAdvertiserAddresses[index] ?? null,
+      businessName: winner.businessName,
       advertisementName: winner.name,
       amountMinorUnits: params.winnerBidAmounts[index] ?? 0,
+      bidAuthorization: params.winnerBidAuthorizations[index] ?? null,
     });
 
     if (result) {

@@ -7,9 +7,12 @@ import { createPendingSettlementRecord, createSettlementId, markSettlementFailed
 const baseResult: FinalizedAuctionResult = {
   chainId: 5_042_002,
   escrowAddress: "0x1111111111111111111111111111111111111111",
+  treasuryAddress: "0x3333333333333333333333333333333333333333",
+  usdcAddress: "0x3600000000000000000000000000000000000000",
   cycleId: "cycle-1",
   slotId: "slot-1",
   advertiserAddress: "0x2222222222222222222222222222222222222222",
+  businessName: "Acme",
   advertisementName: "Summer Sale",
   amountMinorUnits: BigInt(1_500_000),
 };

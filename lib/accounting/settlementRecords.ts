@@ -1,5 +1,7 @@
 import { keccak256, toBytes } from "viem";
 
+import type { SignedBidAuthorization } from "@/lib/auction";
+
 const SETTLEMENT_ID_VERSION = "pdooh-settlement-v1";
 
 type HexAddress = `0x${string}`;
@@ -13,11 +15,15 @@ export type SettlementStatus =
 export type FinalizedAuctionResult = {
   chainId: number;
   escrowAddress: HexAddress;
+  treasuryAddress: HexAddress;
+  usdcAddress: HexAddress;
   cycleId: string;
   slotId: string;
   advertiserAddress: HexAddress;
+  businessName: string;
   advertisementName: string;
   amountMinorUnits: bigint;
+  bidAuthorization?: SignedBidAuthorization;
 };
 
 export type SettlementRecord = {
@@ -46,6 +52,34 @@ function assertNonEmptyString(value: string, fieldName: string) {
   }
 }
 
+function cloneSignedBidAuthorization(
+  bidAuthorization: SignedBidAuthorization | undefined
+): SignedBidAuthorization | undefined {
+  if (!bidAuthorization) {
+    return undefined;
+  }
+
+  return {
+    payload: { ...bidAuthorization.payload },
+    signature: bidAuthorization.signature,
+  };
+}
+
+function cloneFinalizedAuctionResult(
+  result: FinalizedAuctionResult
+): FinalizedAuctionResult {
+  const clonedResult = { ...result };
+  const bidAuthorization = cloneSignedBidAuthorization(result.bidAuthorization);
+
+  if (bidAuthorization) {
+    clonedResult.bidAuthorization = bidAuthorization;
+  } else {
+    delete clonedResult.bidAuthorization;
+  }
+
+  return clonedResult;
+}
+
 export function createSettlementId(
   result: FinalizedAuctionResult
 ): HexAddress {
@@ -72,7 +106,7 @@ export function createPendingSettlementRecord(
   return {
     settlementId: createSettlementId(result),
     status: "pending",
-    result: { ...result },
+    result: cloneFinalizedAuctionResult(result),
     createdAt: nowIso,
     updatedAt: nowIso,
   };

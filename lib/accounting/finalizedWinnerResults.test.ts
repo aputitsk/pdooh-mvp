@@ -12,17 +12,40 @@ const demoBot = {
   name: "Demo Advertisement",
   businessName: "Demo Bot",
 };
+const bidAuthorization = {
+  payload: {
+    purpose: "PDOOH_BID_AUTHORIZATION",
+    version: "1",
+    advertiserAddress:
+      "0x2222222222222222222222222222222222222222" as const,
+    businessName: advertiser.businessName,
+    advertisementName: advertiser.name,
+    slotId: "slot-1",
+    cycleId: "7",
+    bidAmountMinorUnits: "1500000",
+    chainId: 5_042_002,
+    escrowAddress: "0x1111111111111111111111111111111111111111" as const,
+    treasuryAddress: "0x3333333333333333333333333333333333333333" as const,
+    usdcAddress: "0x3600000000000000000000000000000000000000" as const,
+    expiresAt: "2026-06-25T12:30:00.000Z",
+  },
+  signature:
+    "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as const,
+} as const;
 const baseParams = {
   phase: "locked",
   cycleId: 7,
   chainId: 5_042_002,
   escrowAddress: "0x1111111111111111111111111111111111111111" as const,
+  treasuryAddress: "0x3333333333333333333333333333333333333333" as const,
+  usdcAddress: "0x3600000000000000000000000000000000000000" as const,
   slotIds: ["slot-1"],
   winners: [advertiser],
   winnerBidAmounts: [1_500_000],
   winnerAdvertiserAddresses: [
     "0x2222222222222222222222222222222222222222",
   ] as const,
+  winnerBidAuthorizations: [bidAuthorization],
 };
 
 test('phase "open" returns an empty array', () => {
@@ -42,11 +65,15 @@ test("valid non-bot winner creates a finalized result", () => {
       {
         chainId: baseParams.chainId,
         escrowAddress: baseParams.escrowAddress,
+        treasuryAddress: baseParams.treasuryAddress,
+        usdcAddress: baseParams.usdcAddress,
         cycleId: "7",
         slotId: "slot-1",
         advertiserAddress: baseParams.winnerAdvertiserAddresses[0],
+        businessName: advertiser.businessName,
         advertisementName: advertiser.name,
         amountMinorUnits: BigInt(1_500_000),
+        bidAuthorization,
       },
     ]
   );
@@ -67,6 +94,16 @@ test("null advertiserAddress is skipped", () => {
     createFinalizedAuctionResultsFromWinnersSnapshot({
       ...baseParams,
       winnerAdvertiserAddresses: [null],
+    }),
+    []
+  );
+});
+
+test("missing bidAuthorization for real advertiser winner is skipped", () => {
+  assert.deepEqual(
+    createFinalizedAuctionResultsFromWinnersSnapshot({
+      ...baseParams,
+      winnerBidAuthorizations: [null],
     }),
     []
   );
@@ -109,6 +146,20 @@ test("multiple valid slots create multiple results", () => {
     winnerAdvertiserAddresses: [
       "0x2222222222222222222222222222222222222222",
       "0x3333333333333333333333333333333333333333",
+    ],
+    winnerBidAuthorizations: [
+      bidAuthorization,
+      {
+        ...bidAuthorization,
+        payload: {
+          ...bidAuthorization.payload,
+          advertiserAddress:
+            "0x3333333333333333333333333333333333333333",
+          advertisementName: "Winter Sale",
+          slotId: "slot-2",
+          bidAmountMinorUnits: "2000000",
+        },
+      },
     ],
   });
 

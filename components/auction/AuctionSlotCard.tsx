@@ -17,11 +17,13 @@ type AuctionSlotCardProps = {
   availableAuctionCapacity?: UsdcMinorUnits;
   isAggregateExposureTooHigh?: boolean;
   isBidSubmitted?: boolean;
+  isBidAuthorizing?: boolean;
   isDisabled?: boolean;
   disabledMessage?: string;
+  bidError?: string | null;
   onAdvertisementChange: (value: string) => void;
   onBidChange: (value: string) => void;
-  onPlaceBid: () => void;
+  onPlaceBid: () => void | Promise<void>;
 };
 
 export default function AuctionSlotCard({
@@ -33,8 +35,10 @@ export default function AuctionSlotCard({
   availableAuctionCapacity = 0,
   isAggregateExposureTooHigh = false,
   isBidSubmitted = false,
+  isBidAuthorizing = false,
   isDisabled = false,
   disabledMessage,
+  bidError,
   onAdvertisementChange,
   onBidChange,
   onPlaceBid,
@@ -44,7 +48,7 @@ export default function AuctionSlotCard({
   const hasBidAmount = bid.trim().length > 0 && bidAmount > 0;
   const isBidTooHigh =
     hasBidAmount && bidAmount > availableAuctionCapacity;
-  const isLocked = isBidSubmitted || isDisabled;
+  const isLocked = isBidSubmitted || isDisabled || isBidAuthorizing;
 
   const canPlaceBid =
     hasSelectedAdvertisement &&
@@ -103,13 +107,21 @@ export default function AuctionSlotCard({
           </p>
         )}
 
+        {bidError && !isBidSubmitted && (
+          <p className="text-sm text-red-400">{bidError}</p>
+        )}
+
         <button
           type="button"
           onClick={onPlaceBid}
           disabled={!canPlaceBid}
           className="w-full rounded-xl bg-white px-4 py-3 font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
         >
-          {isBidSubmitted ? "Bid Confirmed" : "Place Bid"}
+          {isBidAuthorizing
+            ? "Authorizing..."
+            : isBidSubmitted
+              ? "Bid Confirmed"
+              : "Place Bid"}
         </button>
       </div>
     </div>

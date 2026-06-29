@@ -24,11 +24,13 @@ type AuctionAreaProps = {
   escrowBalanceError: string | null;
   submittedBids: boolean[];
   winners: Advertisement[];
+  bidErrors?: Record<number, string | null>;
+  authorizingBidSlotIndex?: number | null;
   isWalletConnected: boolean;
   isWalletRestoring?: boolean;
   onAdvertisementChange: (slotIndex: number, value: string) => void;
   onBidChange: (slotIndex: number, value: string) => void;
-  onPlaceBid: (slotIndex: number) => void;
+  onPlaceBid: (slotIndex: number) => void | Promise<void>;
 };
 
 export default function AuctionArea({
@@ -49,6 +51,8 @@ export default function AuctionArea({
   escrowBalanceError,
   submittedBids,
   winners,
+  bidErrors = {},
+  authorizingBidSlotIndex = null,
   isWalletConnected,
   isWalletRestoring = false,
   onAdvertisementChange,
@@ -105,8 +109,10 @@ export default function AuctionArea({
                     availableAuctionCapacity
                 }
                 isBidSubmitted={submittedBids[index]}
+                isBidAuthorizing={authorizingBidSlotIndex === index}
                 isDisabled={isAuctionDisabled}
                 disabledMessage={disabledMessage}
+                bidError={bidErrors[index] ?? null}
                 onAdvertisementChange={(value) =>
                   onAdvertisementChange(index, value)
                 }

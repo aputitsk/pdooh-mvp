@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
 import { createPendingSettlementRecords } from "@/lib/accounting/accountingFacade";
@@ -27,7 +27,11 @@ import {
   createBrowserSettlementRepository,
   type SettlementRepository,
 } from "@/lib/accounting/settlementRepository";
-import { ARC_CHAIN_ID } from "@/lib/arc/arcConstants";
+import { ARC_TREASURY_ADDRESS } from "@/lib/arc/arcConfig";
+import {
+  ARC_CHAIN_ID,
+  ARC_USDC_CONTRACT_ADDRESS,
+} from "@/lib/arc/arcConstants";
 import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
 import { AUCTION_TOTAL_CYCLE_SECONDS } from "@/lib/auction/constants";
 import {
@@ -44,6 +48,8 @@ import {
 } from "@/lib/wallet";
 
 const ACCOUNTING_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
+const MISSING_BID_AUTHORIZATION_REASON =
+  "Settlement is missing bid authorization and cannot be processed.";
 
 type OperatorProcessResponse = {
   ok: boolean;
@@ -62,6 +68,15 @@ function serializeSettlementRecord(record: SettlementRecord) {
   };
 }
 
+function markMissingBidAuthorization(record: SettlementRecord): SettlementRecord {
+  return {
+    ...record,
+    status: "failed",
+    updatedAt: new Date().toISOString(),
+    failureReason: MISSING_BID_AUTHORIZATION_REASON,
+  };
+}
+
 async function processSettlementRecord(
   repository: SettlementRepository,
   record: SettlementRecord,
@@ -69,6 +84,19 @@ async function processSettlementRecord(
   onSettlementComplete?: () => void
 ) {
   if (record.status !== "pending" && record.status !== "failed") {
+    return;
+  }
+
+  if (!record.result.bidAuthorization) {
+    if (
+      record.status === "failed" &&
+      record.failureReason === MISSING_BID_AUTHORIZATION_REASON
+    ) {
+      return;
+    }
+
+    repository.update(markMissingBidAuthorization(record));
+    onRepositoryChange?.();
     return;
   }
 
@@ -122,6 +150,9 @@ export default function ScreenPage() {
   const walletUsdcBalance = useWalletUsdcBalance();
   const escrowBalance = useWalletEscrowBalance();
   const reservedAmount = useTemporaryReservedAmount(wallet.address);
+  const [bidErrors, setBidErrors] = useState<Record<number, string | null>>({});
+  const [authorizingBidSlotIndex, setAuthorizingBidSlotIndex] =
+    useState<number | null>(null);
   useSyncExternalStore(
     subscribeToSettlementRecordChanges,
     getSettlementRecordSnapshot,
@@ -156,6 +187,56 @@ export default function ScreenPage() {
   const syncSettlementRecords = useCallback(() => {
     notifySettlementRecordsChanged();
   }, []);
+  const clearBidError = useCallback((slotIndex: number) => {
+    setBidErrors((currentBidErrors) => ({
+      ...currentBidErrors,
+      [slotIndex]: null,
+    }));
+  }, []);
+  const handlePlaceBid = useCallback(
+    async (slotIndex: number) => {
+      if (authorizingBidSlotIndex !== null) {
+        return;
+      }
+
+      if (!wallet.address) {
+        setBidErrors((currentBidErrors) => ({
+          ...currentBidErrors,
+          [slotIndex]: "Connect your wallet before placing a bid.",
+        }));
+        return;
+      }
+
+      setAuthorizingBidSlotIndex(slotIndex);
+      clearBidError(slotIndex);
+
+      try {
+        const result = await auction.placeBid(
+          slotIndex,
+          availableAuctionCapacity,
+          wallet.address as `0x${string}`
+        );
+
+        if (!result.ok) {
+          setBidErrors((currentBidErrors) => ({
+            ...currentBidErrors,
+            [slotIndex]: result.error,
+          }));
+        }
+      } finally {
+        setAuthorizingBidSlotIndex((currentSlotIndex) =>
+          currentSlotIndex === slotIndex ? null : currentSlotIndex
+        );
+      }
+    },
+    [
+      auction,
+      authorizingBidSlotIndex,
+      availableAuctionCapacity,
+      clearBidError,
+      wallet.address,
+    ]
+  );
 
   useEffect(() => {
     if (
@@ -280,10 +361,13 @@ export default function ScreenPage() {
         cycleId: auction.clock.cycleId,
         chainId: ARC_CHAIN_ID,
         escrowAddress,
+        treasuryAddress: ARC_TREASURY_ADDRESS,
+        usdcAddress: ARC_USDC_CONTRACT_ADDRESS,
         slotIds: settlementEligibleSlotIds,
         winners: auction.winners,
         winnerBidAmounts: auction.winnerBidAmounts,
         winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
+        winnerBidAuthorizations: auction.winnerBidAuthorizations,
       },
       nowIso: new Date().toISOString(),
     });
@@ -305,6 +389,7 @@ export default function ScreenPage() {
     auction.clock.phase,
     auction.isLoaded,
     auction.winnerAdvertiserAddresses,
+    auction.winnerBidAuthorizations,
     auction.winnerBidAmounts,
     auction.winners,
     refreshEscrowBalance,
@@ -345,26 +430,23 @@ export default function ScreenPage() {
           escrowBalanceError={escrowBalance.error}
           submittedBids={auction.submittedBids}
           winners={auction.winners}
+          bidErrors={bidErrors}
+          authorizingBidSlotIndex={authorizingBidSlotIndex}
           isWalletConnected={wallet.connected}
           isWalletRestoring={wallet.status === "restoring"}
-          onAdvertisementChange={(slot, value) =>
+          onAdvertisementChange={(slot, value) => {
+            clearBidError(slot);
             auction.updateSlot(slot, {
               selectedAdvertisement: value,
-            })
-          }
-          onBidChange={(slot, value) =>
+            });
+          }}
+          onBidChange={(slot, value) => {
+            clearBidError(slot);
             auction.updateSlot(slot, {
               bid: value,
-            })
-          }
-          onPlaceBid={(slot) =>
-            wallet.address &&
-            auction.placeBid(
-              slot,
-              availableAuctionCapacity,
-              wallet.address as `0x${string}`
-            )
-          }
+            });
+          }}
+          onPlaceBid={handlePlaceBid}
         />
       </section>
     </main>

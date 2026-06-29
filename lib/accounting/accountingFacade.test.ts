@@ -7,17 +7,40 @@ import { createPendingSettlementRecords } from "./accountingFacade.ts";
 import { createSettlementId } from "./settlementRecords.ts";
 
 const nowIso = "2026-06-25T12:00:00.000Z";
+const bidAuthorization = {
+  payload: {
+    purpose: "PDOOH_BID_AUTHORIZATION",
+    version: "1",
+    advertiserAddress:
+      "0x2222222222222222222222222222222222222222" as const,
+    businessName: "Acme",
+    advertisementName: "Summer Sale",
+    slotId: "slot-1",
+    cycleId: "7",
+    bidAmountMinorUnits: "1500000",
+    chainId: 5_042_002,
+    escrowAddress: "0x1111111111111111111111111111111111111111" as const,
+    treasuryAddress: "0x3333333333333333333333333333333333333333" as const,
+    usdcAddress: "0x3600000000000000000000000000000000000000" as const,
+    expiresAt: "2026-06-25T12:30:00.000Z",
+  },
+  signature:
+    "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as const,
+} as const;
 const snapshot = {
   phase: "locked",
   cycleId: 7,
   chainId: 5_042_002,
   escrowAddress: "0x1111111111111111111111111111111111111111" as const,
+  treasuryAddress: "0x3333333333333333333333333333333333333333" as const,
+  usdcAddress: "0x3600000000000000000000000000000000000000" as const,
   slotIds: ["slot-1"],
   winners: [{ name: "Summer Sale", businessName: "Acme" }],
   winnerBidAmounts: [1_500_000],
   winnerAdvertiserAddresses: [
     "0x2222222222222222222222222222222222222222",
   ] as const,
+  winnerBidAuthorizations: [bidAuthorization],
 };
 
 test("facade creates pending settlement records from an auction snapshot", () => {
@@ -31,11 +54,15 @@ test("facade creates pending settlement records from an auction snapshot", () =>
   assert.deepEqual(records[0].result, {
     chainId: snapshot.chainId,
     escrowAddress: snapshot.escrowAddress,
+    treasuryAddress: snapshot.treasuryAddress,
+    usdcAddress: snapshot.usdcAddress,
     cycleId: "7",
     slotId: "slot-1",
     advertiserAddress: snapshot.winnerAdvertiserAddresses[0],
+    businessName: "Acme",
     advertisementName: "Summer Sale",
     amountMinorUnits: BigInt(1_500_000),
+    bidAuthorization,
   });
 });
 
@@ -56,6 +83,7 @@ test("facade skips invalid and Demo Bot winners", () => {
         null,
         null,
       ],
+      winnerBidAuthorizations: [bidAuthorization, null, null],
     },
   });
 
@@ -81,6 +109,7 @@ test("facade does not mutate the snapshot", () => {
       winners: snapshot.winners.map((winner) => ({ ...winner })),
       winnerBidAmounts: [...snapshot.winnerBidAmounts],
       winnerAdvertiserAddresses: [...snapshot.winnerAdvertiserAddresses],
+      winnerBidAuthorizations: [...snapshot.winnerBidAuthorizations],
     },
     nowIso,
   };

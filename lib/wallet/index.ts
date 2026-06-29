@@ -35,6 +35,7 @@ export {
   type WalletEscrowWithdrawLifecycle,
   type WalletEscrowWithdrawResult,
 } from "./walletEscrowTransactions";
+export { signWalletBidAuthorization } from "./walletBidAuthorization";
 export type WalletProviderOption = ArcWalletCatalogOption;
 
 const restoringWalletSnapshot = "restoring|0||";
