@@ -11,6 +11,11 @@ import {
   type ArcWalletConnectResult,
 } from "@/lib/arc/arcWalletAdapter";
 import { notifyWalletChanged, subscribeToWalletChanges } from "./walletEvents";
+import {
+  createWalletSnapshot,
+  getServerWalletSnapshot,
+  parseWalletSnapshot,
+} from "./walletSnapshot";
 
 export { subscribeToWalletChanges } from "./walletEvents";
 
@@ -38,36 +43,11 @@ export {
 export { signWalletBidAuthorization } from "./walletBidAuthorization";
 export type WalletProviderOption = ArcWalletCatalogOption;
 
-const restoringWalletSnapshot = "restoring|0||";
-
 setArcWalletChangeListener(notifyWalletChanged);
 void refreshArcWalletState();
 
 function getWalletSnapshot() {
-  const wallet = getWalletState();
-  return `${wallet.status}|${wallet.connected ? "1" : "0"}|${wallet.address ?? ""}|${wallet.chainId ?? ""}`;
-}
-
-function getServerWalletSnapshot() {
-  return restoringWalletSnapshot;
-}
-
-function parseWalletSnapshot(snapshot: string) {
-  const [statusValue, connectedValue, addressValue, chainIdValue] =
-    snapshot.split("|");
-  const status =
-    statusValue === "connected" ||
-    statusValue === "disconnected" ||
-    statusValue === "restoring"
-      ? statusValue
-      : "disconnected";
-
-  return {
-    status,
-    connected: connectedValue === "1",
-    address: addressValue || null,
-    chainId: chainIdValue ? Number.parseInt(chainIdValue, 10) : null,
-  };
+  return createWalletSnapshot(getWalletState());
 }
 
 export function useWalletStore() {

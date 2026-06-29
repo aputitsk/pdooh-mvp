@@ -14,7 +14,7 @@ The project has an active Arc Testnet integration for:
 
 The Business Profile, advertisements, internal demo balance, auction state, winner selection, paid-slot state, and demo treasury remain browser-based demo features.
 
-The current blockchain flows are separate from the demo auction flow. There is no real auction settlement, automatic settlement after playback, blockchain auction payment, Accounting Layer, or Operator Service.
+Operator settlement is enabled through the Vercel API route at `/api/operator/process`. The advertiser signs an EIP-712 Bid Authorization at Place Bid; settlement after playback remains automatic and requires no wallet popup after winning.
 
 ## Arc Testnet Configuration
 
@@ -122,7 +122,6 @@ This payment boundary is not used by the demo auction payment logic.
 - `arcEscrowConfig.ts`: public escrow address validation;
 - `arcEscrowAdapter.ts`: configured escrow validation and independent `approve -> deposit` execution;
 - `arcPorts.ts`: Arc-facing wallet, balance, and payment type contracts;
-- `mockArcPorts.ts`: legacy/demo port implementations not used by the active runtime UI.
 
 Arc-specific provider and Viem behavior is kept outside the demo advertiser, advertisement, and auction modules.
 
@@ -139,10 +138,9 @@ The demo auction operates entirely through browser state:
 This flow does not:
 
 - read the external wallet's Arc USDC balance for auction eligibility;
-- submit blockchain transactions;
+- ask the advertiser wallet to submit a transaction after winning;
 - call `paymentService`;
-- call `AuctionEscrow`;
-- transfer real USDC for auction settlement.
+- call `AuctionEscrow` directly from browser auction code.
 
 The manual external-wallet Treasury transfer is displayed in the advertiser flow but is not connected to auction state or auction payment processing.
 
@@ -150,7 +148,7 @@ The manual external-wallet Treasury transfer is displayed in the advertiser flow
 
 `src/AuctionEscrow.sol` and Solidity test sources are present in the repository. The frontend can independently approve ERC-20 USDC and call `deposit(amount)` through the payment service, wallet transaction layer, and Arc escrow adapter.
 
-The demo auction does not import or call `AuctionEscrow`. No current application path calls `settle`.
+The demo auction does not import or call `AuctionEscrow`. Settlement uses `/api/operator/process`, which verifies bid authorization before using `OPERATOR_PRIVATE_KEY`.
 
 The escrow is exclusively a financial boundary:
 
@@ -185,13 +183,13 @@ The escrow uses three distinct public addresses:
 
 The deployment script requires Owner, Operator, and Treasury to be different addresses. It also requires the frontend Treasury configuration to match the escrow Treasury configuration.
 
-Operator Service infrastructure is intentionally outside the current project scope and is not represented as an implemented project component.
+Vercel must store `OPERATOR_PRIVATE_KEY` only as a server-side environment variable.
 
-## Planned Accounting Boundary
+## Accounting Boundary
 
-Before any auction settlement integration, the project requires an Accounting Layer between finalized auction results and a future server-side Operator.
+The project uses an Accounting Layer between finalized auction results and the server-side operator route.
 
-Accounting will record the financial obligation and off-chain reservation. Escrow will continue to provide custody and will receive only `advertiser`, `amount`, and `settlementId` during a future settlement call. Treasury remains the settlement destination.
+Accounting records the financial obligation and off-chain reservation. Escrow continues to provide custody and receives only `advertiser`, `amount`, and `settlementId` during settlement. Treasury remains the settlement destination.
 
 Escrow custody must not be described as auction balance. The detailed planned model and lifecycle are documented in [ACCOUNTING_LAYER.md](./ACCOUNTING_LAYER.md).
 

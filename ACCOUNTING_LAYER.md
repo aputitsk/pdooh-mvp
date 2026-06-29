@@ -1,22 +1,22 @@
 # pDOOH Accounting Layer Design
 
-Status: Planned architecture only
+Status: Implemented browser accounting with server-side operator settlement
 
-No Accounting Layer code, Operator Service, or auction-to-escrow integration is implemented in the current project.
+Operator settlement is enabled through `/api/operator/process`.
 
 ## Purpose
 
-The planned Accounting Layer sits between the demo Auction Engine and future escrow settlement:
+The Accounting Layer sits between the demo Auction Engine and operator escrow settlement:
 
 ```text
-Auction Engine -> Accounting Layer -> future Operator -> AuctionEscrow
+Auction Engine -> Accounting Layer -> /api/operator/process -> AuctionEscrow
 ```
 
 Each boundary has a separate responsibility:
 
 - Auction Engine: produces the domain result, including the auction cycle, slot, winning advertisement, winning advertiser, and winning amount.
 - Accounting Layer: converts a finalized domain result into a financial obligation, records its domain context, assigns a canonical `settlementId`, and tracks an off-chain reservation.
-- Operator: a future server-side executor that may submit an authorized settlement transaction. No Operator Service is currently implemented.
+- Operator route: verifies an EIP-712 Bid Authorization before using `OPERATOR_PRIVATE_KEY` to submit settlement.
 - Escrow: holds ERC-20 USDC and maintains advertiser custody balances. It does not determine auction winners or store auction domain data.
 - Treasury: receives ERC-20 USDC when a settlement is executed successfully.
 
@@ -43,7 +43,7 @@ It does not record:
 - winner-selection evidence;
 - the domain reason for a settlement.
 
-The planned Accounting Layer supplies this missing financial context outside the contract.
+The Accounting Layer supplies this missing financial context outside the contract.
 
 An escrow balance must not be described as an auction balance. Escrow reports custody. Accounting records which part of that custody is associated with unresolved financial obligations.
 
@@ -69,7 +69,7 @@ SettlementRecord {
 
 Field responsibilities:
 
-- `settlementId`: canonical `bytes32` identity passed to the contract by a future Operator.
+- `settlementId`: canonical `bytes32` identity passed to the contract by the operator route.
 - `auctionCycleId`: identifies the demo auction cycle that produced the result.
 - `advertiserAddress`: address whose escrow balance would be charged.
 - `slotId`: domain slot associated with the obligation.
@@ -78,10 +78,10 @@ Field responsibilities:
 - `status`: accounting lifecycle state.
 - `createdAt`: time the financial obligation was recorded.
 - `settledAt`: time successful settlement was confirmed.
-- `transactionHash`: future on-chain settlement transaction reference.
+- `transactionHash`: on-chain settlement transaction reference.
 - `failureReason`: diagnostic information for a failed future attempt.
 
-The current demo winner model does not carry an advertiser wallet address. A production settlement record therefore cannot be created safely from the current winner object alone. A trusted future finalized auction result must bind the winner to `advertiserAddress` before settlement integration.
+The advertiser signs an EIP-712 Bid Authorization at Place Bid. Settlement after playback remains automatic and does not require a wallet popup after winning.
 
 Required accounting invariants:
 
@@ -138,8 +138,8 @@ cancelled
 Meaning:
 
 - `pending`: the financial obligation exists and its amount is reserved by the Accounting Layer, but no successful settlement has been confirmed.
-- `settled`: a future settlement transaction succeeded and the emitted `Settled` event matches the record.
-- `failed`: a future settlement attempt failed or could not be confirmed. The obligation remains unresolved.
+- `settled`: a settlement transaction succeeded and the emitted `Settled` event matches the record.
+- `failed`: a settlement attempt failed or could not be confirmed. The obligation remains unresolved.
 - `cancelled`: the obligation was invalidated before successful settlement and no longer reserves funds.
 
 Allowed lifecycle:
@@ -158,11 +158,12 @@ failed  -> cancelled
 
 Escrow custody is read from `AuctionEscrow.balanceOf(advertiser)`.
 
-The planned off-chain reservation formula is:
+The off-chain reservation formula is:
 
 ```text
 reservedAmount =
-  sum(amountMinor for unresolved records with status pending or failed)
+  active temporary bid reservations
+  + unresolved retryable settlement obligations
 
 availableToReserve =
   max(escrow.balanceOf(advertiser) - reservedAmount, 0)
@@ -174,25 +175,25 @@ This formula is an Accounting Layer calculation, not a contract function. The cu
 
 - accounting reservation is not an on-chain lock;
 - the Accounting Layer must re-read escrow balance before accepting another obligation;
-- a future Operator must revalidate the balance before submitting settlement;
+- the operator route must revalidate the balance before submitting settlement;
 - `availableToReserve` can become zero when unresolved obligations exceed current custody;
 - escrow balance and auction purchasing capacity must not be treated as identical without Accounting Layer validation.
 
-## Planned Lifecycle
+## Lifecycle
 
-The future lifecycle is:
+The lifecycle is:
 
 1. The Auction Engine produces a finalized winner result.
 2. A trusted boundary validates the auction cycle, slot, winner address, and amount.
 3. Accounting checks uniqueness and calculates `availableToReserve`.
 4. Accounting creates one immutable `pending` `SettlementRecord`.
 5. The amount is considered reserved off-chain.
-6. A future Operator reads the pending obligation and revalidates current escrow custody.
-7. The future Operator submits `settle(advertiser, amount, settlementId)`.
+6. The operator route reads the pending obligation and revalidates current escrow custody.
+7. The operator route verifies bid authorization, then submits `settle(advertiser, amount, settlementId)`.
 8. Accounting waits for a successful receipt and verifies the `Settled` event fields.
 9. Accounting marks the record `settled`, or `failed` when the attempt cannot be confirmed.
 
-Steps 6 through 9 are design only. No settlement execution or Operator Service is implemented.
+The route does not trust browser JSON directly. Vercel must store `OPERATOR_PRIVATE_KEY` only as a server-side environment variable.
 
 ## What Remains Demo
 
@@ -215,19 +216,17 @@ The current demo auction state is stored in `localStorage` and is not trusted pr
 
 This design does not authorize:
 
-- calling or implementing an application path for `settle`;
-- implementing Operator Service;
-- connecting the demo Auction Engine to escrow;
+- trusting browser JSON for settlement;
+- exposing `OPERATOR_PRIVATE_KEY` to the browser;
 - creating production settlement records from current `localStorage` state;
 - changing `AuctionEscrow.sol`;
 - changing Wallet Flow;
 - replacing the demo balance or demo Treasury;
 - changing demo winner selection or payment logic;
 - adding accounting UI;
-- adding withdrawal work;
 - claiming that escrow custody equals auction balance.
 
-The immediate deliverable is the Accounting Layer contract between domain results and future settlement, not settlement execution.
+The Accounting Layer remains the contract between domain results and operator settlement.
 
 ## Risks of Skipping the Accounting Layer
 

@@ -8,9 +8,9 @@ The project combines three intentionally separate areas:
 
 - a browser-based demo domain for advertiser onboarding, advertisements, auctions, internal balances, winner selection, and demo payments;
 - an Arc Testnet integration layer for an external wallet, ERC-20 USDC balance reads, a manual wallet-to-treasury USDC transfer, and an independent escrow deposit flow;
-- a planned Accounting Layer between finalized auction results and future escrow settlement.
+- an Accounting Layer between finalized auction results and operator escrow settlement.
 
-The demo auction does not execute blockchain settlement. `AuctionEscrow` is connected to the frontend only for the independent `approve -> deposit` flow. It is not connected to the current auction runtime.
+Operator settlement is enabled through the Vercel API route at `/api/operator/process`. Settlement after playback remains automatic and does not require another wallet popup after winning.
 
 ## Project Structure
 
@@ -67,8 +67,6 @@ The active wallet implementation:
 - exposes wallet state to React through the wallet facade.
 
 Application disconnect is local to the pDOOH session and is recorded in `sessionStorage`. It does not revoke permissions inside the external wallet.
-
-`lib/wallet/mockWallet.ts`, `lib/wallet/walletStorage.ts`, and `lib/arc/mockArcPorts.ts` remain in the repository as legacy/demo modules. They are not imported by the active runtime UI or the active wallet facade.
 
 ## Arc Boundary
 
@@ -141,19 +139,21 @@ Owner, Operator, and Treasury are separate public addresses with separate respon
 
 The deployment script rejects zero configuration addresses, requires the configured Arc Testnet ERC-20 USDC address, requires the frontend Treasury and escrow Treasury values to match, and requires Owner, Operator, and Treasury to be distinct.
 
-No Operator Service infrastructure is represented in the current project architecture.
+The Vercel deployment must store `OPERATOR_PRIVATE_KEY` only as a server-side environment variable.
 
-## Planned Accounting Layer
+## Accounting Layer
 
-The planned Accounting Layer sits between the Auction Engine and future escrow settlement:
+The Accounting Layer sits between the Auction Engine and operator escrow settlement:
 
-`Auction Engine -> Accounting Layer -> future Operator -> AuctionEscrow -> Treasury`
+`Auction Engine -> Accounting Layer -> /api/operator/process -> AuctionEscrow -> Treasury`
 
 Responsibilities remain separate:
 
 - Auction Engine produces the domain result.
 - Accounting records the financial obligation, domain context, canonical `settlementId`, lifecycle, and off-chain reservation.
-- A future server-side Operator may execute settlement.
+- The advertiser signs an EIP-712 Bid Authorization at Place Bid.
+- `/api/operator/process` verifies that authorization before using `OPERATOR_PRIVATE_KEY`.
+- The route does not trust browser JSON directly.
 - Escrow provides ERC-20 USDC custody and settlement replay protection.
 - Treasury is the immutable settlement destination.
 
@@ -169,5 +169,4 @@ The planned record, identifier rules, status lifecycle, reservation formula, exc
 - Independent external-wallet-to-escrow `approve -> deposit` is integrated through the payment boundary.
 - Business Profile, advertisements, auction state, internal balance, and auction payments remain demo-only.
 - `AuctionEscrow` deposit is integrated with the frontend, payment service, and wallet transaction flow.
-- `AuctionEscrow` is not integrated with the demo auction, and no application path calls `settle`.
-- The Accounting Layer and Operator Service are not implemented.
+- Operator settlement is handled by `/api/operator/process`.

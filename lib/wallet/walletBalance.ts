@@ -15,7 +15,11 @@ import {
 } from "@/lib/money/usdc";
 import { getArcWalletState } from "@/lib/arc/arcWalletAdapter";
 import { subscribeToWalletChanges } from "./walletEvents";
-import type { WalletState } from "./walletTypes";
+import {
+  createWalletSnapshot,
+  getServerWalletSnapshot,
+  parseWalletSnapshot,
+} from "./walletSnapshot";
 
 export type WalletUsdcBalanceState = {
   status: "idle" | "loading" | "ready" | "error";
@@ -39,33 +43,8 @@ const idleBalanceState: InternalWalletUsdcBalanceState = {
   error: null,
   address: null,
 };
-const restoringWalletSnapshot = "restoring|0||";
-
 function getWalletSnapshot() {
-  const wallet = getArcWalletState();
-  return `${wallet.status}|${wallet.connected ? "1" : "0"}|${wallet.address ?? ""}|${wallet.chainId ?? ""}`;
-}
-
-function getServerWalletSnapshot() {
-  return restoringWalletSnapshot;
-}
-
-function parseWalletSnapshot(snapshot: string): WalletState {
-  const [statusValue, connectedValue, addressValue, chainIdValue] =
-    snapshot.split("|");
-  const status =
-    statusValue === "connected" ||
-    statusValue === "disconnected" ||
-    statusValue === "restoring"
-      ? statusValue
-      : "disconnected";
-
-  return {
-    status,
-    connected: connectedValue === "1",
-    address: addressValue || null,
-    chainId: chainIdValue ? Number.parseInt(chainIdValue, 10) : null,
-  };
+  return createWalletSnapshot(getArcWalletState());
 }
 
 function getBalanceErrorMessage(error: unknown) {

@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function EmptyAdvertisementsCard() {
   return (
     <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] px-8 py-16 text-center">

@@ -10,8 +10,8 @@ The current project deliberately combines:
 
 - a browser-based demo marketplace and auction;
 - a limited Arc Testnet blockchain integration;
-- a standalone `AuctionEscrow` financial contract with an independent frontend deposit flow that is not connected to the demo auction;
-- a planned Accounting Layer between finalized auction results and future settlement.
+- a standalone `AuctionEscrow` financial contract with independent deposits and operator settlement;
+- an Accounting Layer between finalized auction results and operator settlement.
 
 Demo balances and demo auction payments must not be interpreted as blockchain funds or onchain settlement.
 
@@ -39,6 +39,7 @@ Demo balances and demo auction payments must not be interpreted as blockchain fu
 - Read-only ERC-20 USDC balance for the connected external wallet.
 - Manual ERC-20 USDC transfer from the external wallet to the configured pDOOH Treasury address.
 - Independent ERC-20 USDC `approve -> deposit` flow into the configured `AuctionEscrow`.
+- Operator settlement through the Vercel API route at `/api/operator/process`.
 - Transaction lifecycle display for wallet confirmation, pending receipt, success, and error states.
 
 ### Smart Contract Sources
@@ -79,9 +80,9 @@ This is a manual standalone wallet-to-Treasury transaction. It is not an auction
 3. The advertiser creates and manages browser-stored advertisements.
 4. The advertiser selects advertisements and submits hidden bids for demo screen slots.
 5. Demo auction logic selects winners against the Demo Bot.
-6. During playback, demo payment logic updates the internal demo balance, paid-slot state, and demo treasury.
+6. During playback, settlement remains automatic.
 
-This flow does not submit blockchain transactions and does not call the payment service or `AuctionEscrow`.
+The advertiser signs an EIP-712 Bid Authorization at Place Bid, so no wallet popup is required after winning.
 
 ### AuctionEscrow Status
 
@@ -121,17 +122,17 @@ These components use browser storage and client-side demo logic.
 - Independent ERC-20 escrow deposit.
 - Standalone `AuctionEscrow` source and deployment tooling.
 
-The blockchain components do not perform auction settlement in the current project.
+Auction settlement is handled through the server-side operator route, not by browser wallet submission after winning.
 
-### Planned Accounting Layer
+### Accounting Layer
 
-The planned boundary is:
+The boundary is:
 
-`Auction Engine -> Accounting Layer -> future Operator -> AuctionEscrow -> Treasury`
+`Auction Engine -> Accounting Layer -> /api/operator/process -> AuctionEscrow -> Treasury`
 
 - Auction Engine produces the domain result.
 - Accounting records the financial obligation, reservation, domain context, status, and canonical `settlementId`.
-- A future server-side Operator may execute settlement.
+- `/api/operator/process` verifies bid authorization before using `OPERATOR_PRIVATE_KEY`.
 - Escrow provides custody.
 - Treasury receives successful settlement transfers.
 
@@ -167,17 +168,14 @@ Owner, Operator, and Treasury are distinct public addresses:
 
 The deployment script requires these addresses to be different and requires the frontend Treasury configuration to match the escrow Treasury configuration.
 
-Operator Service infrastructure is outside the current project scope.
+Vercel must store `OPERATOR_PRIVATE_KEY` only as a server-side environment variable.
 
 ## Current Limitations
 
 - Business Profile, advertisements, internal balance, bids, winners, paid slots, and demo treasury are browser-local demo state.
 - The manual Treasury transfer is not linked to an advertisement, auction slot, winner, or playback event.
-- There is no real auction settlement.
-- There are no blockchain auction payments.
+- There are no advertiser wallet-submitted blockchain auction payments.
 - `AuctionEscrow` is connected to the frontend and payment service only for independent deposits.
-- `AuctionEscrow` is not connected to the demo auction.
-- No current application path calls `settle`.
-- Accounting Layer is designed but not implemented.
+- Browser JSON is not trusted directly for settlement.
+- Withdraw reserved amount includes active temporary bid reservations and unresolved retryable settlement obligations.
 - App Kit Send is not implemented.
-- Operator Service is not implemented or represented as current infrastructure.
