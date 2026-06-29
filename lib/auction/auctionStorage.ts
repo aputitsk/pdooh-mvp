@@ -1,5 +1,9 @@
 import type { Advertisement, SlotState } from "./auctionTypes";
-import { AUCTION_STORAGE_KEYS, AUCTION_SLOTS } from "./constants";
+import {
+  AUCTION_STORAGE_KEYS,
+  AUCTION_SLOTS,
+  MVP_DEMO_AUCTION_START_TIMESTAMP_MS,
+} from "./constants";
 import { getStoredAdvertisements as getStoredWalletAdvertisements } from "@/lib/advertisements/advertisementStorage";
 import {
   formatUSDCFromMinorUnits,
@@ -117,21 +121,15 @@ export function writeAuctionJson<T>(key: string, value: T) {
 export function getAuctionStart() {
   const storage = getBrowserStorage();
 
-  if (!storage) {
-    return Date.now();
+  if (storage) {
+    const auctionStart = String(MVP_DEMO_AUCTION_START_TIMESTAMP_MS);
+
+    if (storage.getItem(AUCTION_STORAGE_KEYS.auctionStart) !== auctionStart) {
+      storage.setItem(AUCTION_STORAGE_KEYS.auctionStart, auctionStart);
+    }
   }
 
-  const storedValue = storage.getItem(AUCTION_STORAGE_KEYS.auctionStart);
-  const parsedValue = storedValue ? Number(storedValue) : NaN;
-
-  if (Number.isFinite(parsedValue) && parsedValue > 0) {
-    return parsedValue;
-  }
-
-  const now = Date.now();
-  storage.setItem(AUCTION_STORAGE_KEYS.auctionStart, String(now));
-
-  return now;
+  return MVP_DEMO_AUCTION_START_TIMESTAMP_MS;
 }
 
 export function getStoredAdvertisements(walletAddress?: string | null) {

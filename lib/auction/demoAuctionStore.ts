@@ -25,7 +25,7 @@ import {
 } from "@/lib/arc/arcConstants";
 import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
 import { getAuctionClock } from "./auctionTimer";
-import { AUCTION_SLOTS } from "./constants";
+import { AUCTION_SLOTS, BID_AUTHORIZATION_TTL_MS } from "./constants";
 import {
   createDefaultWinners,
   placeAuctionBid,
@@ -82,7 +82,6 @@ type PlaceBidResult =
 
 const listeners = new Set<() => void>();
 const auctionStoreEventName = "pdooh-auction-store-change";
-const bidAuthorizationTtlMs = 30 * 60 * 1000;
 
 const emptyClock: AuctionClock = {
   phase: "open",
@@ -330,7 +329,7 @@ function createBidAuthorizationPayload(params: {
     escrowAddress: getArcEscrowAddress(),
     treasuryAddress: ARC_TREASURY_ADDRESS,
     usdcAddress: ARC_USDC_CONTRACT_ADDRESS,
-    expiresAt: new Date(Date.now() + bidAuthorizationTtlMs).toISOString(),
+    expiresAt: new Date(Date.now() + BID_AUTHORIZATION_TTL_MS).toISOString(),
   };
 }
 

@@ -11,6 +11,17 @@ export const AUCTION_TOTAL_CYCLE_SECONDS =
   AUCTION_SELECTING_SECONDS +
   AUCTION_PLAYBACK_SECONDS_PER_SLOT * AUCTION_SLOTS.length;
 
+export const MVP_DEMO_AUCTION_START_TIMESTAMP_MS = Date.UTC(
+  2026,
+  0,
+  1,
+  0,
+  0,
+  0
+);
+
+export const BID_AUTHORIZATION_TTL_MS = 30 * 60 * 1000;
+
 export const DEMO_BOT_BID = parseUSDCToMinorUnits("0.02");
 
 export const DEMO_BOT_ADVERTISEMENT = {

@@ -53,6 +53,35 @@ function getServerHydratedSnapshot() {
   return false;
 }
 
+function getWalletErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+
+  const walletError = error as {
+    code?: unknown;
+    cause?: unknown;
+  };
+
+  if (walletError.code !== undefined) {
+    return String(walletError.code);
+  }
+
+  return getWalletErrorCode(walletError.cause);
+}
+
+function isUserRejectedWalletRequest(error: unknown) {
+  if (getWalletErrorCode(error) === "4001") {
+    return true;
+  }
+
+  if (error instanceof Error) {
+    return error.message.includes("code: 4001");
+  }
+
+  return false;
+}
+
 export default function WalletButton() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -100,6 +129,17 @@ export default function WalletButton() {
     return error instanceof Error ? error.message : "Wallet connection failed";
   }
 
+  function handleConnectionError(error: unknown) {
+    if (isUserRejectedWalletRequest(error)) {
+      setConnectError(null);
+      setIsMenuOpen(false);
+      return;
+    }
+
+    setConnectError(getErrorMessage(error));
+    setIsMenuOpen(true);
+  }
+
   async function handleConnectClick() {
     setConnectError(null);
 
@@ -116,8 +156,7 @@ export default function WalletButton() {
       setWalletProviders(providers);
       setIsMenuOpen(true);
     } catch (error) {
-      setConnectError(getErrorMessage(error));
-      setIsMenuOpen(true);
+      handleConnectionError(error);
     }
   }
 
@@ -138,12 +177,10 @@ export default function WalletButton() {
           return;
         }
 
-        setConnectError(getErrorMessage(result.error));
-        setIsMenuOpen(true);
+        handleConnectionError(result.error);
       })
       .catch((error: unknown) => {
-        setConnectError(getErrorMessage(error));
-        setIsMenuOpen(true);
+        handleConnectionError(error);
       })
       .finally(() => {
         isConnectingRef.current = false;
@@ -189,7 +226,9 @@ export default function WalletButton() {
 
             <button
               type="button"
-              onClick={() => void (wallet.address && handleCopyAddress(wallet.address))}
+              onClick={() =>
+                void (wallet.address && handleCopyAddress(wallet.address))
+              }
               className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-zinc-900"
             >
               <span>Copy address</span>
