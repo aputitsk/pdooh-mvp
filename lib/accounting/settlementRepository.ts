@@ -29,6 +29,10 @@ function getSettlementRecordKey(settlementId: `0x${string}`) {
   return `${SETTLEMENT_RECORD_KEY_PREFIX}${settlementId.toLowerCase()}`;
 }
 
+export function isSettlementRecordStorageKey(key: string) {
+  return key.startsWith(SETTLEMENT_RECORD_KEY_PREFIX);
+}
+
 function serializeSettlementRecord(record: SettlementRecord) {
   const storedRecord: StoredSettlementRecord = {
     ...record,

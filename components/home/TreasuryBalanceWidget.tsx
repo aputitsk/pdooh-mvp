@@ -8,7 +8,10 @@ function getSettledTreasuryBalance() {
   try {
     const repository = createBrowserSettlementRepository();
 
-    return repository.listByStatus("settled").reduce((total, record) => {
+    return [
+      ...repository.listByStatus("settled"),
+      ...repository.listByStatus("already_settled"),
+    ].reduce((total, record) => {
       const next = total + Number(record.result.amountMinorUnits);
       return Number.isSafeInteger(next) ? next : Number.MAX_SAFE_INTEGER;
     }, 0);

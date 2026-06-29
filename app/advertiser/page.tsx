@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import AdvertisementsCard from "@/components/advertiser/AdvertisementsCard";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
@@ -29,12 +29,27 @@ export default function AdvertiserPage() {
 
   const walletUsdcBalance = useWalletUsdcBalance();
   const walletEscrowBalance = useWalletEscrowBalance();
+  const refreshWalletEscrowBalance = walletEscrowBalance.refresh;
   const temporaryReservedAmount = useTemporaryReservedAmount(wallet.address);
-  useSyncExternalStore(
+  const settlementRecordVersion = useSyncExternalStore(
     subscribeToSettlementRecordChanges,
     getSettlementRecordSnapshot,
     getSettlementRecordSnapshot
   );
+
+  useEffect(() => {
+    if (!wallet.connected || !wallet.address) {
+      return;
+    }
+
+    refreshWalletEscrowBalance();
+  }, [
+    refreshWalletEscrowBalance,
+    settlementRecordVersion,
+    wallet.address,
+    wallet.connected,
+  ]);
+
   const unresolvedSettlementReservedAmount =
     getUnresolvedSettlementReservedAmount(
       listBrowserSettlementRecords(),

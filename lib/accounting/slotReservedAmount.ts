@@ -28,7 +28,8 @@ function getSettledAmount(params: {
 
   return params.settlementRecords.reduce<UsdcMinorUnits>((total, record) => {
     if (
-      record.status !== "settled" ||
+      (record.status !== "settled" &&
+        record.status !== "already_settled") ||
       record.result.cycleId !== params.cycleId ||
       record.result.advertiserAddress.toLowerCase() !==
         normalizedAdvertiserAddress

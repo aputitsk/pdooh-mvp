@@ -5,15 +5,10 @@ import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
 import { createPendingSettlementRecords } from "@/lib/accounting/accountingFacade";
 import {
-  getEscrowSettlementReflectionSnapshot,
-  getReflectedSettledAmount,
-  subscribeToEscrowSettlementReflection,
-  syncEscrowCycleBaseline,
-} from "@/lib/accounting/escrowSettlementReflection";
-import { deriveActiveSlotReservedAmount } from "@/lib/accounting/slotReservedAmount";
-import {
+  getUnresolvedSettlementReservedAmount,
   isRetryableFailedSettlementRecord,
   MISSING_BID_AUTHORIZATION_FAILURE_REASON,
+  SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
 } from "@/lib/accounting/unresolvedSettlementReservedAmount";
 import {
   getSettlementRecordSnapshot,
@@ -22,7 +17,9 @@ import {
   subscribeToSettlementRecordChanges,
 } from "@/lib/accounting/settlementRecordSync";
 import {
+  markSettlementCancelled,
   markSettlementFailed,
+  markSettlementAlreadySettled,
   markSettlementProcessing,
   markSettlementSettled,
   type SettlementRecord,
@@ -39,7 +36,6 @@ import {
 import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
 import { AUCTION_TOTAL_CYCLE_SECONDS } from "@/lib/auction/constants";
 import {
-  getConfirmedBidExposure,
   getSettlementEligibleLiveSlotIds,
   syncTemporaryAuctionReservations,
   useDemoAuctionStore,
@@ -50,11 +46,23 @@ import {
   useWalletStore,
   useWalletUsdcBalance,
 } from "@/lib/wallet";
+import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
 const ACCOUNTING_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
 
+type PendingSettledReservation = {
+  settlementId: `0x${string}`;
+  advertiserAddress: `0x${string}`;
+  amount: UsdcMinorUnits;
+  escrowBalanceBeforeSettlement: UsdcMinorUnits;
+  createdAtMs: number;
+};
+
+const PENDING_SETTLED_RESERVATION_TTL_MS = 2 * 60 * 1000;
+
 type OperatorProcessResponse = {
   ok: boolean;
+  code?: string;
   status?: "settled" | "already_settled";
   transactionHash?: `0x${string}`;
   error?: string;
@@ -79,11 +87,86 @@ function markMissingBidAuthorization(record: SettlementRecord): SettlementRecord
   };
 }
 
+function addSafeMinorUnits(
+  current: UsdcMinorUnits,
+  amount: UsdcMinorUnits
+): UsdcMinorUnits {
+  const next = current + amount;
+  return Number.isSafeInteger(next) ? next : Number.MAX_SAFE_INTEGER;
+}
+
+function toSafeMinorUnits(value: bigint): UsdcMinorUnits | null {
+  if (value <= BigInt(0) || value > BigInt(Number.MAX_SAFE_INTEGER)) {
+    return null;
+  }
+
+  return Number(value);
+}
+
+function prunePendingSettledReservations(params: {
+  reservations: Record<string, PendingSettledReservation>;
+  escrowBalance: UsdcMinorUnits | null;
+  nowMs: number;
+}) {
+  const { reservations, escrowBalance, nowMs } = params;
+  const activeReservations = Object.values(reservations).filter(
+    (reservation) =>
+      nowMs - reservation.createdAtMs < PENDING_SETTLED_RESERVATION_TTL_MS
+  );
+  const reflectedSettlementIds = new Set<string>();
+
+  if (escrowBalance !== null) {
+    const reservationsByBaseline = new Map<
+      UsdcMinorUnits,
+      PendingSettledReservation[]
+    >();
+
+    activeReservations.forEach((reservation) => {
+      const baselineReservations =
+        reservationsByBaseline.get(reservation.escrowBalanceBeforeSettlement) ??
+        [];
+
+      baselineReservations.push(reservation);
+      reservationsByBaseline.set(
+        reservation.escrowBalanceBeforeSettlement,
+        baselineReservations
+      );
+    });
+
+    reservationsByBaseline.forEach((baselineReservations, baseline) => {
+      const totalBaselineAmount = baselineReservations.reduce<UsdcMinorUnits>(
+        (total, reservation) => addSafeMinorUnits(total, reservation.amount),
+        0
+      );
+
+      if (escrowBalance <= baseline - totalBaselineAmount) {
+        baselineReservations.forEach((reservation) => {
+          reflectedSettlementIds.add(reservation.settlementId);
+        });
+      }
+    });
+  }
+
+  const nextReservations = activeReservations.reduce<
+    Record<string, PendingSettledReservation>
+  >((next, reservation) => {
+    if (!reflectedSettlementIds.has(reservation.settlementId)) {
+      next[reservation.settlementId] = reservation;
+    }
+
+    return next;
+  }, {});
+
+  return Object.keys(nextReservations).length === Object.keys(reservations).length
+    ? reservations
+    : nextReservations;
+}
+
 async function processSettlementRecord(
   repository: SettlementRepository,
   record: SettlementRecord,
   onRepositoryChange?: () => void,
-  onSettlementComplete?: () => void
+  onSettlementComplete?: (settledRecord?: SettlementRecord) => void
 ) {
   if (record.status !== "pending" && record.status !== "failed") {
     return;
@@ -102,8 +185,19 @@ async function processSettlementRecord(
     return;
   }
 
+  const latestRecord = repository.getById(record.settlementId);
+
+  if (
+    latestRecord?.status === "settled" ||
+    latestRecord?.status === "already_settled" ||
+    latestRecord?.status === "cancelled" ||
+    latestRecord?.status === "processing"
+  ) {
+    return;
+  }
+
   const processingRecord = markSettlementProcessing(
-    record,
+    latestRecord ?? record,
     new Date().toISOString()
   );
   repository.update(processingRecord);
@@ -122,18 +216,47 @@ async function processSettlementRecord(
       !result.ok ||
       (result.status !== "settled" && result.status !== "already_settled")
     ) {
+      if (result.code === "SETTLEMENT_WINDOW_NOT_OPEN") {
+        repository.update(
+          markSettlementCancelled(
+            processingRecord,
+            SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
+            new Date().toISOString()
+          )
+        );
+        onRepositoryChange?.();
+        return;
+      }
+
       throw new Error(result.error || "Settlement processing failed.");
     }
 
-    repository.update(
-      markSettlementSettled(
+    let completedRecord: SettlementRecord | undefined;
+
+    if (result.status === "already_settled" && !result.transactionHash) {
+      const currentRecord = repository.getById(processingRecord.settlementId);
+
+      if (currentRecord?.status !== "settled" || !currentRecord.txHash) {
+        repository.update(
+          markSettlementAlreadySettled(
+            processingRecord,
+            new Date().toISOString()
+          )
+        );
+      }
+    } else if (result.transactionHash) {
+      completedRecord = markSettlementSettled(
         processingRecord,
         result.transactionHash,
         new Date().toISOString()
-      )
-    );
+      );
+      repository.update(completedRecord);
+    } else {
+      throw new Error("Settlement transaction hash is missing.");
+    }
+
+    onSettlementComplete?.(completedRecord);
     onRepositoryChange?.();
-    onSettlementComplete?.();
   } catch (error) {
     repository.update(
       markSettlementFailed(
@@ -151,26 +274,37 @@ export default function ScreenPage() {
   const wallet = useWalletStore();
   const walletUsdcBalance = useWalletUsdcBalance();
   const escrowBalance = useWalletEscrowBalance();
-  const reservedAmount = useTemporaryReservedAmount(wallet.address);
+  const temporaryReservedAmount = useTemporaryReservedAmount(wallet.address);
+  const [pendingSettledReservations, setPendingSettledReservations] = useState<
+    Record<string, PendingSettledReservation>
+  >({});
   const [bidErrors, setBidErrors] = useState<Record<number, string | null>>({});
   const [authorizingBidSlotIndex, setAuthorizingBidSlotIndex] =
     useState<number | null>(null);
-  useSyncExternalStore(
+  const settlementRecordVersion = useSyncExternalStore(
     subscribeToSettlementRecordChanges,
     getSettlementRecordSnapshot,
     getSettlementRecordSnapshot
   );
-  useSyncExternalStore(
-    subscribeToEscrowSettlementReflection,
-    getEscrowSettlementReflectionSnapshot,
-    getEscrowSettlementReflectionSnapshot
-  );
   const settlementRecords = listBrowserSettlementRecords();
-  // Temporary demo model only. Until the Accounting Layer exists, available
-  // auction capacity is escrow custody minus finalized winning reservations.
+  const unresolvedSettlementReservedAmount =
+    getUnresolvedSettlementReservedAmount(settlementRecords, wallet.address);
+  const pendingSettledReservedAmount = Object.values(
+    pendingSettledReservations
+  ).reduce<UsdcMinorUnits>(
+    (total, reservation) => addSafeMinorUnits(total, reservation.amount),
+    0
+  );
+  const reservedAmount = Math.min(
+    temporaryReservedAmount +
+      unresolvedSettlementReservedAmount +
+      pendingSettledReservedAmount,
+    Number.MAX_SAFE_INTEGER
+  );
+  const displayedReservedAmount = reservedAmount;
   const availableAuctionCapacity =
     escrowBalance.status === "ready" && escrowBalance.balance !== null
-      ? Math.max(escrowBalance.balance - reservedAmount, 0)
+      ? Math.max(escrowBalance.balance - displayedReservedAmount, 0)
       : 0;
   const phase = auction.clock.phase;
   const currentSlotIndex = auction.clock.currentSlotIndex;
@@ -189,6 +323,46 @@ export default function ScreenPage() {
   const syncSettlementRecords = useCallback(() => {
     notifySettlementRecordsChanged();
   }, []);
+  const trackSettledPendingReflection = useCallback(
+    (settledRecord: SettlementRecord | undefined) => {
+      if (
+        !settledRecord ||
+        escrowBalance.status !== "ready" ||
+        escrowBalance.balance === null ||
+        !wallet.address ||
+        settledRecord.result.advertiserAddress.toLowerCase() !==
+          wallet.address.toLowerCase()
+      ) {
+        return;
+      }
+
+      const amount = toSafeMinorUnits(settledRecord.result.amountMinorUnits);
+
+      if (amount === null) {
+        return;
+      }
+
+      const escrowBalanceBeforeSettlement = escrowBalance.balance;
+
+      setPendingSettledReservations((currentReservations) => {
+        if (currentReservations[settledRecord.settlementId]) {
+          return currentReservations;
+        }
+
+        return {
+          ...currentReservations,
+          [settledRecord.settlementId]: {
+            settlementId: settledRecord.settlementId,
+            advertiserAddress: settledRecord.result.advertiserAddress,
+            amount,
+            escrowBalanceBeforeSettlement,
+            createdAtMs: Date.now(),
+          },
+        };
+      });
+    },
+    [escrowBalance.balance, escrowBalance.status, wallet.address]
+  );
   const clearBidError = useCallback((slotIndex: number) => {
     setBidErrors((currentBidErrors) => ({
       ...currentBidErrors,
@@ -241,86 +415,111 @@ export default function ScreenPage() {
   );
 
   useEffect(() => {
-    if (
-      escrowBalance.status !== "ready" ||
-      escrowBalance.balance === null ||
-      !wallet.address
-    ) {
-      return;
-    }
-
-    syncEscrowCycleBaseline({
-      cycleId: auction.clock.cycleId,
-      advertiserAddress: wallet.address as `0x${string}`,
-      escrowBalance: escrowBalance.balance,
-    });
-  }, [
-    auction.clock.cycleId,
-    escrowBalance.balance,
-    escrowBalance.status,
-    wallet.address,
-  ]);
-
-  const reflectedSettledAmount =
-    escrowBalance.status === "ready"
-      ? getReflectedSettledAmount({
-          cycleId: auction.clock.cycleId,
-          advertiserAddress: wallet.address as `0x${string}` | null,
-          escrowBalance: escrowBalance.balance,
-        })
-      : 0;
-  const confirmedBidExposure = getConfirmedBidExposure(
-    auction.slotStates,
-    auction.submittedBids
-  );
-  const displayedOpenBidExposure =
-    auction.clock.phase === "open" ? confirmedBidExposure : 0;
-  const displayedFinalizedReservedAmount =
-    auction.clock.phase === "open"
-      ? 0
-      : deriveActiveSlotReservedAmount({
-          cycleId: auction.clock.cycleId,
-          advertiserAddress: wallet.address as `0x${string}` | null,
-          slotIds: ACCOUNTING_SLOT_IDS,
-          winnerBidAmounts: auction.winnerBidAmounts,
-          winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
-          settlementRecords,
-          reflectedSettledAmount,
-        });
-  const displayedReservedAmount =
-    displayedFinalizedReservedAmount + displayedOpenBidExposure;
-  const displayedAvailableAuctionCapacity =
-    escrowBalance.status === "ready" && escrowBalance.balance !== null
-      ? Math.max(escrowBalance.balance - displayedReservedAmount, 0)
-      : 0;
-
-  useEffect(() => {
     refreshWalletUsdcBalance();
     refreshEscrowBalance();
   }, [
     auction.clock.cycleId,
     auction.clock.phase,
+    settlementRecordVersion,
     submittedBidsKey,
     refreshEscrowBalance,
     refreshWalletUsdcBalance,
   ]);
 
   useEffect(() => {
-    if (!wallet.connected || !wallet.address) {
+    if (Object.keys(pendingSettledReservations).length === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setPendingSettledReservations((currentReservations) =>
+        prunePendingSettledReservations({
+          reservations: currentReservations,
+          escrowBalance:
+            escrowBalance.status === "ready" ? escrowBalance.balance : null,
+          nowMs: Date.now(),
+        })
+      );
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    escrowBalance.balance,
+    escrowBalance.status,
+    pendingSettledReservations,
+  ]);
+
+  useEffect(() => {
+    const reservations = Object.values(pendingSettledReservations);
+
+    if (reservations.length === 0) {
+      return;
+    }
+
+    const nextExpiryDelayMs = Math.max(
+      Math.min(
+        ...reservations.map(
+          (reservation) =>
+            reservation.createdAtMs +
+            PENDING_SETTLED_RESERVATION_TTL_MS -
+            Date.now()
+        )
+      ),
+      0
+    );
+    const timeoutId = window.setTimeout(() => {
+      setPendingSettledReservations((currentReservations) =>
+        prunePendingSettledReservations({
+          reservations: currentReservations,
+          escrowBalance:
+            escrowBalance.status === "ready" ? escrowBalance.balance : null,
+          nowMs: Date.now(),
+        })
+      );
+    }, nextExpiryDelayMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    escrowBalance.balance,
+    escrowBalance.status,
+    pendingSettledReservations,
+  ]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPendingSettledReservations({});
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [wallet.address]);
+
+  useEffect(() => {
+    if (!wallet.connected) {
       return;
     }
 
     syncTemporaryAuctionReservations({
-      advertiserAddress: wallet.address,
       clock: auction.clock,
+      slotStates: auction.slotStates,
+      submittedBids: auction.submittedBids,
       winners: auction.winners,
       winnerBidAmounts: auction.winnerBidAmounts,
+      winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
     });
   }, [
     auction.clock,
+    auction.slotStates,
+    auction.submittedBids,
+    auction.winnerAdvertiserAddresses,
     auction.winnerBidAmounts,
     auction.winners,
-    wallet.address,
+    settlementRecordVersion,
     wallet.connected,
   ]);
 
@@ -328,12 +527,23 @@ export default function ScreenPage() {
     const repository = createBrowserSettlementRepository();
 
     repository.listByStatus("failed").forEach((record) => {
-      void processSettlementRecord(repository, record, syncSettlementRecords, () => {
-        refreshWalletUsdcBalance();
-        refreshEscrowBalance();
-      });
+      void processSettlementRecord(
+        repository,
+        record,
+        syncSettlementRecords,
+        (settledRecord) => {
+          trackSettledPendingReflection(settledRecord);
+          refreshWalletUsdcBalance();
+          refreshEscrowBalance();
+        }
+      );
     });
-  }, [refreshEscrowBalance, refreshWalletUsdcBalance, syncSettlementRecords]);
+  }, [
+    refreshEscrowBalance,
+    refreshWalletUsdcBalance,
+    syncSettlementRecords,
+    trackSettledPendingReflection,
+  ]);
 
   useEffect(() => {
     if (!auction.isLoaded || auction.clock.phase !== "live") {
@@ -378,10 +588,16 @@ export default function ScreenPage() {
     records.forEach((record) => {
       if (repository.saveIfAbsent(record)) {
         syncSettlementRecords();
-        void processSettlementRecord(repository, record, syncSettlementRecords, () => {
-          refreshWalletUsdcBalance();
-          refreshEscrowBalance();
-        });
+        void processSettlementRecord(
+          repository,
+          record,
+          syncSettlementRecords,
+          (settledRecord) => {
+            trackSettledPendingReflection(settledRecord);
+            refreshWalletUsdcBalance();
+            refreshEscrowBalance();
+          }
+        );
       }
     });
   }, [
@@ -397,6 +613,7 @@ export default function ScreenPage() {
     refreshEscrowBalance,
     refreshWalletUsdcBalance,
     syncSettlementRecords,
+    trackSettledPendingReflection,
   ]);
 
   if (!auction.isLoaded) {
@@ -422,7 +639,7 @@ export default function ScreenPage() {
           advertisements={auction.advertisements}
           slotStates={auction.slotStates}
           availableAuctionCapacity={availableAuctionCapacity}
-          displayedAvailableAuctionCapacity={displayedAvailableAuctionCapacity}
+          displayedAvailableAuctionCapacity={availableAuctionCapacity}
           walletBalance={walletUsdcBalance.formattedBalance}
           walletBalanceStatus={walletUsdcBalance.status}
           walletBalanceError={walletUsdcBalance.error}

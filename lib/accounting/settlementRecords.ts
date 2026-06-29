@@ -10,6 +10,8 @@ export type SettlementStatus =
   | "pending"
   | "processing"
   | "settled"
+  | "already_settled"
+  | "cancelled"
   | "failed";
 
 export type FinalizedAuctionResult = {
@@ -132,7 +134,7 @@ export function markSettlementProcessing(
 
 export function markSettlementSettled(
   record: SettlementRecord,
-  transactionHash: HexAddress | undefined,
+  transactionHash: HexAddress,
   nowIso: string
 ): SettlementRecord {
   if (record.status !== "processing") {
@@ -145,8 +147,48 @@ export function markSettlementSettled(
     ...record,
     status: "settled",
     updatedAt: nowIso,
-    ...(transactionHash ? { txHash: transactionHash } : {}),
+    txHash: transactionHash,
     failureReason: undefined,
+  };
+}
+
+export function markSettlementAlreadySettled(
+  record: SettlementRecord,
+  nowIso: string
+): SettlementRecord {
+  if (record.status !== "processing") {
+    throw new Error("Only processing settlements can be marked already settled.");
+  }
+
+  assertNonEmptyString(nowIso, "nowIso");
+
+  return {
+    ...record,
+    status: "already_settled",
+    updatedAt: nowIso,
+    txHash: undefined,
+    failureReason: undefined,
+  };
+}
+
+export function markSettlementCancelled(
+  record: SettlementRecord,
+  failureReason: string,
+  nowIso: string
+): SettlementRecord {
+  if (record.status !== "processing" && record.status !== "failed") {
+    throw new Error("Only processing or failed settlements can be cancelled.");
+  }
+
+  assertNonEmptyString(failureReason, "failureReason");
+  assertNonEmptyString(nowIso, "nowIso");
+
+  return {
+    ...record,
+    status: "cancelled",
+    updatedAt: nowIso,
+    txHash: undefined,
+    failureReason,
   };
 }
 

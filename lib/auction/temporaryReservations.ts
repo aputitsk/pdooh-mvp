@@ -9,10 +9,23 @@ import {
   AUCTION_STORAGE_KEYS,
   DEMO_BOT_ADVERTISEMENT,
 } from "./constants";
+import {
+  listBrowserSettlementRecords,
+  subscribeToSettlementRecordChanges,
+} from "@/lib/accounting/settlementRecordSync";
+import type { SettlementRecord } from "@/lib/accounting/settlementRecords";
 import { getAuctionStart } from "./auctionStorage";
 import { getAuctionClock } from "./auctionTimer";
-import type { Advertisement, AuctionClock } from "./auctionTypes";
-import type { UsdcMinorUnits } from "@/lib/money/usdc";
+import type {
+  Advertisement,
+  AuctionClock,
+  SignedBidAuthorization,
+  SlotState,
+} from "./auctionTypes";
+import {
+  parseUSDCToMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
 type TemporaryAuctionReservation = {
   advertiserAddress: string;
@@ -22,10 +35,12 @@ type TemporaryAuctionReservation = {
 };
 
 type ReserveFinalizedWinnersParams = {
-  advertiserAddress: string;
   clock: AuctionClock;
+  slotStates: SlotState[];
+  submittedBids: boolean[];
   winners: Advertisement[];
   winnerBidAmounts: UsdcMinorUnits[];
+  winnerAdvertiserAddresses: (`0x${string}` | null)[];
 };
 
 const reservationChangedEventName =
@@ -97,6 +112,40 @@ function getReservationKey(reservation: TemporaryAuctionReservation) {
   ].join(":");
 }
 
+function getSlotId(slotIndex: number) {
+  return `slot-${slotIndex + 1}`;
+}
+
+function getAuthorizedBidAmount(
+  bidAuthorization: SignedBidAuthorization | undefined
+): UsdcMinorUnits | null {
+  const value = bidAuthorization?.payload.bidAmountMinorUnits;
+
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const amount = BigInt(value);
+
+  if (amount <= BigInt(0) || amount > BigInt(Number.MAX_SAFE_INTEGER)) {
+    return null;
+  }
+
+  return Number(amount);
+}
+
+function getBidAmount(bid: string | undefined): UsdcMinorUnits {
+  if (!bid) {
+    return 0;
+  }
+
+  try {
+    return parseUSDCToMinorUnits(bid);
+  } catch {
+    return 0;
+  }
+}
+
 function addSafeMinorUnits(
   current: UsdcMinorUnits,
   amount: UsdcMinorUnits
@@ -121,55 +170,145 @@ function isReservationActive(
   return clock.elapsedInCycle < slotEndTime;
 }
 
-export function syncTemporaryAuctionReservations({
-  advertiserAddress,
-  clock,
-  winners,
-  winnerBidAmounts,
-}: ReserveFinalizedWinnersParams) {
-  if (!advertiserAddress || !Number.isSafeInteger(clock.cycleId)) {
-    return;
+function isSettlementBackedReservation(
+  reservation: TemporaryAuctionReservation,
+  settlementRecords: readonly SettlementRecord[]
+) {
+  return settlementRecords.some((record) => {
+    return (
+      record.result.advertiserAddress.toLowerCase() ===
+        reservation.advertiserAddress.toLowerCase() &&
+      record.result.cycleId === String(reservation.cycleId) &&
+      record.result.slotId === getSlotId(reservation.slotIndex) &&
+      record.result.amountMinorUnits === BigInt(reservation.amount)
+    );
+  });
+}
+
+function createSubmittedBidReservations(params: {
+  clock: AuctionClock;
+  slotStates: SlotState[];
+  submittedBids: boolean[];
+}): TemporaryAuctionReservation[] {
+  const { clock, slotStates, submittedBids } = params;
+
+  if (clock.phase !== "open") {
+    return [];
   }
 
-  const currentReservations = getStoredReservations();
-  const nextReservations = currentReservations.filter((reservation) =>
-    isReservationActive(reservation, clock)
-  );
-  const reservationKeys = new Set(nextReservations.map(getReservationKey));
+  return slotStates.flatMap((slot, slotIndex) => {
+    if (!submittedBids[slotIndex]) {
+      return [];
+    }
 
-  if (clock.phase === "locked" || clock.phase === "live") {
-    winners.forEach((winner, slotIndex) => {
-      const amount = winnerBidAmounts[slotIndex] ?? 0;
+    const advertiserAddress =
+      slot.bidAuthorization?.payload.advertiserAddress ??
+      slot.advertiserAddress;
+    const amount =
+      getAuthorizedBidAmount(slot.bidAuthorization) ?? getBidAmount(slot.bid);
 
-      if (
-        winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName ||
-        !Number.isSafeInteger(amount) ||
-        amount <= 0
-      ) {
-        return;
-      }
+    if (!advertiserAddress || !Number.isSafeInteger(amount) || amount <= 0) {
+      return [];
+    }
 
-      const reservation: TemporaryAuctionReservation = {
+    return [
+      {
         advertiserAddress,
         cycleId: clock.cycleId,
         slotIndex,
         amount,
-      };
+      },
+    ];
+  });
+}
 
-      if (!isReservationActive(reservation, clock)) {
-        return;
-      }
+function createFinalizedWinnerReservations(params: {
+  clock: AuctionClock;
+  winners: Advertisement[];
+  winnerBidAmounts: UsdcMinorUnits[];
+  winnerAdvertiserAddresses: (`0x${string}` | null)[];
+}): TemporaryAuctionReservation[] {
+  const {
+    clock,
+    winners,
+    winnerBidAmounts,
+    winnerAdvertiserAddresses,
+  } = params;
 
-      const reservationKey = getReservationKey(reservation);
-
-      if (reservationKeys.has(reservationKey)) {
-        return;
-      }
-
-      reservationKeys.add(reservationKey);
-      nextReservations.push(reservation);
-    });
+  if (clock.phase !== "locked" && clock.phase !== "live") {
+    return [];
   }
+
+  return winners.flatMap((winner, slotIndex) => {
+    const amount = winnerBidAmounts[slotIndex] ?? 0;
+    const advertiserAddress = winnerAdvertiserAddresses[slotIndex];
+
+    if (
+      !advertiserAddress ||
+      winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName ||
+      !Number.isSafeInteger(amount) ||
+      amount <= 0
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        advertiserAddress,
+        cycleId: clock.cycleId,
+        slotIndex,
+        amount,
+      },
+    ];
+  });
+}
+
+export function syncTemporaryAuctionReservations({
+  clock,
+  slotStates,
+  submittedBids,
+  winners,
+  winnerBidAmounts,
+  winnerAdvertiserAddresses,
+}: ReserveFinalizedWinnersParams) {
+  if (!Number.isSafeInteger(clock.cycleId)) {
+    return;
+  }
+
+  const settlementRecords = listBrowserSettlementRecords();
+  const candidateReservations = [
+    ...createSubmittedBidReservations({ clock, slotStates, submittedBids }),
+    ...createFinalizedWinnerReservations({
+      clock,
+      winners,
+      winnerBidAmounts,
+      winnerAdvertiserAddresses,
+    }),
+  ].filter(
+    (reservation) =>
+      isReservationActive(reservation, clock) &&
+      !isSettlementBackedReservation(reservation, settlementRecords)
+  );
+  const candidateKeys = new Set(candidateReservations.map(getReservationKey));
+  const currentReservations = getStoredReservations();
+  const nextReservations = currentReservations.filter(
+    (reservation) =>
+      candidateKeys.has(getReservationKey(reservation)) &&
+      isReservationActive(reservation, clock) &&
+      !isSettlementBackedReservation(reservation, settlementRecords)
+  );
+  const reservationKeys = new Set(nextReservations.map(getReservationKey));
+
+  candidateReservations.forEach((reservation) => {
+    const reservationKey = getReservationKey(reservation);
+
+    if (reservationKeys.has(reservationKey)) {
+      return;
+    }
+
+    reservationKeys.add(reservationKey);
+    nextReservations.push(reservation);
+  });
 
   if (
     JSON.stringify(nextReservations) !== JSON.stringify(currentReservations)
@@ -187,11 +326,13 @@ export function getTemporaryReservedAmount(
 
   const normalizedAddress = advertiserAddress.toLowerCase();
   const clock = getAuctionClock(getAuctionStart());
+  const settlementRecords = listBrowserSettlementRecords();
 
   return getStoredReservations().reduce<UsdcMinorUnits>(
     (total, reservation) =>
       reservation.advertiserAddress.toLowerCase() === normalizedAddress &&
-      isReservationActive(reservation, clock)
+      isReservationActive(reservation, clock) &&
+      !isSettlementBackedReservation(reservation, settlementRecords)
         ? addSafeMinorUnits(total, reservation.amount)
         : total,
     0
@@ -214,11 +355,14 @@ function subscribeToTemporaryReservations(onStoreChange: () => void) {
 
   window.addEventListener("storage", handleStorageChange);
   window.addEventListener(reservationChangedEventName, onStoreChange);
+  const unsubscribeFromSettlementChanges =
+    subscribeToSettlementRecordChanges(onStoreChange);
   const interval = window.setInterval(onStoreChange, 500);
 
   return () => {
     window.removeEventListener("storage", handleStorageChange);
     window.removeEventListener(reservationChangedEventName, onStoreChange);
+    unsubscribeFromSettlementChanges();
     window.clearInterval(interval);
   };
 }

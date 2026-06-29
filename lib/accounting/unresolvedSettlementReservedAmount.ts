@@ -3,6 +3,8 @@ import type { SettlementRecord } from "./settlementRecords";
 
 export const MISSING_BID_AUTHORIZATION_FAILURE_REASON =
   "Settlement is missing bid authorization and cannot be processed.";
+export const SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON =
+  "Settlement window is not open for this cycle and slot.";
 
 function addSafeMinorUnits(
   current: UsdcMinorUnits,
@@ -26,7 +28,8 @@ export function isRetryableFailedSettlementRecord(
   return (
     record.status === "failed" &&
     Boolean(record.result.bidAuthorization) &&
-    record.failureReason !== MISSING_BID_AUTHORIZATION_FAILURE_REASON
+    record.failureReason !== MISSING_BID_AUTHORIZATION_FAILURE_REASON &&
+    record.failureReason !== SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON
   );
 }
 
