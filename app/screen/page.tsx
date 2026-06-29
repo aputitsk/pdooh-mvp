@@ -12,6 +12,10 @@ import {
 } from "@/lib/accounting/escrowSettlementReflection";
 import { deriveActiveSlotReservedAmount } from "@/lib/accounting/slotReservedAmount";
 import {
+  isRetryableFailedSettlementRecord,
+  MISSING_BID_AUTHORIZATION_FAILURE_REASON,
+} from "@/lib/accounting/unresolvedSettlementReservedAmount";
+import {
   getSettlementRecordSnapshot,
   listBrowserSettlementRecords,
   notifySettlementRecordsChanged,
@@ -48,8 +52,6 @@ import {
 } from "@/lib/wallet";
 
 const ACCOUNTING_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
-const MISSING_BID_AUTHORIZATION_REASON =
-  "Settlement is missing bid authorization and cannot be processed.";
 
 type OperatorProcessResponse = {
   ok: boolean;
@@ -73,7 +75,7 @@ function markMissingBidAuthorization(record: SettlementRecord): SettlementRecord
     ...record,
     status: "failed",
     updatedAt: new Date().toISOString(),
-    failureReason: MISSING_BID_AUTHORIZATION_REASON,
+    failureReason: MISSING_BID_AUTHORIZATION_FAILURE_REASON,
   };
 }
 
@@ -87,14 +89,14 @@ async function processSettlementRecord(
     return;
   }
 
-  if (!record.result.bidAuthorization) {
-    if (
-      record.status === "failed" &&
-      record.failureReason === MISSING_BID_AUTHORIZATION_REASON
-    ) {
-      return;
-    }
+  if (
+    record.status === "failed" &&
+    !isRetryableFailedSettlementRecord(record)
+  ) {
+    return;
+  }
 
+  if (!record.result.bidAuthorization) {
     repository.update(markMissingBidAuthorization(record));
     onRepositoryChange?.();
     return;

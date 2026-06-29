@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import AdvertisementsCard from "@/components/advertiser/AdvertisementsCard";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
 import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
+import { getUnresolvedSettlementReservedAmount } from "@/lib/accounting/unresolvedSettlementReservedAmount";
+import {
+  getSettlementRecordSnapshot,
+  listBrowserSettlementRecords,
+  subscribeToSettlementRecordChanges,
+} from "@/lib/accounting/settlementRecordSync";
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
 import { useTemporaryReservedAmount } from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
@@ -23,7 +29,21 @@ export default function AdvertiserPage() {
 
   const walletUsdcBalance = useWalletUsdcBalance();
   const walletEscrowBalance = useWalletEscrowBalance();
-  const reservedAmount = useTemporaryReservedAmount(wallet.address);
+  const temporaryReservedAmount = useTemporaryReservedAmount(wallet.address);
+  useSyncExternalStore(
+    subscribeToSettlementRecordChanges,
+    getSettlementRecordSnapshot,
+    getSettlementRecordSnapshot
+  );
+  const unresolvedSettlementReservedAmount =
+    getUnresolvedSettlementReservedAmount(
+      listBrowserSettlementRecords(),
+      wallet.address
+    );
+  const reservedAmount = Math.min(
+    temporaryReservedAmount + unresolvedSettlementReservedAmount,
+    Number.MAX_SAFE_INTEGER
+  );
 
   const availableAuctionCapacity =
     walletEscrowBalance.status === "ready" &&

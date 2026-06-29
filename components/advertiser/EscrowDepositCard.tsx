@@ -7,6 +7,7 @@ import {
   withdrawEscrowFunds,
 } from "@/lib/payments/paymentService";
 import {
+  formatUSDCFromMinorUnits,
   parseUSDCToMinorUnits,
   type UsdcMinorUnits,
 } from "@/lib/money/usdc";
@@ -212,6 +213,13 @@ export default function EscrowDepositCard({
           Custodied in AuctionEscrow and separate from the external wallet
           balance.
         </p>
+
+        {reservedAmount > 0 && (
+          <p className="mt-2 text-xs font-medium text-amber-200">
+            Reserved for active bids and unresolved settlements:{" "}
+            {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
+          </p>
+        )}
       </div>
 
       <label
