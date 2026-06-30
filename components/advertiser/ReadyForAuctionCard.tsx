@@ -63,7 +63,7 @@ export default function ReadyForAuctionCard({
 
       <Link
         href="/screen"
-        className="mt-6 inline-flex rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+        className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
       >
         Go to Auction
       </Link>

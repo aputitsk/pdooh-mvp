@@ -36,7 +36,7 @@ export default function AdvertisementsCard({
 
       <Link
         href="/advertisements"
-        className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+        className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
       >
         Open Advertisements
       </Link>

@@ -3,15 +3,37 @@
 }
 
 .display {
-  animation: displayBreath 4.8s ease-in-out infinite;
+  isolation: isolate;
 }
 
-.scan {
-  animation: scanSweep 5.5s ease-in-out infinite;
+.glassReflection {
+  background:
+    linear-gradient(
+      116deg,
+      transparent 0%,
+      transparent 22%,
+      rgba(255, 255, 255, 0.06) 23%,
+      rgba(255, 255, 255, 0.015) 34%,
+      transparent 35%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      transparent 34%,
+      rgba(255, 255, 255, 0.018) 100%
+    );
+  pointer-events: none;
+}
+
+.softLight {
+  animation: softLightSweep 9s ease-in-out infinite;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .tile {
-  animation: tileGlow 3.8s ease-in-out infinite;
+  opacity: 0.42;
 }
 
 .adName {
@@ -22,23 +44,46 @@
   overflow-wrap: anywhere;
   text-align: center;
   line-height: 1.04;
+  text-shadow:
+    0 1px 16px rgba(255, 255, 255, 0.16),
+    0 0 34px rgba(148, 163, 184, 0.1);
 }
 
-.tile:nth-child(4n) {
-  animation-delay: 120ms;
+.adNameMotion {
+  animation: adNameReveal 1800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  isolation: isolate;
+  overflow: hidden;
+  position: relative;
 }
 
-.tile:nth-child(6n) {
-  animation-delay: 260ms;
+.adNameMotion::after {
+  animation: adNameShimmer 6800ms 1800ms ease-in-out both;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 26%,
+    rgba(255, 255, 255, 0.46) 48%,
+    rgba(203, 213, 225, 0.18) 70%,
+    transparent 100%
+  );
+  content: "";
+  inset: 0 -20%;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-130%);
+  z-index: 1;
 }
 
-.tile:nth-child(9n) {
-  animation-delay: 420ms;
+.tile:nth-child(19n),
+.tile:nth-child(37n) {
+  animation: modulePulse 7.5s ease-in-out infinite;
 }
 
 .letter {
   display: inline-block;
-  animation: letterWave 4.2s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
 }
 
 @keyframes billboardFade {
@@ -53,65 +98,60 @@
   }
 }
 
-@keyframes letterWave {
+@keyframes softLightSweep {
   0%,
-  18%,
-  100% {
-    color: rgba(236, 254, 255, 0.82);
-    text-shadow: 0 0 0 rgba(125, 211, 252, 0);
-  }
-
-  28% {
-    color: white;
-    text-shadow:
-      0 0 10px rgba(255, 255, 255, 0.75),
-      0 0 22px rgba(125, 211, 252, 0.65),
-      0 0 34px rgba(34, 211, 238, 0.38);
-  }
-
-  42% {
-    color: rgba(207, 250, 254, 0.9);
-    text-shadow: 0 0 12px rgba(125, 211, 252, 0.25);
-  }
-}
-
-@keyframes displayBreath {
-  0%,
-  100% {
-    filter: brightness(0.96);
-  }
-
-  50% {
-    filter: brightness(1.08);
-  }
-}
-
-@keyframes scanSweep {
-  0%,
-  18% {
-    transform: translateX(-130%);
+  22% {
+    transform: translateX(-150%);
     opacity: 0;
   }
 
-  32%,
-  62% {
-    opacity: 0.55;
+  48% {
+    opacity: 0.52;
   }
 
-  82%,
   100% {
-    transform: translateX(130%);
+    transform: translateX(260%);
     opacity: 0;
   }
 }
 
-@keyframes tileGlow {
+@keyframes modulePulse {
   0%,
   100% {
-    opacity: 0.34;
+    opacity: 0.38;
   }
 
   50% {
-    opacity: 0.54;
+    opacity: 0.5;
+  }
+}
+
+@keyframes adNameReveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.93);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes adNameShimmer {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translateX(-105%);
+  }
+
+  28%,
+  76% {
+    opacity: 0.82;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(105%);
   }
 }

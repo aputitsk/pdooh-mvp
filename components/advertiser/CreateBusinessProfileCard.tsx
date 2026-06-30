@@ -95,19 +95,19 @@ export default function CreateBusinessProfileCard({
       )}
 
       {isBusinessProfileCreated ? (
-        <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5">
           <p className="text-sm text-white/40">
             Business profile
           </p>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex w-full flex-col gap-3 sm:flex-row">
             {isEditingBusinessName ? (
               <>
                 <button
                   type="button"
                   onClick={onSaveBusinessNameEdit}
                   disabled={isEditDisabled}
-                  className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+                  className="min-h-12 w-full rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
                 >
                   Save
                 </button>
@@ -116,7 +116,7 @@ export default function CreateBusinessProfileCard({
                   type="button"
                   onClick={onCancelBusinessNameEdit}
                   disabled={isEditDisabled}
-                  className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                  className="min-h-12 w-full rounded-full border border-white/10 px-6 py-3 font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
                 >
                   Cancel
                 </button>
@@ -126,7 +126,7 @@ export default function CreateBusinessProfileCard({
                 type="button"
                 onClick={onStartBusinessNameEdit}
                 disabled={isEditDisabled}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                className="min-h-12 w-full rounded-full border border-white/10 px-6 py-3 font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
               >
                 Edit
               </button>
@@ -138,7 +138,7 @@ export default function CreateBusinessProfileCard({
           type="button"
           onClick={onCreateBusinessProfile}
           disabled={isBusinessProfileCreated}
-          className="mt-5 w-full rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+          className="mt-5 min-h-12 w-full rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
         >
           Create Business Profile
         </button>
