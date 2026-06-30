@@ -32,6 +32,38 @@
   pointer-events: none;
 }
 
+.scanlines {
+  animation: scanlineDrift 6.5s linear infinite;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035) 0,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  mix-blend-mode: screen;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.ambientGlow {
+  animation: ambientBreath 5.6s ease-in-out infinite;
+  background:
+    radial-gradient(
+      circle at 50% 54%,
+      rgba(79, 140, 255, 0.12),
+      transparent 44%
+    ),
+    radial-gradient(
+      circle at 18% 18%,
+      rgba(255, 255, 255, 0.055),
+      transparent 32%
+    );
+  opacity: 0.64;
+  pointer-events: none;
+}
+
 .tile {
   opacity: 0.42;
 }
@@ -50,7 +82,7 @@
 }
 
 .adNameMotion {
-  animation: adNameReveal 1800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: adNameReveal 1500ms cubic-bezier(0.16, 1, 0.3, 1) both;
   isolation: isolate;
   overflow: hidden;
   position: relative;
@@ -81,6 +113,8 @@
 }
 
 .letter {
+  animation: letterRiseLoop 9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--letter-index) * 18ms);
   display: inline-block;
   position: relative;
   z-index: 2;
@@ -126,15 +160,76 @@
   }
 }
 
+@keyframes scanlineDrift {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes ambientBreath {
+  0%,
+  100% {
+    opacity: 0.46;
+    transform: scale(1);
+  }
+
+  48% {
+    opacity: 0.72;
+    transform: scale(1.015);
+  }
+}
+
 @keyframes adNameReveal {
   from {
     opacity: 0;
-    transform: translateY(28px) scale(0.93);
+    filter: blur(9px);
+    transform: translateY(22px) scale(0.96);
   }
 
   to {
     opacity: 1;
+    filter: blur(0);
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes letterRise {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(18px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes letterRiseLoop {
+  0%,
+  18%,
+  33.333%,
+  51.333%,
+  66.666%,
+  84.666%,
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+
+  7%,
+  40.333%,
+  73.666% {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(18px) scale(0.96);
   }
 }
 

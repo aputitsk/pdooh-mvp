@@ -9,6 +9,7 @@ import DemoModeCard from "./DemoModeCard";
 type AuctionAreaProps = {
   phase: AuctionPhase;
   secondsRemaining: number;
+  slotSecondsRemaining: number;
   currentSlotIndex: number;
   slots: string[];
   advertisements: Advertisement[];
@@ -36,6 +37,7 @@ type AuctionAreaProps = {
 export default function AuctionArea({
   phase,
   secondsRemaining,
+  slotSecondsRemaining,
   currentSlotIndex,
   slots,
   advertisements,
@@ -80,6 +82,7 @@ export default function AuctionArea({
           <AuctionStatusCard
             phase={phase}
             secondsRemaining={secondsRemaining}
+            slotSecondsRemaining={slotSecondsRemaining}
             currentSlotIndex={currentSlotIndex}
             walletBalance={walletBalance}
             walletBalanceStatus={walletBalanceStatus}
@@ -132,6 +135,7 @@ export default function AuctionArea({
         <AuctionStatusCard
           phase={phase}
           secondsRemaining={secondsRemaining}
+          slotSecondsRemaining={slotSecondsRemaining}
           currentSlotIndex={currentSlotIndex}
           walletBalance={walletBalance}
           walletBalanceStatus={walletBalanceStatus}
@@ -149,6 +153,7 @@ export default function AuctionArea({
         <AuctionStatusCard
           phase={phase}
           secondsRemaining={secondsRemaining}
+          slotSecondsRemaining={slotSecondsRemaining}
           currentSlotIndex={currentSlotIndex}
           walletBalance={walletBalance}
           walletBalanceStatus={walletBalanceStatus}

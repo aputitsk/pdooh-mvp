@@ -76,13 +76,13 @@ export default function Home() {
             {blockchainAdvantages.map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 text-left"
+                className="rounded-2xl border border-[#4F8CFF]/35 bg-[#10284D]/45 p-5 text-left shadow-[0_0_10px_#4F8CFF18]"
               >
-                <h3 className="text-base font-semibold leading-6 text-white">
+                <h3 className="text-base font-semibold leading-6 text-[#E7F0FF]">
                   {item.title}
                 </h3>
 
-                <p className="mt-3 text-sm leading-6 text-neutral-400">
+                <p className="mt-3 text-sm leading-6 text-[#B8C7E8]">
                   {item.text}
                 </p>
               </div>

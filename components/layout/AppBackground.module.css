@@ -6,10 +6,89 @@
 
 .background::before,
 .background::after {
-  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.background::before {
+  opacity: 0.045;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.55) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.48) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      180deg,
+      rgba(90, 141, 255, 0.5) 0,
+      rgba(90, 141, 255, 0.5) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  background-position:
+    center,
+    center,
+    0 0;
+  background-size:
+    64px 64px,
+    64px 64px,
+    100% 8px;
+  mix-blend-mode: screen;
+}
+
+.background::after {
+  opacity: 0;
+  background:
+    radial-gradient(
+      circle at 50% 34%,
+      rgba(79, 140, 255, 0.5),
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      transparent,
+      rgba(255, 255, 255, 0.18) 50%,
+      transparent
+    );
+  mix-blend-mode: screen;
+  transform: translateY(1.5%);
+  animation: oledBackgroundPulse 13.5s ease-in-out infinite;
 }
 
 .content {
   position: relative;
   z-index: 1;
+}
+
+@keyframes oledBackgroundPulse {
+  0%,
+  72%,
+  100% {
+    opacity: 0;
+    transform: translateY(1.5%) scale(1);
+  }
+
+  82% {
+    opacity: 0.04;
+    transform: translateY(0) scale(1.01);
+  }
+
+  90% {
+    opacity: 0.018;
+    transform: translateY(-0.6%) scale(1.006);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .background::after {
+    animation: none;
+  }
 }

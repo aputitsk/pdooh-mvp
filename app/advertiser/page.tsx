@@ -67,7 +67,6 @@ export default function AdvertiserPage() {
       ? Math.max(walletEscrowBalance.balance - reservedAmount, 0)
       : 0;
 
-  const [successMessage, setSuccessMessage] = useState("");
   const [showBusinessNameError, setShowBusinessNameError] = useState(false);
   const [isEditingBusinessName, setIsEditingBusinessName] = useState(false);
   const [editableBusinessName, setEditableBusinessName] = useState("");
@@ -102,13 +101,7 @@ export default function AdvertiserPage() {
 
     setShowBusinessNameError(false);
 
-    const result = createBusinessProfile(businessName);
-
-    if (result.createdDefaultAdvertisement) {
-      setSuccessMessage(
-        "Demo Advertisement has been created for your business."
-      );
-    }
+    createBusinessProfile(businessName);
   }
 
   function handleStartBusinessNameEdit() {
@@ -147,7 +140,6 @@ export default function AdvertiserPage() {
 
     setShowBusinessNameError(false);
     setIsEditingBusinessName(false);
-    setSuccessMessage("Business Profile has been updated.");
   }
 
   function handleCancelBusinessNameEdit() {
@@ -170,15 +162,9 @@ export default function AdvertiserPage() {
 
           <p className="mt-3 max-w-2xl text-white/60">
             Connect your wallet, fund escrow, create your business profile,
-            manage advertisements, and join the private pDOOH auction.
+            manage advertisements, and join the pDOOH auction.
           </p>
         </div>
-
-        {successMessage && (
-          <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm font-medium text-emerald-300">
-            ✅ {successMessage}
-          </div>
-        )}
 
         <div className="mt-8 grid gap-5">
           <ConnectWalletCard

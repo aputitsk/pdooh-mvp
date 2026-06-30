@@ -635,6 +635,7 @@ export default function ScreenPage() {
         <AuctionArea
           phase={phase}
           secondsRemaining={displaySecondsRemaining}
+          slotSecondsRemaining={auction.clock.secondsRemaining}
           currentSlotIndex={currentSlotIndex}
           slots={[...auction.slots]}
           advertisements={auction.advertisements}

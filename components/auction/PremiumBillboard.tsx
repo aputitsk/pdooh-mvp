@@ -5,6 +5,10 @@ type PremiumBillboardProps = {
   advertisementName: string;
 };
 
+type LetterStyle = React.CSSProperties & {
+  "--letter-index": number;
+};
+
 const tileIndexes = Array.from({ length: 96 }, (_, index) => index);
 
 function renderAdvertisementText(value: string) {
@@ -12,6 +16,7 @@ function renderAdvertisementText(value: string) {
     <span
       key={`${character}-${index}`}
       className={styles.letter}
+      style={{ "--letter-index": index } as LetterStyle}
     >
       {character === " " ? "\u00A0" : character}
     </span>
@@ -38,6 +43,8 @@ export default function PremiumBillboard({
 
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,rgba(255,255,255,0.065),transparent_42%),linear-gradient(90deg,rgba(0,0,0,0.5),transparent_30%,transparent_70%,rgba(0,0,0,0.58))]" />
         <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/[0.095] to-transparent" />
+        <div className={`${styles.scanlines} absolute inset-0`} />
+        <div className={`${styles.ambientGlow} absolute inset-0`} />
         <div className={`${styles.glassReflection} absolute inset-0`} />
         <div
           className={`${styles.softLight} absolute inset-y-0 w-2/5 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.075),transparent)]`}
