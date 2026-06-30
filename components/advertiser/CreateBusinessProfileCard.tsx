@@ -75,7 +75,7 @@ export default function CreateBusinessProfileCard({
         placeholder="Miami Retail Group"
         className={`mt-2 w-full rounded-xl border bg-black/30 px-4 py-3 outline-none transition disabled:cursor-default ${
           isBusinessProfileCreated && !isEditingBusinessName
-            ? "text-green-400 disabled:text-green-400"
+            ? "text-[#5A8DFF] disabled:text-[#5A8DFF]"
             : "text-white disabled:text-white/40"
         } ${
           showBusinessNameError

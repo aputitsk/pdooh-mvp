@@ -25,6 +25,8 @@ import {
 const emptyAdvertisements: Advertisement[] = [];
 const advertisementStoreEventName = "pdooh-advertisements-store-change";
 const ADVERTISEMENTS_PAGE_SIZE = 6;
+const paginationButtonClassName =
+  "rounded-full border border-[#4F8CFF]/35 bg-[#10284D]/45 px-4 py-2 font-semibold text-[#E7F0FF] shadow-[0_0_10px_#4F8CFF18] transition hover:border-[#5A8DFF]/55 hover:bg-[#183B6A]/55 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-white/30 disabled:shadow-none";
 
 let cachedAdvertisements = emptyAdvertisements;
 let cachedAdvertisementsJson = "";
@@ -316,7 +318,7 @@ export default function AdvertisementsPage() {
             </p>
           </div>
 
-          <div className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-white/70">
+          <div className="rounded-full border border-[#4F8CFF]/35 bg-[#10284D]/45 px-5 py-3 text-sm font-semibold text-[#E7F0FF] shadow-[0_0_10px_#4F8CFF18]">
             {advertisementCount} {advertisementLabel}
           </div>
         </div>
@@ -375,7 +377,7 @@ export default function AdvertisementsPage() {
                       type="button"
                       onClick={handlePreviousPage}
                       disabled={visiblePage === 1}
-                      className="rounded-full border border-white/10 px-4 py-2 font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                      className={paginationButtonClassName}
                     >
                       Prev
                     </button>
@@ -388,7 +390,7 @@ export default function AdvertisementsPage() {
                       type="button"
                       onClick={handleNextPage}
                       disabled={visiblePage === totalPages}
-                      className="rounded-full border border-white/10 px-4 py-2 font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                      className={paginationButtonClassName}
                     >
                       Next
                     </button>
