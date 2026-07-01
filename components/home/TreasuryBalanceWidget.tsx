@@ -11,7 +11,7 @@ import {
 } from "@/lib/money/usdc";
 
 const LAST_SETTLEMENT_DISPLAY_DECIMALS = 3;
-const SETTLEMENT_REFRESH_INTERVAL_MS = 15000;
+const SETTLEMENT_REFRESH_INTERVAL_MS = 30000;
 const emptySettlementSummary: SettlementEventSummary = {
   platformRevenue: 0,
   lastSettlement: null,
@@ -35,6 +35,9 @@ function formatLastSettlementAmount(amount: bigint) {
 export default function TreasuryBalanceWidget() {
   const [settlementSummary, setSettlementSummary] =
     useState<SettlementEventSummary>(emptySettlementSummary);
+  const [settlementReadError, setSettlementReadError] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -43,11 +46,18 @@ export default function TreasuryBalanceWidget() {
       try {
         const nextSettlementSummary = await getSettlementEventSummary();
 
-        if (isCurrentRequest) {
-          setSettlementSummary(nextSettlementSummary);
+        if (!isCurrentRequest) {
+          return;
         }
-      } catch {
-        // Keep the previous on-chain summary visible if the RPC read fails.
+
+        setSettlementSummary(nextSettlementSummary);
+        setSettlementReadError(null);
+      } catch (error) {
+        console.error("Unable to read on-chain settlement events.", error);
+
+        if (isCurrentRequest) {
+          setSettlementReadError("Unable to read revenue");
+        }
       }
     }
 
@@ -64,6 +74,9 @@ export default function TreasuryBalanceWidget() {
   }, []);
 
   const { platformRevenue, lastSettlement } = settlementSummary;
+  const platformRevenueText = settlementReadError
+    ? settlementReadError
+    : `${formatUSDCFromMinorUnits(platformRevenue)} Test USDC`;
 
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center shadow-sm shadow-black/10">
@@ -71,14 +84,18 @@ export default function TreasuryBalanceWidget() {
         Platform Revenue
       </p>
       <p className="mt-0.5 text-sm font-bold text-white">
-        {formatUSDCFromMinorUnits(platformRevenue)} Test USDC
+        {platformRevenueText}
       </p>
       <p
         className={`mt-0.5 text-[10px] leading-4 ${
-          lastSettlement ? "text-emerald-400" : "text-white/35"
+          !settlementReadError && lastSettlement
+            ? "text-emerald-400"
+            : "text-white/35"
         }`}
       >
-        {lastSettlement
+        {settlementReadError
+          ? "Settlement data unavailable"
+          : lastSettlement
           ? `+${formatLastSettlementAmount(
               lastSettlement.amountMinorUnits
             )} USDC  Last settlement`

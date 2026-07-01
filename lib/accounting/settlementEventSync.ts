@@ -1,4 +1,7 @@
-import { listArcSettlementEvents, type ArcSettlementEvent } from "@/lib/arc/arcSettlementEvents";
+import {
+  listArcSettlementEvents,
+  type ArcSettlementEvent,
+} from "@/lib/arc/arcSettlementEvents";
 import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
 export type SettlementEventSummary = {
