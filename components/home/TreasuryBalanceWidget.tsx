@@ -1,38 +1,21 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import {
-  getSettlementRecordSnapshot,
-  listBrowserSettlementRecords,
-  subscribeToSettlementRecordChanges,
-} from "@/lib/accounting/settlementRecordSync";
-import type { SettlementRecord } from "@/lib/accounting/settlementRecords";
+  getSettlementEventSummary,
+  type SettlementEventSummary,
+} from "@/lib/accounting/settlementEventSync";
 import {
   formatUSDCFromMinorUnits,
   USDC_DECIMALS,
-  type UsdcMinorUnits,
 } from "@/lib/money/usdc";
 
 const LAST_SETTLEMENT_DISPLAY_DECIMALS = 3;
-const subscribeToHydration = () => () => {};
-const getHydratedSnapshot = () => true;
-const getServerHydrationSnapshot = () => false;
-
-function isSuccessfulSettlement(record: SettlementRecord) {
-  return record.status === "settled" || record.status === "already_settled";
-}
-
-function addSafeMinorUnits(
-  current: UsdcMinorUnits,
-  amount: bigint
-): UsdcMinorUnits {
-  if (amount > BigInt(Number.MAX_SAFE_INTEGER)) {
-    return Number.MAX_SAFE_INTEGER;
-  }
-
-  const next = current + Number(amount);
-  return Number.isSafeInteger(next) ? next : Number.MAX_SAFE_INTEGER;
-}
+const SETTLEMENT_REFRESH_INTERVAL_MS = 15000;
+const emptySettlementSummary: SettlementEventSummary = {
+  platformRevenue: 0,
+  lastSettlement: null,
+};
 
 function formatLastSettlementAmount(amount: bigint) {
   const displayScale = BigInt(10 ** LAST_SETTLEMENT_DISPLAY_DECIMALS);
@@ -49,35 +32,38 @@ function formatLastSettlementAmount(amount: bigint) {
     .padStart(LAST_SETTLEMENT_DISPLAY_DECIMALS, "0")}`;
 }
 
-function getPlatformRevenue(records: readonly SettlementRecord[]) {
-  return records.filter(isSuccessfulSettlement).reduce<UsdcMinorUnits>(
-    (total, record) => addSafeMinorUnits(total, record.result.amountMinorUnits),
-    0
-  );
-}
-
-function getLastSuccessfulSettlement(records: readonly SettlementRecord[]) {
-  return records.filter(isSuccessfulSettlement).sort((first, second) => {
-    return Date.parse(second.updatedAt) - Date.parse(first.updatedAt);
-  })[0];
-}
-
 export default function TreasuryBalanceWidget() {
-  const isHydrated = useSyncExternalStore(
-    subscribeToHydration,
-    getHydratedSnapshot,
-    getServerHydrationSnapshot
-  );
+  const [settlementSummary, setSettlementSummary] =
+    useState<SettlementEventSummary>(emptySettlementSummary);
 
-  useSyncExternalStore(
-    subscribeToSettlementRecordChanges,
-    getSettlementRecordSnapshot,
-    getSettlementRecordSnapshot
-  );
-  const settlementRecords = isHydrated ? listBrowserSettlementRecords() : [];
-  const platformRevenue = getPlatformRevenue(settlementRecords);
-  const lastSuccessfulSettlement =
-    getLastSuccessfulSettlement(settlementRecords);
+  useEffect(() => {
+    let isCurrentRequest = true;
+
+    async function refreshSettlementSummary() {
+      try {
+        const nextSettlementSummary = await getSettlementEventSummary();
+
+        if (isCurrentRequest) {
+          setSettlementSummary(nextSettlementSummary);
+        }
+      } catch {
+        // Keep the previous on-chain summary visible if the RPC read fails.
+      }
+    }
+
+    void refreshSettlementSummary();
+    const intervalId = window.setInterval(
+      refreshSettlementSummary,
+      SETTLEMENT_REFRESH_INTERVAL_MS
+    );
+
+    return () => {
+      isCurrentRequest = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const { platformRevenue, lastSettlement } = settlementSummary;
 
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center shadow-sm shadow-black/10">
@@ -89,12 +75,12 @@ export default function TreasuryBalanceWidget() {
       </p>
       <p
         className={`mt-0.5 text-[10px] leading-4 ${
-          lastSuccessfulSettlement ? "text-emerald-400" : "text-white/35"
+          lastSettlement ? "text-emerald-400" : "text-white/35"
         }`}
       >
-        {lastSuccessfulSettlement
+        {lastSettlement
           ? `+${formatLastSettlementAmount(
-              lastSuccessfulSettlement.result.amountMinorUnits
+              lastSettlement.amountMinorUnits
             )} USDC  Last settlement`
           : "No settlements yet"}
       </p>
