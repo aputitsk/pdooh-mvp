@@ -1,8 +1,5 @@
-import { formatWalletAddress } from "@/lib/wallet";
-
 type ConnectWalletCardProps = {
   isWalletConnected: boolean;
-  walletAddress: string | null;
   walletStatus: "restoring" | "connected" | "disconnected";
   usdcBalance: string;
   usdcBalanceStatus: "idle" | "loading" | "ready" | "error";
@@ -11,7 +8,6 @@ type ConnectWalletCardProps = {
 
 export default function ConnectWalletCard({
   isWalletConnected,
-  walletAddress,
   walletStatus,
   usdcBalance,
   usdcBalanceStatus,
@@ -56,18 +52,6 @@ export default function ConnectWalletCard({
       </div>
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-        <p className="text-sm text-white/50">Wallet Address</p>
-
-        <p className="mt-1 font-semibold text-white/80">
-          {isWalletConnected && walletAddress
-            ? formatWalletAddress(walletAddress)
-            : isWalletRestoring
-              ? "Checking wallet..."
-            : "Connect wallet in the navbar"}
-        </p>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
         <p className="text-sm text-white/50">Arc Testnet USDC Balance</p>
 
         <p className="mt-1 break-words font-semibold text-white/80">

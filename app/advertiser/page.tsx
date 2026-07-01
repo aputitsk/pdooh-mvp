@@ -169,7 +169,6 @@ export default function AdvertiserPage() {
         <div className="mt-8 grid gap-5">
           <ConnectWalletCard
             isWalletConnected={wallet.connected}
-            walletAddress={wallet.address}
             walletStatus={wallet.status}
             usdcBalance={walletUsdcBalance.formattedBalance}
             usdcBalanceStatus={walletUsdcBalance.status}
