@@ -50,10 +50,10 @@ body::before {
 }
 
 body::after {
-  opacity: 0.34;
+  opacity: 0.5;
   background:
-    linear-gradient(100deg, transparent 0%, transparent 37%, rgba(255, 255, 255, 0.12) 48%, transparent 59%, transparent 100%),
-    linear-gradient(90deg, rgba(34, 211, 238, 0.06), transparent 18%, transparent 82%, rgba(59, 130, 246, 0.06));
+    linear-gradient(100deg, transparent 0%, transparent 34%, rgba(255, 255, 255, 0.22) 48%, transparent 62%, transparent 100%),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.1), transparent 18%, transparent 82%, rgba(59, 130, 246, 0.1));
   background-size: 180% 100%, 100% 100%;
   animation: pageOledSweep 18s ease-in-out infinite;
 }
@@ -62,12 +62,12 @@ body::after {
   0%,
   100% {
     background-position: 130% 0, 0 0;
-    opacity: 0.22;
+    opacity: 0.34;
   }
 
   50% {
     background-position: -30% 0, 0 0;
-    opacity: 0.38;
+    opacity: 0.58;
   }
 }
 

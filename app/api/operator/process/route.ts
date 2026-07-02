@@ -1,9 +1,11 @@
 import {
   createPublicClient,
   createWalletClient,
+  encodeFunctionData,
   http,
   isAddress,
   recoverTypedDataAddress,
+  stringToHex,
   type Address,
   type Chain,
   type Hex,
@@ -59,6 +61,23 @@ const auctionEscrowAbi = [
       { name: "advertiser", type: "address" },
       { name: "amount", type: "uint256" },
       { name: "settlementId", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const arcMemoAddress = "0x5294E9927c3306DcBaDb03fe70b92e01cCede505";
+
+const arcMemoAbi = [
+  {
+    type: "function",
+    name: "memo",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "target", type: "address" },
+      { name: "data", type: "bytes" },
+      { name: "memoId", type: "bytes32" },
+      { name: "memoData", type: "bytes" },
     ],
     outputs: [],
   },
@@ -381,6 +400,25 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Settlement failed.";
 }
 
+function createSettlementMemoData(
+  candidate: OperatorSettlementCandidate,
+  settlementId: Hex
+) {
+  return stringToHex(
+    JSON.stringify({
+      v: 1,
+      type: "pdooh.settlement",
+      settlementId,
+      cycleId: candidate.cycleId,
+      slotId: candidate.slotId,
+      advertiser: candidate.advertiserAddress,
+      company: candidate.businessName,
+      ad: candidate.advertisementName,
+      amountMinor: candidate.amountMinorUnits.toString(),
+    })
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const input = parseRequest(await request.json());
@@ -482,20 +520,47 @@ export async function POST(request: Request) {
       });
     }
 
-    const { request: settlementRequest } =
-      await publicClient.simulateContract({
-        account,
-        address: escrowAddress,
-        abi: auctionEscrowAbi,
-        functionName: "settle",
+    const memoCode = await publicClient.getCode({
+      address: arcMemoAddress,
+    });
+
+    if (!memoCode || memoCode === "0x") {
+      throw new Error("Arc Memo contract is not deployed on Arc Testnet.");
+    }
+
+    const settlementArgs = [
+      candidate.advertiserAddress,
+      candidate.amountMinorUnits,
+      input.settlementId,
+    ] as const;
+
+    await publicClient.simulateContract({
+      account,
+      address: escrowAddress,
+      abi: auctionEscrowAbi,
+      functionName: "settle",
+      args: settlementArgs,
+    });
+
+    const settlementCalldata = encodeFunctionData({
+      abi: auctionEscrowAbi,
+      functionName: "settle",
+      args: settlementArgs,
+    });
+    const memoData = createSettlementMemoData(candidate, input.settlementId);
+
+    const transactionHash =
+      await walletClient.writeContract({
+        address: arcMemoAddress,
+        abi: arcMemoAbi,
+        functionName: "memo",
         args: [
-          candidate.advertiserAddress,
-          candidate.amountMinorUnits,
+          escrowAddress,
+          settlementCalldata,
           input.settlementId,
+          memoData,
         ],
       });
-    const transactionHash =
-      await walletClient.writeContract(settlementRequest);
     const receipt = await publicClient.waitForTransactionReceipt({
       hash: transactionHash,
     });

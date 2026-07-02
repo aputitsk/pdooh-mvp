@@ -5,6 +5,7 @@ import AdvertisementsCard from "@/components/advertiser/AdvertisementsCard";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
 import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
+import LatestSettlementCard from "@/components/advertiser/LatestSettlementCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
 import AppBackground from "@/components/layout/AppBackground";
 import { getUnresolvedSettlementReservedAmount } from "@/lib/accounting/unresolvedSettlementReservedAmount";
@@ -51,9 +52,10 @@ export default function AdvertiserPage() {
     wallet.connected,
   ]);
 
+  const settlementRecords = listBrowserSettlementRecords();
   const unresolvedSettlementReservedAmount =
     getUnresolvedSettlementReservedAmount(
-      listBrowserSettlementRecords(),
+      settlementRecords,
       wallet.address
     );
   const reservedAmount = Math.min(
@@ -151,19 +153,25 @@ export default function AdvertiserPage() {
   return (
     <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-5xl">
-        <div>
-          <p className="text-sm font-medium text-white/40">
-            Advertiser onboarding
-          </p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-white/40">
+              Advertiser onboarding
+            </p>
 
-          <h1 className="mt-2 text-4xl font-bold">
-            Advertiser Dashboard
-          </h1>
+            <h1 className="mt-2 text-4xl font-bold lg:whitespace-nowrap">
+              Advertiser Dashboard
+            </h1>
 
-          <p className="mt-3 max-w-2xl text-white/60">
-            Connect your wallet, fund escrow, create your business profile,
-            manage advertisements, and join the pDOOH auction.
-          </p>
+            <p className="mt-3 max-w-2xl text-white/60">
+              Connect your wallet, fund escrow, create your business profile,
+              manage advertisements, and join the pDOOH auction.
+            </p>
+          </div>
+
+          <div className="w-full lg:w-[483px] lg:shrink-0">
+            <LatestSettlementCard settlementRecords={settlementRecords} />
+          </div>
         </div>
 
         <div className="mt-8 grid gap-5">
