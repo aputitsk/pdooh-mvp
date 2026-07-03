@@ -7,7 +7,9 @@ import { createFinalizedAuctionResult } from "./finalizedAuctionResults.ts";
 const bidAuthorization = {
   payload: {
     purpose: "PDOOH_BID_AUTHORIZATION",
-    version: "1",
+    version: "2",
+    marketId: "new-york",
+    siteId: "times-square",
     advertiserAddress:
       "0x2222222222222222222222222222222222222222" as const,
     businessName: "Acme",
@@ -30,6 +32,8 @@ const validParams = {
   escrowAddress: "0x1111111111111111111111111111111111111111" as const,
   treasuryAddress: "0x3333333333333333333333333333333333333333" as const,
   usdcAddress: "0x3600000000000000000000000000000000000000" as const,
+  marketId: "new-york" as const,
+  siteId: "times-square" as const,
   cycleId: "cycle-1",
   slotId: "slot-1",
   advertiserAddress:
@@ -45,6 +49,16 @@ test("valid input creates a FinalizedAuctionResult", () => {
     ...validParams,
     amountMinorUnits: BigInt(validParams.amountMinorUnits),
   });
+});
+
+test("mismatched site identity returns null", () => {
+  assert.equal(
+    createFinalizedAuctionResult({
+      ...validParams,
+      siteId: "hollywood-boulevard",
+    }),
+    null
+  );
 });
 
 test("null advertiserAddress returns null", () => {

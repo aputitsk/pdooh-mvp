@@ -3,6 +3,7 @@ import styles from "./PremiumBillboard.module.css";
 type PremiumBillboardProps = {
   businessName: string;
   advertisementName: string;
+  contextLabel?: string;
 };
 
 type LetterStyle = React.CSSProperties & {
@@ -26,6 +27,7 @@ function renderAdvertisementText(value: string) {
 export default function PremiumBillboard({
   businessName,
   advertisementName,
+  contextLabel,
 }: PremiumBillboardProps) {
   return (
     <div className="mb-10 rounded-3xl border border-neutral-800 bg-neutral-900 p-6">
@@ -55,6 +57,11 @@ export default function PremiumBillboard({
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/42">
               Live Digital Billboard
             </p>
+            {contextLabel && (
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/75">
+                {contextLabel}
+              </p>
+            )}
 
             <h2 className="mt-5 text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl">
               {businessName}

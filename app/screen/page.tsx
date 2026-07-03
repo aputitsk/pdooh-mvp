@@ -4,284 +4,112 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import AuctionArea from "@/components/auction/AuctionArea";
 import LiveScreen from "@/components/auction/LiveScreen";
 import AppBackground from "@/components/layout/AppBackground";
-import { createPendingSettlementRecords } from "@/lib/accounting/accountingFacade";
 import {
-  getUnresolvedSettlementReservedAmount,
-  isRetryableFailedSettlementRecord,
-  MISSING_BID_AUTHORIZATION_FAILURE_REASON,
-  SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
-} from "@/lib/accounting/unresolvedSettlementReservedAmount";
+  getAvailableFromEscrowBalance,
+  getTotalReservedAmount,
+} from "@/lib/accounting/reservedAmounts";
+import { getUnresolvedSettlementReservedAmount } from "@/lib/accounting/unresolvedSettlementReservedAmount";
 import {
   getSettlementRecordSnapshot,
   listBrowserSettlementRecords,
-  notifySettlementRecordsChanged,
   subscribeToSettlementRecordChanges,
 } from "@/lib/accounting/settlementRecordSync";
-import {
-  markSettlementCancelled,
-  markSettlementFailed,
-  markSettlementAlreadySettled,
-  markSettlementProcessing,
-  markSettlementSettled,
-  type SettlementRecord,
-} from "@/lib/accounting/settlementRecords";
-import {
-  createBrowserSettlementRepository,
-  type SettlementRepository,
-} from "@/lib/accounting/settlementRepository";
-import { ARC_TREASURY_ADDRESS } from "@/lib/arc/arcConfig";
-import {
-  ARC_CHAIN_ID,
-  ARC_USDC_CONTRACT_ADDRESS,
-} from "@/lib/arc/arcConstants";
-import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
 import { AUCTION_TOTAL_CYCLE_SECONDS } from "@/lib/auction/constants";
 import {
-  getSettlementEligibleLiveSlotIds,
-  syncTemporaryAuctionReservations,
+  DEFAULT_SITE_KEY,
+  MARKET_CONFIGS,
+  SITE_CONFIGS,
+  type SiteConfig,
+  type SiteKey,
   useDemoAuctionStore,
-  useTemporaryReservedAmount,
+  useSharedEscrowTemporaryReservedAmounts,
 } from "@/lib/auction";
 import {
   useWalletEscrowBalance,
   useWalletStore,
   useWalletUsdcBalance,
 } from "@/lib/wallet";
-import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
-const ACCOUNTING_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
-
-type PendingSettledReservation = {
-  settlementId: `0x${string}`;
-  advertiserAddress: `0x${string}`;
-  amount: UsdcMinorUnits;
-  escrowBalanceBeforeSettlement: UsdcMinorUnits;
-  createdAtMs: number;
-};
-
-const PENDING_SETTLED_RESERVATION_TTL_MS = 2 * 60 * 1000;
-
-type OperatorProcessResponse = {
-  ok: boolean;
-  code?: string;
-  status?: "settled" | "already_settled";
-  transactionHash?: `0x${string}`;
-  error?: string;
-};
-
-function serializeSettlementRecord(record: SettlementRecord) {
-  return {
-    ...record,
-    result: {
-      ...record.result,
-      amountMinorUnits: record.result.amountMinorUnits.toString(),
-    },
-  };
+function getMarketName(siteConfig: SiteConfig) {
+  return (
+    MARKET_CONFIGS.find((market) => market.id === siteConfig.marketId)?.name ??
+    siteConfig.marketId
+  );
 }
 
-function markMissingBidAuthorization(record: SettlementRecord): SettlementRecord {
-  return {
-    ...record,
-    status: "failed",
-    updatedAt: new Date().toISOString(),
-    failureReason: MISSING_BID_AUTHORIZATION_FAILURE_REASON,
-  };
+function getSiteLabel(siteConfig: SiteConfig) {
+  return `${getMarketName(siteConfig)} / ${siteConfig.name}`;
 }
 
-function addSafeMinorUnits(
-  current: UsdcMinorUnits,
-  amount: UsdcMinorUnits
-): UsdcMinorUnits {
-  const next = current + amount;
-  return Number.isSafeInteger(next) ? next : Number.MAX_SAFE_INTEGER;
-}
-
-function toSafeMinorUnits(value: bigint): UsdcMinorUnits | null {
-  if (value <= BigInt(0) || value > BigInt(Number.MAX_SAFE_INTEGER)) {
-    return null;
-  }
-
-  return Number(value);
-}
-
-function prunePendingSettledReservations(params: {
-  reservations: Record<string, PendingSettledReservation>;
-  escrowBalance: UsdcMinorUnits | null;
-  nowMs: number;
+function SiteSelector({
+  selectedSiteKey,
+  selectedSiteConfig,
+  cycleId,
+  phase,
+  onSiteChange,
+  isDisabled,
+}: {
+  selectedSiteKey: SiteKey;
+  selectedSiteConfig: SiteConfig;
+  cycleId: number | string;
+  phase: string;
+  onSiteChange: (siteKey: SiteKey) => void;
+  isDisabled: boolean;
 }) {
-  const { reservations, escrowBalance, nowMs } = params;
-  const activeReservations = Object.values(reservations).filter(
-    (reservation) =>
-      nowMs - reservation.createdAtMs < PENDING_SETTLED_RESERVATION_TTL_MS
+  return (
+    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-white/45">
+          Market / Site
+        </p>
+        <p className="mt-1 truncate text-sm font-semibold text-white">
+          {getSiteLabel(selectedSiteConfig)}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap gap-2 text-xs font-semibold text-white/60">
+          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">
+            Cycle {cycleId}
+          </span>
+          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 capitalize">
+            {phase}
+          </span>
+        </div>
+
+        <select
+          value={selectedSiteKey}
+          onChange={(event) => onSiteChange(event.target.value as SiteKey)}
+          disabled={isDisabled}
+          className="h-10 rounded-xl border border-white/10 bg-black px-3 text-sm font-semibold text-white outline-none transition hover:border-white/25 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {SITE_CONFIGS.map((siteConfig) => (
+            <option key={siteConfig.siteKey} value={siteConfig.siteKey}>
+              {getSiteLabel(siteConfig)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
-  const reflectedSettlementIds = new Set<string>();
-
-  if (escrowBalance !== null) {
-    const reservationsByBaseline = new Map<
-      UsdcMinorUnits,
-      PendingSettledReservation[]
-    >();
-
-    activeReservations.forEach((reservation) => {
-      const baselineReservations =
-        reservationsByBaseline.get(reservation.escrowBalanceBeforeSettlement) ??
-        [];
-
-      baselineReservations.push(reservation);
-      reservationsByBaseline.set(
-        reservation.escrowBalanceBeforeSettlement,
-        baselineReservations
-      );
-    });
-
-    reservationsByBaseline.forEach((baselineReservations, baseline) => {
-      const totalBaselineAmount = baselineReservations.reduce<UsdcMinorUnits>(
-        (total, reservation) => addSafeMinorUnits(total, reservation.amount),
-        0
-      );
-
-      if (escrowBalance <= baseline - totalBaselineAmount) {
-        baselineReservations.forEach((reservation) => {
-          reflectedSettlementIds.add(reservation.settlementId);
-        });
-      }
-    });
-  }
-
-  const nextReservations = activeReservations.reduce<
-    Record<string, PendingSettledReservation>
-  >((next, reservation) => {
-    if (!reflectedSettlementIds.has(reservation.settlementId)) {
-      next[reservation.settlementId] = reservation;
-    }
-
-    return next;
-  }, {});
-
-  return Object.keys(nextReservations).length === Object.keys(reservations).length
-    ? reservations
-    : nextReservations;
-}
-
-async function processSettlementRecord(
-  repository: SettlementRepository,
-  record: SettlementRecord,
-  onRepositoryChange?: () => void,
-  onSettlementComplete?: (settledRecord?: SettlementRecord) => void
-) {
-  if (record.status !== "pending" && record.status !== "failed") {
-    return;
-  }
-
-  if (
-    record.status === "failed" &&
-    !isRetryableFailedSettlementRecord(record)
-  ) {
-    return;
-  }
-
-  if (!record.result.bidAuthorization) {
-    repository.update(markMissingBidAuthorization(record));
-    onRepositoryChange?.();
-    return;
-  }
-
-  const latestRecord = repository.getById(record.settlementId);
-
-  if (
-    latestRecord?.status === "settled" ||
-    latestRecord?.status === "already_settled" ||
-    latestRecord?.status === "cancelled" ||
-    latestRecord?.status === "processing"
-  ) {
-    return;
-  }
-
-  const processingRecord = markSettlementProcessing(
-    latestRecord ?? record,
-    new Date().toISOString()
-  );
-  repository.update(processingRecord);
-  onRepositoryChange?.();
-
-  try {
-    const response = await fetch("/api/operator/process", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(serializeSettlementRecord(processingRecord)),
-    });
-    const result = (await response.json()) as OperatorProcessResponse;
-
-    if (
-      !response.ok ||
-      !result.ok ||
-      (result.status !== "settled" && result.status !== "already_settled")
-    ) {
-      if (result.code === "SETTLEMENT_WINDOW_NOT_OPEN") {
-        repository.update(
-          markSettlementCancelled(
-            processingRecord,
-            SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
-            new Date().toISOString()
-          )
-        );
-        onRepositoryChange?.();
-        return;
-      }
-
-      throw new Error(result.error || "Settlement processing failed.");
-    }
-
-    let completedRecord: SettlementRecord | undefined;
-
-    if (result.status === "already_settled" && !result.transactionHash) {
-      const currentRecord = repository.getById(processingRecord.settlementId);
-
-      if (currentRecord?.status !== "settled" || !currentRecord.txHash) {
-        repository.update(
-          markSettlementAlreadySettled(
-            processingRecord,
-            new Date().toISOString()
-          )
-        );
-      }
-    } else if (result.transactionHash) {
-      completedRecord = markSettlementSettled(
-        processingRecord,
-        result.transactionHash,
-        new Date().toISOString()
-      );
-      repository.update(completedRecord);
-    } else {
-      throw new Error("Settlement transaction hash is missing.");
-    }
-
-    onSettlementComplete?.(completedRecord);
-    onRepositoryChange?.();
-  } catch (error) {
-    repository.update(
-      markSettlementFailed(
-        processingRecord,
-        error instanceof Error ? error.message : "Settlement processing failed.",
-        new Date().toISOString()
-      )
-    );
-    onRepositoryChange?.();
-  }
 }
 
 export default function ScreenPage() {
-  const auction = useDemoAuctionStore();
+  const [selectedSiteKey, setSelectedSiteKey] =
+    useState<SiteKey>(DEFAULT_SITE_KEY);
+  const auction = useDemoAuctionStore(selectedSiteKey);
   const wallet = useWalletStore();
   const walletUsdcBalance = useWalletUsdcBalance();
   const escrowBalance = useWalletEscrowBalance();
-  const temporaryReservedAmount = useTemporaryReservedAmount(wallet.address);
-  const [pendingSettledReservations, setPendingSettledReservations] = useState<
-    Record<string, PendingSettledReservation>
-  >({});
+  const temporaryReservedAmounts =
+    useSharedEscrowTemporaryReservedAmounts(wallet.address);
   const [bidErrors, setBidErrors] = useState<Record<number, string | null>>({});
   const [authorizingBidSlotIndex, setAuthorizingBidSlotIndex] =
     useState<number | null>(null);
+  const handleSiteChange = useCallback((siteKey: SiteKey) => {
+    setBidErrors({});
+    setSelectedSiteKey(siteKey);
+  }, []);
   const settlementRecordVersion = useSyncExternalStore(
     subscribeToSettlementRecordChanges,
     getSettlementRecordSnapshot,
@@ -290,22 +118,18 @@ export default function ScreenPage() {
   const settlementRecords = listBrowserSettlementRecords();
   const unresolvedSettlementReservedAmount =
     getUnresolvedSettlementReservedAmount(settlementRecords, wallet.address);
-  const pendingSettledReservedAmount = Object.values(
-    pendingSettledReservations
-  ).reduce<UsdcMinorUnits>(
-    (total, reservation) => addSafeMinorUnits(total, reservation.amount),
-    0
-  );
-  const reservedAmount = Math.min(
-    temporaryReservedAmount +
-      unresolvedSettlementReservedAmount +
-      pendingSettledReservedAmount,
-    Number.MAX_SAFE_INTEGER
-  );
+  const reservedAmount = getTotalReservedAmount({
+    siteReservedAmounts: temporaryReservedAmounts.bySite,
+    legacyUnresolvedSettlementReservedAmount:
+      unresolvedSettlementReservedAmount,
+  });
   const displayedReservedAmount = reservedAmount;
   const availableAuctionCapacity =
     escrowBalance.status === "ready" && escrowBalance.balance !== null
-      ? Math.max(escrowBalance.balance - displayedReservedAmount, 0)
+      ? getAvailableFromEscrowBalance(
+          escrowBalance.balance,
+          displayedReservedAmount
+        )
       : 0;
   const phase = auction.clock.phase;
   const currentSlotIndex = auction.clock.currentSlotIndex;
@@ -319,57 +143,16 @@ export default function ScreenPage() {
   const submittedBidsKey = auction.submittedBids.join("|");
   const liveWinner =
     phase === "live" ? auction.winners[currentSlotIndex] : null;
+  const selectedSiteLabel = getSiteLabel(auction.siteConfig);
   const refreshWalletUsdcBalance = walletUsdcBalance.refresh;
   const refreshEscrowBalance = escrowBalance.refresh;
-  const syncSettlementRecords = useCallback(() => {
-    notifySettlementRecordsChanged();
-  }, []);
-  const trackSettledPendingReflection = useCallback(
-    (settledRecord: SettlementRecord | undefined) => {
-      if (
-        !settledRecord ||
-        escrowBalance.status !== "ready" ||
-        escrowBalance.balance === null ||
-        !wallet.address ||
-        settledRecord.result.advertiserAddress.toLowerCase() !==
-          wallet.address.toLowerCase()
-      ) {
-        return;
-      }
-
-      const amount = toSafeMinorUnits(settledRecord.result.amountMinorUnits);
-
-      if (amount === null) {
-        return;
-      }
-
-      const escrowBalanceBeforeSettlement = escrowBalance.balance;
-
-      setPendingSettledReservations((currentReservations) => {
-        if (currentReservations[settledRecord.settlementId]) {
-          return currentReservations;
-        }
-
-        return {
-          ...currentReservations,
-          [settledRecord.settlementId]: {
-            settlementId: settledRecord.settlementId,
-            advertiserAddress: settledRecord.result.advertiserAddress,
-            amount,
-            escrowBalanceBeforeSettlement,
-            createdAtMs: Date.now(),
-          },
-        };
-      });
-    },
-    [escrowBalance.balance, escrowBalance.status, wallet.address]
-  );
   const clearBidError = useCallback((slotIndex: number) => {
     setBidErrors((currentBidErrors) => ({
       ...currentBidErrors,
       [slotIndex]: null,
     }));
   }, []);
+
   const handlePlaceBid = useCallback(
     async (slotIndex: number) => {
       if (authorizingBidSlotIndex !== null) {
@@ -427,196 +210,6 @@ export default function ScreenPage() {
     refreshWalletUsdcBalance,
   ]);
 
-  useEffect(() => {
-    if (Object.keys(pendingSettledReservations).length === 0) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setPendingSettledReservations((currentReservations) =>
-        prunePendingSettledReservations({
-          reservations: currentReservations,
-          escrowBalance:
-            escrowBalance.status === "ready" ? escrowBalance.balance : null,
-          nowMs: Date.now(),
-        })
-      );
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    escrowBalance.balance,
-    escrowBalance.status,
-    pendingSettledReservations,
-  ]);
-
-  useEffect(() => {
-    const reservations = Object.values(pendingSettledReservations);
-
-    if (reservations.length === 0) {
-      return;
-    }
-
-    const nextExpiryDelayMs = Math.max(
-      Math.min(
-        ...reservations.map(
-          (reservation) =>
-            reservation.createdAtMs +
-            PENDING_SETTLED_RESERVATION_TTL_MS -
-            Date.now()
-        )
-      ),
-      0
-    );
-    const timeoutId = window.setTimeout(() => {
-      setPendingSettledReservations((currentReservations) =>
-        prunePendingSettledReservations({
-          reservations: currentReservations,
-          escrowBalance:
-            escrowBalance.status === "ready" ? escrowBalance.balance : null,
-          nowMs: Date.now(),
-        })
-      );
-    }, nextExpiryDelayMs);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    escrowBalance.balance,
-    escrowBalance.status,
-    pendingSettledReservations,
-  ]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setPendingSettledReservations({});
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [wallet.address]);
-
-  useEffect(() => {
-    if (!wallet.connected) {
-      return;
-    }
-
-    syncTemporaryAuctionReservations({
-      clock: auction.clock,
-      slotStates: auction.slotStates,
-      submittedBids: auction.submittedBids,
-      winners: auction.winners,
-      winnerBidAmounts: auction.winnerBidAmounts,
-      winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
-    });
-  }, [
-    auction.clock,
-    auction.slotStates,
-    auction.submittedBids,
-    auction.winnerAdvertiserAddresses,
-    auction.winnerBidAmounts,
-    auction.winners,
-    settlementRecordVersion,
-    wallet.connected,
-  ]);
-
-  useEffect(() => {
-    const repository = createBrowserSettlementRepository();
-
-    repository.listByStatus("failed").forEach((record) => {
-      void processSettlementRecord(
-        repository,
-        record,
-        syncSettlementRecords,
-        (settledRecord) => {
-          trackSettledPendingReflection(settledRecord);
-          refreshWalletUsdcBalance();
-          refreshEscrowBalance();
-        }
-      );
-    });
-  }, [
-    refreshEscrowBalance,
-    refreshWalletUsdcBalance,
-    syncSettlementRecords,
-    trackSettledPendingReflection,
-  ]);
-
-  useEffect(() => {
-    if (!auction.isLoaded || auction.clock.phase !== "live") {
-      return;
-    }
-
-    const settlementEligibleSlotIds = getSettlementEligibleLiveSlotIds(
-      auction.clock,
-      ACCOUNTING_SLOT_IDS
-    );
-
-    if (settlementEligibleSlotIds.length === 0) {
-      return;
-    }
-
-    let escrowAddress: `0x${string}`;
-
-    try {
-      escrowAddress = getArcEscrowAddress();
-    } catch {
-      return;
-    }
-
-    const records = createPendingSettlementRecords({
-      snapshot: {
-        phase: auction.clock.phase,
-        cycleId: auction.clock.cycleId,
-        chainId: ARC_CHAIN_ID,
-        escrowAddress,
-        treasuryAddress: ARC_TREASURY_ADDRESS,
-        usdcAddress: ARC_USDC_CONTRACT_ADDRESS,
-        slotIds: settlementEligibleSlotIds,
-        winners: auction.winners,
-        winnerBidAmounts: auction.winnerBidAmounts,
-        winnerAdvertiserAddresses: auction.winnerAdvertiserAddresses,
-        winnerBidAuthorizations: auction.winnerBidAuthorizations,
-      },
-      nowIso: new Date().toISOString(),
-    });
-    const repository = createBrowserSettlementRepository();
-
-    records.forEach((record) => {
-      if (repository.saveIfAbsent(record)) {
-        syncSettlementRecords();
-        void processSettlementRecord(
-          repository,
-          record,
-          syncSettlementRecords,
-          (settledRecord) => {
-            trackSettledPendingReflection(settledRecord);
-            refreshWalletUsdcBalance();
-            refreshEscrowBalance();
-          }
-        );
-      }
-    });
-  }, [
-    auction.clock,
-    auction.clock.cycleId,
-    auction.clock.elapsedInCycle,
-    auction.clock.phase,
-    auction.isLoaded,
-    auction.winnerAdvertiserAddresses,
-    auction.winnerBidAuthorizations,
-    auction.winnerBidAmounts,
-    auction.winners,
-    refreshEscrowBalance,
-    refreshWalletUsdcBalance,
-    syncSettlementRecords,
-    trackSettledPendingReflection,
-  ]);
-
   if (!auction.isLoaded) {
     return (
       <AppBackground className="px-6 py-10">
@@ -630,7 +223,20 @@ export default function ScreenPage() {
   return (
     <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-6xl">
-        <LiveScreen winner={liveWinner} />
+        <SiteSelector
+          selectedSiteKey={auction.siteKey}
+          selectedSiteConfig={auction.siteConfig}
+          cycleId={auction.clock.cycleId}
+          phase={phase}
+          onSiteChange={handleSiteChange}
+          isDisabled={authorizingBidSlotIndex !== null}
+        />
+
+        <LiveScreen
+          winner={liveWinner}
+          siteLabel={selectedSiteLabel}
+          cycleId={auction.clock.cycleId}
+        />
 
         <AuctionArea
           phase={phase}

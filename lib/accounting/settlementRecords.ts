@@ -1,8 +1,11 @@
 import { keccak256, toBytes } from "viem";
 
-import type { SignedBidAuthorization } from "@/lib/auction";
+import type { MarketId, SignedBidAuthorization, SiteId } from "@/lib/auction";
 
-const SETTLEMENT_ID_VERSION = "pdooh-settlement-v1";
+export const SETTLEMENT_IDENTITY_VERSION_V2 = "pdooh-settlement-v2";
+
+export type SettlementIdentityVersion =
+  typeof SETTLEMENT_IDENTITY_VERSION_V2;
 
 type HexAddress = `0x${string}`;
 
@@ -19,6 +22,8 @@ export type FinalizedAuctionResult = {
   escrowAddress: HexAddress;
   treasuryAddress: HexAddress;
   usdcAddress: HexAddress;
+  marketId: MarketId;
+  siteId: SiteId;
   cycleId: string;
   slotId: string;
   advertiserAddress: HexAddress;
@@ -30,6 +35,7 @@ export type FinalizedAuctionResult = {
 
 export type SettlementRecord = {
   settlementId: HexAddress;
+  identityVersion: SettlementIdentityVersion;
   status: SettlementStatus;
   result: FinalizedAuctionResult;
   createdAt: string;
@@ -85,10 +91,15 @@ function cloneFinalizedAuctionResult(
 export function createSettlementId(
   result: FinalizedAuctionResult
 ): HexAddress {
+  assertNonEmptyString(result.marketId, "marketId");
+  assertNonEmptyString(result.siteId, "siteId");
+
   const identity = JSON.stringify([
-    SETTLEMENT_ID_VERSION,
+    SETTLEMENT_IDENTITY_VERSION_V2,
     result.chainId,
     normalizeAddress(result.escrowAddress),
+    result.marketId,
+    result.siteId,
     result.cycleId,
     result.slotId,
     normalizeAddress(result.advertiserAddress),
@@ -96,6 +107,16 @@ export function createSettlementId(
   ]);
 
   return keccak256(toBytes(identity));
+}
+
+export function isV2SettlementRecord(record: SettlementRecord): boolean {
+  return (
+    record.identityVersion === SETTLEMENT_IDENTITY_VERSION_V2 &&
+    typeof record.result.marketId === "string" &&
+    record.result.marketId.trim().length > 0 &&
+    typeof record.result.siteId === "string" &&
+    record.result.siteId.trim().length > 0
+  );
 }
 
 export function createPendingSettlementRecord(
@@ -107,6 +128,7 @@ export function createPendingSettlementRecord(
 
   return {
     settlementId: createSettlementId(result),
+    identityVersion: SETTLEMENT_IDENTITY_VERSION_V2,
     status: "pending",
     result: cloneFinalizedAuctionResult(result),
     createdAt: nowIso,

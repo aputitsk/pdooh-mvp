@@ -6,35 +6,57 @@ import {
   AUCTION_OPEN_SECONDS,
   AUCTION_PLAYBACK_SECONDS_PER_SLOT,
   AUCTION_SELECTING_SECONDS,
-  AUCTION_STORAGE_KEYS,
   DEMO_BOT_ADVERTISEMENT,
 } from "./constants";
 import {
   listBrowserSettlementRecords,
   subscribeToSettlementRecordChanges,
 } from "@/lib/accounting/settlementRecordSync";
-import type { SettlementRecord } from "@/lib/accounting/settlementRecords";
-import { getAuctionStart } from "./auctionStorage";
+import {
+  SETTLEMENT_IDENTITY_VERSION_V2,
+  type SettlementRecord,
+} from "@/lib/accounting/settlementRecords";
+import { getAuctionSiteStorageKey, getAuctionStart } from "./auctionStorage";
 import { getAuctionClock } from "./auctionTimer";
 import type {
   Advertisement,
   AuctionClock,
+  SiteIdentity,
+  SiteKey,
   SignedBidAuthorization,
   SlotState,
 } from "./auctionTypes";
+import {
+  DEFAULT_SITE_KEY,
+  LOS_ANGELES_HOLLYWOOD_BOULEVARD_SITE_KEY,
+  NEW_YORK_TIMES_SQUARE_SITE_KEY,
+  SITE_CONFIGS,
+  getSiteConfig,
+} from "./siteConfig";
 import {
   parseUSDCToMinorUnits,
   type UsdcMinorUnits,
 } from "@/lib/money/usdc";
 
-type TemporaryAuctionReservation = {
+type TemporaryAuctionReservation = SiteIdentity & {
   advertiserAddress: string;
   cycleId: number;
   slotIndex: number;
   amount: UsdcMinorUnits;
 };
 
+export type TemporaryReservedAmountBySite = {
+  siteKey: SiteKey;
+  reservedAmount: UsdcMinorUnits;
+};
+
+export type SharedEscrowTemporaryReservedAmounts = {
+  bySite: TemporaryReservedAmountBySite[];
+  totalReservedAmount: UsdcMinorUnits;
+};
+
 type ReserveFinalizedWinnersParams = {
+  siteKey?: SiteKey;
   clock: AuctionClock;
   slotStates: SlotState[];
   submittedBids: boolean[];
@@ -50,13 +72,25 @@ function isBrowser() {
   return typeof window !== "undefined";
 }
 
-function getStoredReservations(): TemporaryAuctionReservation[] {
+function getSiteIdentity(siteKey: SiteKey): SiteIdentity {
+  const site = getSiteConfig(siteKey);
+
+  return {
+    marketId: site.marketId,
+    siteId: site.siteId,
+    siteKey: site.siteKey,
+  };
+}
+
+function getStoredReservations(
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+): TemporaryAuctionReservation[] {
   if (!isBrowser()) {
     return [];
   }
 
   const stored = window.localStorage.getItem(
-    AUCTION_STORAGE_KEYS.temporaryReservations
+    getAuctionSiteStorageKey(siteKey, "temporaryReservations")
   );
 
   if (!stored) {
@@ -79,6 +113,9 @@ function getStoredReservations(): TemporaryAuctionReservation[] {
         const candidate = reservation as Partial<TemporaryAuctionReservation>;
 
         return (
+          typeof candidate.marketId === "string" &&
+          typeof candidate.siteId === "string" &&
+          typeof candidate.siteKey === "string" &&
           typeof candidate.advertiserAddress === "string" &&
           Number.isSafeInteger(candidate.cycleId) &&
           Number.isSafeInteger(candidate.slotIndex) &&
@@ -92,13 +129,16 @@ function getStoredReservations(): TemporaryAuctionReservation[] {
   }
 }
 
-function setStoredReservations(reservations: TemporaryAuctionReservation[]) {
+function setStoredReservations(
+  reservations: TemporaryAuctionReservation[],
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
   if (!isBrowser()) {
     return;
   }
 
   window.localStorage.setItem(
-    AUCTION_STORAGE_KEYS.temporaryReservations,
+    getAuctionSiteStorageKey(siteKey, "temporaryReservations"),
     JSON.stringify(reservations)
   );
   window.dispatchEvent(new Event(reservationChangedEventName));
@@ -106,6 +146,7 @@ function setStoredReservations(reservations: TemporaryAuctionReservation[]) {
 
 function getReservationKey(reservation: TemporaryAuctionReservation) {
   return [
+    reservation.siteKey,
     reservation.advertiserAddress.toLowerCase(),
     reservation.cycleId,
     reservation.slotIndex,
@@ -176,6 +217,9 @@ function isSettlementBackedReservation(
 ) {
   return settlementRecords.some((record) => {
     return (
+      (record.identityVersion !== SETTLEMENT_IDENTITY_VERSION_V2 ||
+        (record.result.marketId === reservation.marketId &&
+          record.result.siteId === reservation.siteId)) &&
       record.result.advertiserAddress.toLowerCase() ===
         reservation.advertiserAddress.toLowerCase() &&
       record.result.cycleId === String(reservation.cycleId) &&
@@ -186,11 +230,12 @@ function isSettlementBackedReservation(
 }
 
 function createSubmittedBidReservations(params: {
+  siteIdentity: SiteIdentity;
   clock: AuctionClock;
   slotStates: SlotState[];
   submittedBids: boolean[];
 }): TemporaryAuctionReservation[] {
-  const { clock, slotStates, submittedBids } = params;
+  const { clock, siteIdentity, slotStates, submittedBids } = params;
 
   if (clock.phase !== "open") {
     return [];
@@ -213,6 +258,7 @@ function createSubmittedBidReservations(params: {
 
     return [
       {
+        ...siteIdentity,
         advertiserAddress,
         cycleId: clock.cycleId,
         slotIndex,
@@ -223,6 +269,7 @@ function createSubmittedBidReservations(params: {
 }
 
 function createFinalizedWinnerReservations(params: {
+  siteIdentity: SiteIdentity;
   clock: AuctionClock;
   winners: Advertisement[];
   winnerBidAmounts: UsdcMinorUnits[];
@@ -230,6 +277,7 @@ function createFinalizedWinnerReservations(params: {
 }): TemporaryAuctionReservation[] {
   const {
     clock,
+    siteIdentity,
     winners,
     winnerBidAmounts,
     winnerAdvertiserAddresses,
@@ -254,6 +302,7 @@ function createFinalizedWinnerReservations(params: {
 
     return [
       {
+        ...siteIdentity,
         advertiserAddress,
         cycleId: clock.cycleId,
         slotIndex,
@@ -264,6 +313,7 @@ function createFinalizedWinnerReservations(params: {
 }
 
 export function syncTemporaryAuctionReservations({
+  siteKey = DEFAULT_SITE_KEY,
   clock,
   slotStates,
   submittedBids,
@@ -275,10 +325,17 @@ export function syncTemporaryAuctionReservations({
     return;
   }
 
+  const siteIdentity = getSiteIdentity(siteKey);
   const settlementRecords = listBrowserSettlementRecords();
   const candidateReservations = [
-    ...createSubmittedBidReservations({ clock, slotStates, submittedBids }),
+    ...createSubmittedBidReservations({
+      siteIdentity,
+      clock,
+      slotStates,
+      submittedBids,
+    }),
     ...createFinalizedWinnerReservations({
+      siteIdentity,
       clock,
       winners,
       winnerBidAmounts,
@@ -290,7 +347,7 @@ export function syncTemporaryAuctionReservations({
       !isSettlementBackedReservation(reservation, settlementRecords)
   );
   const candidateKeys = new Set(candidateReservations.map(getReservationKey));
-  const currentReservations = getStoredReservations();
+  const currentReservations = getStoredReservations(siteKey);
   const nextReservations = currentReservations.filter(
     (reservation) =>
       candidateKeys.has(getReservationKey(reservation)) &&
@@ -313,22 +370,23 @@ export function syncTemporaryAuctionReservations({
   if (
     JSON.stringify(nextReservations) !== JSON.stringify(currentReservations)
   ) {
-    setStoredReservations(nextReservations);
+    setStoredReservations(nextReservations, siteKey);
   }
 }
 
 export function getTemporaryReservedAmount(
-  advertiserAddress: string | null
+  advertiserAddress: string | null,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
 ): UsdcMinorUnits {
   if (!advertiserAddress) {
     return 0;
   }
 
   const normalizedAddress = advertiserAddress.toLowerCase();
-  const clock = getAuctionClock(getAuctionStart());
+  const clock = getAuctionClock(getAuctionStart(siteKey));
   const settlementRecords = listBrowserSettlementRecords();
 
-  return getStoredReservations().reduce<UsdcMinorUnits>(
+  return getStoredReservations(siteKey).reduce<UsdcMinorUnits>(
     (total, reservation) =>
       reservation.advertiserAddress.toLowerCase() === normalizedAddress &&
       isReservationActive(reservation, clock) &&
@@ -339,15 +397,50 @@ export function getTemporaryReservedAmount(
   );
 }
 
-function subscribeToTemporaryReservations(onStoreChange: () => void) {
+function createSharedEscrowTemporaryReservedAmounts(
+  bySite: TemporaryReservedAmountBySite[]
+): SharedEscrowTemporaryReservedAmounts {
+  return {
+    bySite,
+    totalReservedAmount: bySite.reduce<UsdcMinorUnits>(
+      (total, siteReservedAmount) =>
+        addSafeMinorUnits(total, siteReservedAmount.reservedAmount),
+      0
+    ),
+  };
+}
+
+export function getSharedEscrowTemporaryReservedAmounts(
+  advertiserAddress: string | null
+): SharedEscrowTemporaryReservedAmounts {
+  return createSharedEscrowTemporaryReservedAmounts(
+    SITE_CONFIGS.map((siteConfig) => ({
+      siteKey: siteConfig.siteKey,
+      reservedAmount: getTemporaryReservedAmount(
+        advertiserAddress,
+        siteConfig.siteKey
+      ),
+    }))
+  );
+}
+
+function subscribeToTemporaryReservations(
+  onStoreChange: () => void,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
   if (!isBrowser()) {
     return () => {};
   }
 
+  const reservationStorageKey = getAuctionSiteStorageKey(
+    siteKey,
+    "temporaryReservations"
+  );
+
   const handleStorageChange = (event: StorageEvent) => {
     if (
       event.key === null ||
-      event.key === AUCTION_STORAGE_KEYS.temporaryReservations
+      event.key === reservationStorageKey
     ) {
       onStoreChange();
     }
@@ -368,11 +461,37 @@ function subscribeToTemporaryReservations(onStoreChange: () => void) {
 }
 
 export function useTemporaryReservedAmount(
-  advertiserAddress: string | null
+  advertiserAddress: string | null,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
 ): UsdcMinorUnits {
   return useSyncExternalStore(
-    subscribeToTemporaryReservations,
-    () => getTemporaryReservedAmount(advertiserAddress),
+    (onStoreChange) =>
+      subscribeToTemporaryReservations(onStoreChange, siteKey),
+    () => getTemporaryReservedAmount(advertiserAddress, siteKey),
     () => 0
   );
+}
+
+export function useSharedEscrowTemporaryReservedAmounts(
+  advertiserAddress: string | null
+): SharedEscrowTemporaryReservedAmounts {
+  const newYorkTimesSquareReservedAmount = useTemporaryReservedAmount(
+    advertiserAddress,
+    NEW_YORK_TIMES_SQUARE_SITE_KEY
+  );
+  const losAngelesHollywoodBoulevardReservedAmount = useTemporaryReservedAmount(
+    advertiserAddress,
+    LOS_ANGELES_HOLLYWOOD_BOULEVARD_SITE_KEY
+  );
+
+  return createSharedEscrowTemporaryReservedAmounts([
+    {
+      siteKey: NEW_YORK_TIMES_SQUARE_SITE_KEY,
+      reservedAmount: newYorkTimesSquareReservedAmount,
+    },
+    {
+      siteKey: LOS_ANGELES_HOLLYWOOD_BOULEVARD_SITE_KEY,
+      reservedAmount: losAngelesHollywoodBoulevardReservedAmount,
+    },
+  ]);
 }

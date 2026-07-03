@@ -1,3 +1,4 @@
+import AuctionSettlementHeartbeat from "@/components/auction/AuctionSettlementHeartbeat";
 import Navbar from "@/components/layout/Navbar";
 import type { Metadata } from "next";
 import "./globals.css";
@@ -23,6 +24,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Navbar />
+        <AuctionSettlementHeartbeat />
         {children}
       </body>
     </html>

@@ -10,6 +10,7 @@ A blockchain-based digital out-of-home (DOOH) advertising platform built on Arc.
 - Verified smart contract on Arc Testnet
 - Browser wallet support (MetaMask / Rabby)
 - Built with Next.js, Viem, Solidity, and Foundry
+- Arc Memo integration for on-chain settlement metadata
 
 ## Demo
 

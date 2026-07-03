@@ -8,6 +8,10 @@ import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
 import LatestSettlementCard from "@/components/advertiser/LatestSettlementCard";
 import ReadyForAuctionCard from "@/components/advertiser/ReadyForAuctionCard";
 import AppBackground from "@/components/layout/AppBackground";
+import {
+  getAvailableFromEscrowBalance,
+  getTotalReservedAmount,
+} from "@/lib/accounting/reservedAmounts";
 import { getUnresolvedSettlementReservedAmount } from "@/lib/accounting/unresolvedSettlementReservedAmount";
 import {
   getSettlementRecordSnapshot,
@@ -15,8 +19,12 @@ import {
   subscribeToSettlementRecordChanges,
 } from "@/lib/accounting/settlementRecordSync";
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
-import { useTemporaryReservedAmount } from "@/lib/auction";
+import { useSharedEscrowTemporaryReservedAmounts } from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
+
+const subscribeToHydration = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 export default function AdvertiserPage() {
   const {
@@ -32,7 +40,13 @@ export default function AdvertiserPage() {
   const walletUsdcBalance = useWalletUsdcBalance();
   const walletEscrowBalance = useWalletEscrowBalance();
   const refreshWalletEscrowBalance = walletEscrowBalance.refresh;
-  const temporaryReservedAmount = useTemporaryReservedAmount(wallet.address);
+  const temporaryReservedAmounts =
+    useSharedEscrowTemporaryReservedAmounts(wallet.address);
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getHydratedSnapshot,
+    getServerHydrationSnapshot
+  );
   const settlementRecordVersion = useSyncExternalStore(
     subscribeToSettlementRecordChanges,
     getSettlementRecordSnapshot,
@@ -52,21 +66,25 @@ export default function AdvertiserPage() {
     wallet.connected,
   ]);
 
-  const settlementRecords = listBrowserSettlementRecords();
+  const settlementRecords = isHydrated ? listBrowserSettlementRecords() : [];
   const unresolvedSettlementReservedAmount =
     getUnresolvedSettlementReservedAmount(
       settlementRecords,
       wallet.address
     );
-  const reservedAmount = Math.min(
-    temporaryReservedAmount + unresolvedSettlementReservedAmount,
-    Number.MAX_SAFE_INTEGER
-  );
+  const reservedAmount = getTotalReservedAmount({
+    siteReservedAmounts: temporaryReservedAmounts.bySite,
+    legacyUnresolvedSettlementReservedAmount:
+      unresolvedSettlementReservedAmount,
+  });
 
   const availableAuctionCapacity =
     walletEscrowBalance.status === "ready" &&
     walletEscrowBalance.balance !== null
-      ? Math.max(walletEscrowBalance.balance - reservedAmount, 0)
+      ? getAvailableFromEscrowBalance(
+          walletEscrowBalance.balance,
+          reservedAmount
+        )
       : 0;
 
   const [showBusinessNameError, setShowBusinessNameError] = useState(false);

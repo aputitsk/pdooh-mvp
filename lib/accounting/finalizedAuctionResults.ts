@@ -1,6 +1,6 @@
 import { isAddress } from "viem";
 
-import type { SignedBidAuthorization } from "@/lib/auction";
+import type { MarketId, SignedBidAuthorization, SiteId } from "@/lib/auction";
 import type { FinalizedAuctionResult } from "./settlementRecords";
 
 type CreateFinalizedAuctionResultParams = {
@@ -8,6 +8,8 @@ type CreateFinalizedAuctionResultParams = {
   escrowAddress: `0x${string}`;
   treasuryAddress: `0x${string}`;
   usdcAddress: `0x${string}`;
+  marketId: MarketId;
+  siteId: SiteId;
   cycleId: string;
   slotId: string;
   advertiserAddress: `0x${string}` | null;
@@ -19,6 +21,10 @@ type CreateFinalizedAuctionResultParams = {
 
 function isNonEmptyString(value: string) {
   return value.trim().length > 0;
+}
+
+function addressEquals(left: `0x${string}`, right: `0x${string}`) {
+  return left.toLowerCase() === right.toLowerCase();
 }
 
 export function createFinalizedAuctionResult(
@@ -40,6 +46,8 @@ export function createFinalizedAuctionResult(
   }
 
   if (
+    !isNonEmptyString(params.marketId) ||
+    !isNonEmptyString(params.siteId) ||
     !isNonEmptyString(params.cycleId) ||
     !isNonEmptyString(params.slotId) ||
     !isNonEmptyString(params.businessName) ||
@@ -57,11 +65,33 @@ export function createFinalizedAuctionResult(
     return null;
   }
 
+  const payload = params.bidAuthorization.payload;
+
+  if (
+    payload.version !== "2" ||
+    payload.marketId !== params.marketId ||
+    payload.siteId !== params.siteId ||
+    payload.chainId !== params.chainId ||
+    !addressEquals(payload.escrowAddress, params.escrowAddress) ||
+    !addressEquals(payload.treasuryAddress, params.treasuryAddress) ||
+    !addressEquals(payload.usdcAddress, params.usdcAddress) ||
+    payload.cycleId !== params.cycleId ||
+    payload.slotId !== params.slotId ||
+    payload.businessName !== params.businessName ||
+    payload.advertisementName !== params.advertisementName ||
+    payload.bidAmountMinorUnits !== String(params.amountMinorUnits) ||
+    !addressEquals(payload.advertiserAddress, params.advertiserAddress)
+  ) {
+    return null;
+  }
+
   return {
     chainId: params.chainId,
     escrowAddress: params.escrowAddress,
     treasuryAddress: params.treasuryAddress,
     usdcAddress: params.usdcAddress,
+    marketId: params.marketId,
+    siteId: params.siteId,
     cycleId: params.cycleId,
     slotId: params.slotId,
     advertiserAddress: params.advertiserAddress,

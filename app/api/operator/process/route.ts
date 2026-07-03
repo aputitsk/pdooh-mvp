@@ -12,7 +12,10 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-import { createSettlementId } from "@/lib/accounting/settlementRecords";
+import {
+  createSettlementId,
+  SETTLEMENT_IDENTITY_VERSION_V2,
+} from "@/lib/accounting/settlementRecords";
 import { ARC_TREASURY_ADDRESS } from "@/lib/arc/arcConfig";
 import { createBidAuthorizationTypedData } from "@/lib/arc/arcBidAuthorizationTypedData";
 import {
@@ -24,16 +27,16 @@ import {
   ARC_USDC_CONTRACT_ADDRESS,
 } from "@/lib/arc/arcConstants";
 import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
-import {
-  AUCTION_SLOTS,
-  DEMO_BOT_BID,
-  MVP_DEMO_AUCTION_START_TIMESTAMP_MS,
-} from "@/lib/auction/constants";
+import { DEMO_BOT_BID } from "@/lib/auction/constants";
 import { getAuctionClock } from "@/lib/auction/auctionTimer";
 import { getSettlementEligibleLiveSlotIds } from "@/lib/auction/liveSlotCompletion";
+import { findSiteConfigByIdentity } from "@/lib/auction/siteConfig";
 import type {
+  AuctionSlotId,
   BidAuthorizationPayload,
+  MarketId,
   SignedBidAuthorization,
+  SiteId,
 } from "@/lib/auction/auctionTypes";
 
 export const runtime = "nodejs";
@@ -100,7 +103,9 @@ const arcTestnetChain = {
 
 type OperatorSettlementRequest = {
   settlementId: Hex;
+  identityVersion: typeof SETTLEMENT_IDENTITY_VERSION_V2;
   status: "processing";
+  result: OperatorSettlementCandidate;
   bidAuthorization: SignedBidAuthorization;
 };
 
@@ -109,6 +114,8 @@ type OperatorSettlementCandidate = {
   escrowAddress: Address;
   treasuryAddress: Address;
   usdcAddress: Address;
+  marketId: MarketId;
+  siteId: SiteId;
   cycleId: string;
   slotId: string;
   advertiserAddress: Address;
@@ -116,10 +123,6 @@ type OperatorSettlementCandidate = {
   advertisementName: string;
   amountMinorUnits: bigint;
 };
-
-const accountingSlotIds = AUCTION_SLOTS.map(
-  (_, index) => `slot-${index + 1}`
-) as `slot-${number}`[];
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -140,7 +143,9 @@ function parseBidAuthorizationPayload(
 
   if (
     payload.purpose !== "PDOOH_BID_AUTHORIZATION" ||
-    payload.version !== "1" ||
+    payload.version !== "2" ||
+    !isNonEmptyString(payload.marketId) ||
+    !isNonEmptyString(payload.siteId) ||
     !isAddress(payload.advertiserAddress ?? "") ||
     !isNonEmptyString(payload.businessName) ||
     !isNonEmptyString(payload.advertisementName) ||
@@ -179,24 +184,73 @@ function parseSignedBidAuthorization(
   };
 }
 
+function parseSettlementResult(
+  value: unknown
+): OperatorSettlementCandidate | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const amountMinorUnits =
+    typeof candidate.amountMinorUnits === "string"
+      ? parseBidAmountMinorUnits(candidate.amountMinorUnits)
+      : null;
+
+  if (
+    amountMinorUnits === null ||
+    typeof candidate.chainId !== "number" ||
+    !isAddress(String(candidate.escrowAddress ?? "")) ||
+    !isAddress(String(candidate.treasuryAddress ?? "")) ||
+    !isAddress(String(candidate.usdcAddress ?? "")) ||
+    !isNonEmptyString(candidate.marketId) ||
+    !isNonEmptyString(candidate.siteId) ||
+    !isNonEmptyString(candidate.cycleId) ||
+    !isNonEmptyString(candidate.slotId) ||
+    !isAddress(String(candidate.advertiserAddress ?? "")) ||
+    !isNonEmptyString(candidate.businessName) ||
+    !isNonEmptyString(candidate.advertisementName)
+  ) {
+    return null;
+  }
+
+  return {
+    chainId: candidate.chainId,
+    escrowAddress: candidate.escrowAddress as Address,
+    treasuryAddress: candidate.treasuryAddress as Address,
+    usdcAddress: candidate.usdcAddress as Address,
+    marketId: candidate.marketId as MarketId,
+    siteId: candidate.siteId as SiteId,
+    cycleId: candidate.cycleId,
+    slotId: candidate.slotId,
+    advertiserAddress: candidate.advertiserAddress as Address,
+    businessName: candidate.businessName,
+    advertisementName: candidate.advertisementName,
+    amountMinorUnits,
+  };
+}
+
 function parseRequest(value: unknown): OperatorSettlementRequest | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
 
   const candidate = value as Partial<OperatorSettlementRequest>;
-  const result = (candidate as { result?: unknown }).result;
+  const resultInput = (candidate as { result?: unknown }).result;
+  const result = parseSettlementResult(resultInput);
   const bidAuthorization =
-    result && typeof result === "object"
+    result && typeof resultInput === "object" && resultInput !== null
       ? parseSignedBidAuthorization(
-          (result as { bidAuthorization?: unknown }).bidAuthorization
+          (resultInput as { bidAuthorization?: unknown }).bidAuthorization
         )
       : null;
 
   if (
+    candidate.identityVersion !== SETTLEMENT_IDENTITY_VERSION_V2 ||
     candidate.status !== "processing" ||
     typeof candidate.settlementId !== "string" ||
     !/^0x[0-9a-fA-F]{64}$/.test(candidate.settlementId) ||
+    !result ||
     !bidAuthorization
   ) {
     return null;
@@ -204,7 +258,9 @@ function parseRequest(value: unknown): OperatorSettlementRequest | null {
 
   return {
     settlementId: candidate.settlementId as Hex,
+    identityVersion: SETTLEMENT_IDENTITY_VERSION_V2,
     status: "processing",
+    result,
     bidAuthorization,
   } as OperatorSettlementRequest;
 }
@@ -223,12 +279,6 @@ function addressEquals(left: Address, right: Address) {
   return left.toLowerCase() === right.toLowerCase();
 }
 
-function getSlotIndex(slotId: string) {
-  const slotIndex = accountingSlotIds.indexOf(slotId as `slot-${number}`);
-
-  return slotIndex >= 0 ? slotIndex : null;
-}
-
 function parseBidAmountMinorUnits(value: string) {
   if (!/^\d+$/.test(value)) {
     return null;
@@ -239,7 +289,35 @@ function parseBidAmountMinorUnits(value: string) {
   return amountMinorUnits > BigInt(0) ? amountMinorUnits : null;
 }
 
-function createCandidateFromSignedPayload(
+function isSlotIdForSite(
+  slotId: string,
+  slotIds: readonly AuctionSlotId[]
+): slotId is AuctionSlotId {
+  return slotIds.includes(slotId as AuctionSlotId);
+}
+
+function signedPayloadMatchesResult(
+  payload: BidAuthorizationPayload,
+  result: OperatorSettlementCandidate,
+  amountMinorUnits: bigint
+) {
+  return (
+    payload.marketId === result.marketId &&
+    payload.siteId === result.siteId &&
+    payload.chainId === result.chainId &&
+    addressEquals(payload.escrowAddress, result.escrowAddress) &&
+    addressEquals(payload.treasuryAddress, result.treasuryAddress) &&
+    addressEquals(payload.usdcAddress, result.usdcAddress) &&
+    payload.cycleId === result.cycleId &&
+    payload.slotId === result.slotId &&
+    addressEquals(payload.advertiserAddress, result.advertiserAddress) &&
+    payload.businessName === result.businessName &&
+    payload.advertisementName === result.advertisementName &&
+    amountMinorUnits === result.amountMinorUnits
+  );
+}
+
+function createCandidateFromRequest(
   input: OperatorSettlementRequest,
   escrowAddress: Address
 ):
@@ -249,12 +327,22 @@ function createCandidateFromSignedPayload(
 
   if (
     payload.purpose !== "PDOOH_BID_AUTHORIZATION" ||
-    payload.version !== "1"
+    payload.version !== "2"
   ) {
     return {
       ok: false,
       code: "INVALID_BID_AUTHORIZATION",
       error: "Bid authorization purpose or version is invalid.",
+    };
+  }
+
+  const siteConfig = findSiteConfigByIdentity(payload.marketId, payload.siteId);
+
+  if (!siteConfig) {
+    return {
+      ok: false,
+      code: "UNKNOWN_SITE",
+      error: "Settlement site is unknown.",
     };
   }
 
@@ -267,6 +355,14 @@ function createCandidateFromSignedPayload(
       ok: false,
       code: "INVALID_AMOUNT",
       error: "Settlement amount must be greater than zero.",
+    };
+  }
+
+  if (!signedPayloadMatchesResult(payload, input.result, amountMinorUnits)) {
+    return {
+      ok: false,
+      code: "SETTLEMENT_RESULT_MISMATCH",
+      error: "Settlement result does not match the signed bid authorization.",
     };
   }
 
@@ -296,11 +392,19 @@ function createCandidateFromSignedPayload(
     };
   }
 
+  if (!isSlotIdForSite(input.result.slotId, siteConfig.slotIds)) {
+    return {
+      ok: false,
+      code: "INVALID_SLOT",
+      error: "Settlement slot is invalid for this site.",
+    };
+  }
+
   if (
-    payload.chainId !== ARC_CHAIN_ID ||
-    !addressEquals(payload.escrowAddress, escrowAddress) ||
-    !addressEquals(payload.treasuryAddress, ARC_TREASURY_ADDRESS) ||
-    !addressEquals(payload.usdcAddress, ARC_USDC_CONTRACT_ADDRESS)
+    input.result.chainId !== ARC_CHAIN_ID ||
+    !addressEquals(input.result.escrowAddress, escrowAddress) ||
+    !addressEquals(input.result.treasuryAddress, ARC_TREASURY_ADDRESS) ||
+    !addressEquals(input.result.usdcAddress, ARC_USDC_CONTRACT_ADDRESS)
   ) {
     return {
       ok: false,
@@ -309,26 +413,16 @@ function createCandidateFromSignedPayload(
     };
   }
 
-  const slotIndex = getSlotIndex(payload.slotId);
-
-  if (slotIndex === null) {
-    return {
-      ok: false,
-      code: "INVALID_SLOT",
-      error: "Settlement slot is invalid.",
-    };
-  }
-
-  const currentClock = getAuctionClock(MVP_DEMO_AUCTION_START_TIMESTAMP_MS);
+  const currentClock = getAuctionClock(siteConfig.auctionStartTimestampMs);
   const eligibleSlotIds = getSettlementEligibleLiveSlotIds(
     currentClock,
-    accountingSlotIds
+    siteConfig.slotIds
   );
 
   if (
     currentClock.phase !== "live" ||
-    String(currentClock.cycleId) !== payload.cycleId ||
-    !eligibleSlotIds.includes(payload.slotId as `slot-${number}`)
+    String(currentClock.cycleId) !== input.result.cycleId ||
+    !eligibleSlotIds.includes(input.result.slotId)
   ) {
     return {
       ok: false,
@@ -339,18 +433,7 @@ function createCandidateFromSignedPayload(
 
   return {
     ok: true,
-    candidate: {
-      chainId: ARC_CHAIN_ID,
-      escrowAddress,
-      treasuryAddress: ARC_TREASURY_ADDRESS,
-      usdcAddress: ARC_USDC_CONTRACT_ADDRESS,
-      cycleId: payload.cycleId,
-      slotId: payload.slotId,
-      advertiserAddress: payload.advertiserAddress,
-      businessName: payload.businessName,
-      advertisementName: payload.advertisementName,
-      amountMinorUnits,
-    },
+    candidate: input.result,
   };
 }
 
@@ -406,9 +489,12 @@ function createSettlementMemoData(
 ) {
   return stringToHex(
     JSON.stringify({
-      v: 1,
+      v: 2,
       type: "pdooh.settlement",
+      identityVersion: SETTLEMENT_IDENTITY_VERSION_V2,
       settlementId,
+      marketId: candidate.marketId,
+      siteId: candidate.siteId,
       cycleId: candidate.cycleId,
       slotId: candidate.slotId,
       advertiser: candidate.advertiserAddress,
@@ -432,7 +518,7 @@ export async function POST(request: Request) {
 
     const escrowAddress = getArcEscrowAddress();
 
-    const candidateResult = createCandidateFromSignedPayload(
+    const candidateResult = createCandidateFromRequest(
       input,
       escrowAddress
     );

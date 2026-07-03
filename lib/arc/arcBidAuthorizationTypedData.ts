@@ -7,6 +7,8 @@ const bidAuthorizationTypes = {
   BidAuthorization: [
     { name: "purpose", type: "string" },
     { name: "version", type: "string" },
+    { name: "marketId", type: "string" },
+    { name: "siteId", type: "string" },
     { name: "advertiserAddress", type: "address" },
     { name: "businessName", type: "string" },
     { name: "advertisementName", type: "string" },
@@ -62,7 +64,7 @@ function assertBidAuthorizationPayload(payload: BidAuthorizationPayload) {
     throw new Error("Bid authorization purpose is invalid.");
   }
 
-  if (payload.version !== "1") {
+  if (payload.version !== "2") {
     throw new Error("Bid authorization version is invalid.");
   }
 
@@ -74,6 +76,8 @@ function assertBidAuthorizationPayload(payload: BidAuthorizationPayload) {
   assertAddress(payload.escrowAddress, "escrowAddress");
   assertAddress(payload.treasuryAddress, "treasuryAddress");
   assertAddress(payload.usdcAddress, "usdcAddress");
+  assertNonEmptyString(payload.marketId, "marketId");
+  assertNonEmptyString(payload.siteId, "siteId");
   assertNonEmptyString(payload.businessName, "businessName");
   assertNonEmptyString(payload.advertisementName, "advertisementName");
   assertNonEmptyString(payload.slotId, "slotId");
@@ -106,6 +110,8 @@ export function createBidAuthorizationTypedData(
     message: {
       purpose: payload.purpose,
       version: payload.version,
+      marketId: payload.marketId,
+      siteId: payload.siteId,
       advertiserAddress: payload.advertiserAddress,
       businessName: payload.businessName,
       advertisementName: payload.advertisementName,

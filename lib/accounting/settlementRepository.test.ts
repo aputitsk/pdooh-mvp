@@ -33,6 +33,8 @@ function createRecord(slotId: string, amountMinorUnits: bigint) {
       escrowAddress: "0x1111111111111111111111111111111111111111",
       treasuryAddress: "0x3333333333333333333333333333333333333333",
       usdcAddress: "0x3600000000000000000000000000000000000000",
+      marketId: "new-york",
+      siteId: "times-square",
       cycleId: "cycle-7",
       slotId,
       advertiserAddress: "0x2222222222222222222222222222222222222222",

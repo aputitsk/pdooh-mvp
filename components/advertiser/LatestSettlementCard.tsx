@@ -9,10 +9,28 @@ import {
   getLastSuccessfulSettlement,
 } from "@/lib/accounting/settlementSummary";
 import { ARC_EXPLORER_URL } from "@/lib/arc/arcConstants";
+import { MARKET_CONFIGS, SITE_CONFIGS } from "@/lib/auction/siteConfig";
 
 type LatestSettlementCardProps = {
   settlementRecords: readonly SettlementRecord[];
 };
+
+function getSettlementSiteLabel(record: SettlementRecord) {
+  const { marketId, siteId } = record.result;
+
+  if (!marketId || !siteId) {
+    return "Legacy settlement";
+  }
+
+  const siteConfig =
+    SITE_CONFIGS.find(
+      (site) => site.marketId === marketId && site.siteId === siteId
+    ) ?? null;
+  const marketName =
+    MARKET_CONFIGS.find((market) => market.id === marketId)?.name ?? marketId;
+
+  return siteConfig ? `${marketName} / ${siteConfig.name}` : `${marketId} / ${siteId}`;
+}
 
 export default function LatestSettlementCard({
   settlementRecords,
@@ -20,10 +38,14 @@ export default function LatestSettlementCard({
   const [isViewingMemo, setIsViewingMemo] = useState(false);
   const lastSuccessfulSettlement =
     getLastSuccessfulSettlement(settlementRecords);
+  const lastSettlementSiteLabel = lastSuccessfulSettlement
+    ? getSettlementSiteLabel(lastSuccessfulSettlement)
+    : null;
 
   if (isViewingMemo && lastSuccessfulSettlement) {
     const memoRows = [
       ["Type", "pdooh.settlement"],
+      ["Site", lastSettlementSiteLabel ?? "Unknown"],
       ["Settlement ID", lastSuccessfulSettlement.settlementId],
       ["Cycle", lastSuccessfulSettlement.result.cycleId],
       ["Slot", lastSuccessfulSettlement.result.slotId],
@@ -85,6 +107,11 @@ export default function LatestSettlementCard({
             )}{" "}
             Test USDC
           </p>
+          {lastSettlementSiteLabel && (
+            <p className="mt-1 text-xs font-semibold text-emerald-300">
+              {lastSettlementSiteLabel}
+            </p>
+          )}
 
           {lastSuccessfulSettlement.txHash ? (
             <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">

@@ -15,7 +15,9 @@ const demoBot = {
 const bidAuthorization = {
   payload: {
     purpose: "PDOOH_BID_AUTHORIZATION",
-    version: "1",
+    version: "2",
+    marketId: "new-york",
+    siteId: "times-square",
     advertiserAddress:
       "0x2222222222222222222222222222222222222222" as const,
     businessName: advertiser.businessName,
@@ -39,6 +41,8 @@ const baseParams = {
   escrowAddress: "0x1111111111111111111111111111111111111111" as const,
   treasuryAddress: "0x3333333333333333333333333333333333333333" as const,
   usdcAddress: "0x3600000000000000000000000000000000000000" as const,
+  marketId: "new-york" as const,
+  siteId: "times-square" as const,
   slotIds: ["slot-1"],
   winners: [advertiser],
   winnerBidAmounts: [1_500_000],
@@ -67,6 +71,8 @@ test("valid non-bot winner creates a finalized result", () => {
         escrowAddress: baseParams.escrowAddress,
         treasuryAddress: baseParams.treasuryAddress,
         usdcAddress: baseParams.usdcAddress,
+        marketId: baseParams.marketId,
+        siteId: baseParams.siteId,
         cycleId: "7",
         slotId: "slot-1",
         advertiserAddress: baseParams.winnerAdvertiserAddresses[0],

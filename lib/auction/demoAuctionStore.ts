@@ -1,11 +1,13 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 import type {
   Advertisement,
   AuctionClock,
   BidAuthorizationPayload,
+  SiteConfig,
+  SiteKey,
   SignedBidAuthorization,
   SlotState,
 } from "./auctionTypes";
@@ -45,9 +47,12 @@ import {
 } from "./auctionStorage";
 import { getBidExposureWithCandidate } from "./auctionRules";
 import { selectAuctionWinners } from "./auctionWinners";
+import { DEFAULT_SITE_KEY, getSiteConfig } from "./siteConfig";
 
 type DemoAuctionSnapshot = {
   isLoaded: boolean;
+  siteConfig: SiteConfig;
+  siteKey: SiteKey;
   clock: AuctionClock;
   slots: readonly string[];
   advertisements: Advertisement[];
@@ -80,7 +85,7 @@ type PlaceBidResult =
       error: string;
     };
 
-const listeners = new Set<() => void>();
+const listenersBySite = new Map<SiteKey, Set<() => void>>();
 const auctionStoreEventName = "pdooh-auction-store-change";
 
 const emptyClock: AuctionClock = {
@@ -91,48 +96,85 @@ const emptyClock: AuctionClock = {
   elapsedInCycle: 0,
 };
 
-const serverSnapshot: DemoAuctionSnapshot = {
-  isLoaded: false,
-  clock: emptyClock,
-  slots: AUCTION_SLOTS,
-  advertisements: [],
-  walletBalance: 0,
-  demoTreasury: 0,
-  slotStates: createEmptySlotStates(),
-  submittedBids: createBooleanList(false),
-  paidSlots: createBooleanList(false),
-  winners: createDefaultWinners(),
-  winnerBidAmounts: AUCTION_SLOTS.map(() => 0),
-  winnerAdvertiserAddresses: AUCTION_SLOTS.map(() => null),
-  winnerBidAuthorizations: AUCTION_SLOTS.map(() => null),
-};
+const cachedSnapshots = new Map<
+  SiteKey,
+  { version: number; snapshot: DemoAuctionSnapshot }
+>();
+const serverSnapshots = new Map<SiteKey, DemoAuctionSnapshot>();
+const snapshotVersions = new Map<SiteKey, number>();
 
-let cachedSnapshot: DemoAuctionSnapshot | null = null;
-let cachedSnapshotVersion = 0;
-let snapshotVersion = 0;
+function getListeners(siteKey: SiteKey) {
+  const listeners = listenersBySite.get(siteKey) ?? new Set<() => void>();
 
-function emitChange() {
-  cachedSnapshot = null;
-  snapshotVersion += 1;
-  listeners.forEach((listener) => listener());
+  listenersBySite.set(siteKey, listeners);
+
+  return listeners;
 }
 
-function notifyAuctionStoreChanged() {
+function getSnapshotVersion(siteKey: SiteKey) {
+  return snapshotVersions.get(siteKey) ?? 0;
+}
+
+function createEmptySnapshot(siteKey: SiteKey): DemoAuctionSnapshot {
+  const siteConfig = getSiteConfig(siteKey);
+
+  return {
+    isLoaded: false,
+    siteConfig,
+    siteKey: siteConfig.siteKey,
+    clock: emptyClock,
+    slots: AUCTION_SLOTS,
+    advertisements: [],
+    walletBalance: 0,
+    demoTreasury: 0,
+    slotStates: createEmptySlotStates(),
+    submittedBids: createBooleanList(false),
+    paidSlots: createBooleanList(false),
+    winners: createDefaultWinners(),
+    winnerBidAmounts: AUCTION_SLOTS.map(() => 0),
+    winnerAdvertiserAddresses: AUCTION_SLOTS.map(() => null),
+    winnerBidAuthorizations: AUCTION_SLOTS.map(() => null),
+  };
+}
+
+function emitChange(siteKey: SiteKey = DEFAULT_SITE_KEY) {
+  cachedSnapshots.delete(siteKey);
+  snapshotVersions.set(siteKey, getSnapshotVersion(siteKey) + 1);
+  getListeners(siteKey).forEach((listener) => listener());
+}
+
+function notifyAuctionStoreChanged(siteKey: SiteKey = DEFAULT_SITE_KEY) {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.dispatchEvent(new Event(auctionStoreEventName));
+  window.dispatchEvent(
+    new CustomEvent(auctionStoreEventName, { detail: { siteKey } })
+  );
 }
 
-function syncAndEmitChange() {
-  const clock = getAuctionClock(getAuctionStart());
+function getEventSiteKey(event: Event): SiteKey | null {
+  if (!(event instanceof CustomEvent)) {
+    return null;
+  }
 
-  syncAuctionCycle(clock);
-  emitChange();
+  const detail = event.detail as { siteKey?: unknown } | null;
+
+  return typeof detail?.siteKey === "string"
+    ? (detail.siteKey as SiteKey)
+    : null;
 }
 
-function subscribe(listener: () => void) {
+function syncAndEmitChange(siteKey: SiteKey = DEFAULT_SITE_KEY) {
+  const clock = getAuctionClock(getAuctionStart(siteKey));
+
+  syncAuctionCycle(clock, siteKey);
+  emitChange(siteKey);
+}
+
+function subscribeToSite(siteKey: SiteKey, listener: () => void) {
+  const listeners = getListeners(siteKey);
+
   listeners.add(listener);
 
   if (typeof window === "undefined") {
@@ -141,18 +183,33 @@ function subscribe(listener: () => void) {
     };
   }
 
-  const handleStorageChange = () => {
-    syncAndEmitChange();
+  const handleStoreChange = () => {
+    syncAndEmitChange(siteKey);
+  };
+
+  const handleStorageChange = (event: Event) => {
+    const eventSiteKey = getEventSiteKey(event);
+
+    if (eventSiteKey && eventSiteKey !== siteKey) {
+      return;
+    }
+
+    handleStoreChange();
   };
 
   window.addEventListener("storage", handleStorageChange);
   window.addEventListener(auctionStoreEventName, handleStorageChange);
   const unsubscribeFromWalletChanges =
-    subscribeToWalletChanges(handleStorageChange);
+    subscribeToWalletChanges(handleStoreChange);
 
-  const interval = window.setInterval(syncAndEmitChange, 500);
-
-  syncAndEmitChange();
+  const interval = window.setInterval(
+    () => syncAndEmitChange(siteKey),
+    500
+  );
+  const initialSyncTimeout = window.setTimeout(
+    () => syncAndEmitChange(siteKey),
+    0
+  );
 
   return () => {
     listeners.delete(listener);
@@ -160,6 +217,7 @@ function subscribe(listener: () => void) {
     window.removeEventListener(auctionStoreEventName, handleStorageChange);
     unsubscribeFromWalletChanges();
     window.clearInterval(interval);
+    window.clearTimeout(initialSyncTimeout);
   };
 }
 
@@ -169,17 +227,18 @@ function getCurrentWalletAddress() {
   return wallet.connected ? wallet.address : null;
 }
 
-function getSnapshot(): DemoAuctionSnapshot {
-  if (
-    cachedSnapshot &&
-    cachedSnapshotVersion === snapshotVersion
-  ) {
-    return cachedSnapshot;
+function getSnapshot(siteKey: SiteKey = DEFAULT_SITE_KEY): DemoAuctionSnapshot {
+  const currentVersion = getSnapshotVersion(siteKey);
+  const cachedSnapshot = cachedSnapshots.get(siteKey);
+
+  if (cachedSnapshot && cachedSnapshot.version === currentVersion) {
+    return cachedSnapshot.snapshot;
   }
 
-  const clock = getAuctionClock(getAuctionStart());
-  const slotStates = getStoredSlotStates();
-  const submittedBids = getStoredSubmittedBids();
+  const siteConfig = getSiteConfig(siteKey);
+  const clock = getAuctionClock(getAuctionStart(siteConfig.siteKey));
+  const slotStates = getStoredSlotStates(siteConfig.siteKey);
+  const submittedBids = getStoredSubmittedBids(siteConfig.siteKey);
   const advertisements = getStoredAdvertisements(getCurrentWalletAddress());
   const {
     winners,
@@ -193,8 +252,10 @@ function getSnapshot(): DemoAuctionSnapshot {
     advertisements,
     });
 
-  cachedSnapshot = {
+  const nextSnapshot: DemoAuctionSnapshot = {
     isLoaded: true,
+    siteConfig,
+    siteKey: siteConfig.siteKey,
     clock,
     slots: AUCTION_SLOTS,
     advertisements,
@@ -202,28 +263,52 @@ function getSnapshot(): DemoAuctionSnapshot {
     demoTreasury: getStoredDemoTreasury(),
     slotStates,
     submittedBids,
-    paidSlots: getStoredPaidSlots(),
+    paidSlots: getStoredPaidSlots(siteConfig.siteKey),
     winners,
     winnerBidAmounts,
     winnerAdvertiserAddresses,
     winnerBidAuthorizations,
   };
 
-  cachedSnapshotVersion = snapshotVersion;
+  cachedSnapshots.set(siteConfig.siteKey, {
+    version: currentVersion,
+    snapshot: nextSnapshot,
+  });
 
-  return cachedSnapshot;
+  return nextSnapshot;
 }
 
-function getServerSnapshot(): DemoAuctionSnapshot {
+function getServerSnapshot(
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+): DemoAuctionSnapshot {
+  const cachedServerSnapshot = serverSnapshots.get(siteKey);
+
+  if (cachedServerSnapshot) {
+    return cachedServerSnapshot;
+  }
+
+  const serverSnapshot = createEmptySnapshot(siteKey);
+
+  serverSnapshots.set(siteKey, serverSnapshot);
+
   return serverSnapshot;
 }
 
-function updateSlot(slotIndex: number, nextState: Partial<SlotState>) {
-  const snapshot = getSnapshot();
+function updateSlot(
+  slotIndex: number,
+  nextState: Partial<SlotState>,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
+  const snapshot = getSnapshot(siteKey);
 
-  updateAuctionSlot(slotIndex, nextState, snapshot.clock.phase);
-  notifyAuctionStoreChanged();
-  emitChange();
+  updateAuctionSlot(
+    slotIndex,
+    nextState,
+    snapshot.clock.phase,
+    snapshot.siteKey
+  );
+  notifyAuctionStoreChanged(snapshot.siteKey);
+  emitChange(snapshot.siteKey);
 }
 
 function getSlotId(slotIndex: number) {
@@ -318,7 +403,9 @@ function createBidAuthorizationPayload(params: {
 
   return {
     purpose: "PDOOH_BID_AUTHORIZATION",
-    version: "1",
+    version: "2",
+    marketId: snapshot.siteConfig.marketId,
+    siteId: snapshot.siteConfig.siteId,
     advertiserAddress,
     businessName: selectedAdvertisement.businessName,
     advertisementName: selectedAdvertisement.name,
@@ -336,15 +423,18 @@ function createBidAuthorizationPayload(params: {
 function isBidPayloadCurrent(
   payload: BidAuthorizationPayload,
   slotIndex: number,
-  availableAuctionCapacity: UsdcMinorUnits
+  availableAuctionCapacity: UsdcMinorUnits,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
 ) {
-  const snapshot = getSnapshot();
+  const snapshot = getSnapshot(siteKey);
   const slot = snapshot.slotStates[slotIndex];
   const selectedAdvertisement = getSelectedAdvertisement(snapshot, slot);
   const bidAmount = getBidAmount(slot?.bid);
 
   return (
     snapshot.clock.phase === "open" &&
+    payload.marketId === snapshot.siteConfig.marketId &&
+    payload.siteId === snapshot.siteConfig.siteId &&
     !snapshot.submittedBids[slotIndex] &&
     selectedAdvertisement !== null &&
     selectedAdvertisement.name === payload.advertisementName &&
@@ -363,9 +453,10 @@ function isBidPayloadCurrent(
 async function placeBid(
   slotIndex: number,
   availableAuctionCapacity: UsdcMinorUnits,
-  advertiserAddress: `0x${string}`
+  advertiserAddress: `0x${string}`,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
 ): Promise<PlaceBidResult> {
-  const snapshot = getSnapshot();
+  const snapshot = getSnapshot(siteKey);
   let payload: BidAuthorizationPayload;
 
   try {
@@ -382,7 +473,14 @@ async function placeBid(
   try {
     const bidAuthorization = await signWalletBidAuthorization(payload);
 
-    if (!isBidPayloadCurrent(payload, slotIndex, availableAuctionCapacity)) {
+    if (
+      !isBidPayloadCurrent(
+        payload,
+        slotIndex,
+        availableAuctionCapacity,
+        snapshot.siteKey
+      )
+    ) {
       return {
         ok: false,
         error: "Bid details changed before authorization completed. Please retry.",
@@ -394,7 +492,8 @@ async function placeBid(
       snapshot.clock.phase,
       availableAuctionCapacity,
       advertiserAddress,
-      bidAuthorization
+      bidAuthorization,
+      snapshot.siteKey
     );
 
     if (!isStored) {
@@ -404,8 +503,8 @@ async function placeBid(
       };
     }
 
-    notifyAuctionStoreChanged();
-    emitChange();
+    notifyAuctionStoreChanged(snapshot.siteKey);
+    emitChange(snapshot.siteKey);
 
     return { ok: true };
   } catch (error) {
@@ -413,16 +512,39 @@ async function placeBid(
   }
 }
 
-export function useDemoAuctionStore(): DemoAuctionStore {
+export function useDemoAuctionStore(
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+): DemoAuctionStore {
+  const siteConfig = getSiteConfig(siteKey);
+  const resolvedSiteKey = siteConfig.siteKey;
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeToSite(resolvedSiteKey, listener),
+    [resolvedSiteKey]
+  );
+  const getClientSnapshot = useCallback(
+    () => getSnapshot(resolvedSiteKey),
+    [resolvedSiteKey]
+  );
+  const getInitialServerSnapshot = useCallback(
+    () => getServerSnapshot(resolvedSiteKey),
+    [resolvedSiteKey]
+  );
   const snapshot = useSyncExternalStore(
     subscribe,
-    getSnapshot,
-    getServerSnapshot
+    getClientSnapshot,
+    getInitialServerSnapshot
   );
 
   return {
     ...snapshot,
-    updateSlot,
-    placeBid,
+    updateSlot: (slotIndex, nextState) =>
+      updateSlot(slotIndex, nextState, snapshot.siteKey),
+    placeBid: (slotIndex, availableAuctionCapacity, advertiserAddress) =>
+      placeBid(
+        slotIndex,
+        availableAuctionCapacity,
+        advertiserAddress,
+        snapshot.siteKey
+      ),
   };
 }

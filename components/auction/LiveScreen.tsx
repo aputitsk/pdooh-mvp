@@ -9,18 +9,25 @@ type Advertisement = {
 
 type LiveScreenProps = {
   winner: Advertisement | null;
+  siteLabel: string;
+  cycleId: number | string;
 };
 
 function isDemoBotAdvertisement(winner: Advertisement) {
   return winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName;
 }
 
-export default function LiveScreen({ winner }: LiveScreenProps) {
+export default function LiveScreen({
+  winner,
+  siteLabel,
+  cycleId,
+}: LiveScreenProps) {
   if (winner && !isDemoBotAdvertisement(winner)) {
     return (
       <PremiumBillboard
         businessName={winner.businessName}
         advertisementName={winner.name}
+        contextLabel={`${siteLabel} · Cycle ${cycleId}`}
       />
     );
   }
@@ -31,6 +38,9 @@ export default function LiveScreen({ winner }: LiveScreenProps) {
         <div className="text-center">
           <p className="text-sm uppercase tracking-[0.3em] text-neutral-500">
             Live Screen
+          </p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+            {siteLabel} · Cycle {cycleId}
           </p>
 
           {winner ? (

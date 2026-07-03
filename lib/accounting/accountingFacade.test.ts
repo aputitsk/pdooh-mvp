@@ -4,13 +4,15 @@ import test from "node:test";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { createPendingSettlementRecords } from "./accountingFacade.ts";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { createSettlementId } from "./settlementRecords.ts";
+import { createSettlementId, SETTLEMENT_IDENTITY_VERSION_V2 } from "./settlementRecords.ts";
 
 const nowIso = "2026-06-25T12:00:00.000Z";
 const bidAuthorization = {
   payload: {
     purpose: "PDOOH_BID_AUTHORIZATION",
-    version: "1",
+    version: "2",
+    marketId: "new-york",
+    siteId: "times-square",
     advertiserAddress:
       "0x2222222222222222222222222222222222222222" as const,
     businessName: "Acme",
@@ -34,6 +36,8 @@ const snapshot = {
   escrowAddress: "0x1111111111111111111111111111111111111111" as const,
   treasuryAddress: "0x3333333333333333333333333333333333333333" as const,
   usdcAddress: "0x3600000000000000000000000000000000000000" as const,
+  marketId: "new-york" as const,
+  siteId: "times-square" as const,
   slotIds: ["slot-1"],
   winners: [{ name: "Summer Sale", businessName: "Acme" }],
   winnerBidAmounts: [1_500_000],
@@ -48,6 +52,7 @@ test("facade creates pending settlement records from an auction snapshot", () =>
 
   assert.equal(records.length, 1);
   assert.equal(records[0].status, "pending");
+  assert.equal(records[0].identityVersion, SETTLEMENT_IDENTITY_VERSION_V2);
   assert.equal(records[0].createdAt, nowIso);
   assert.equal(records[0].updatedAt, nowIso);
   assert.equal(records[0].settlementId, createSettlementId(records[0].result));
@@ -56,6 +61,8 @@ test("facade creates pending settlement records from an auction snapshot", () =>
     escrowAddress: snapshot.escrowAddress,
     treasuryAddress: snapshot.treasuryAddress,
     usdcAddress: snapshot.usdcAddress,
+    marketId: snapshot.marketId,
+    siteId: snapshot.siteId,
     cycleId: "7",
     slotId: "slot-1",
     advertiserAddress: snapshot.winnerAdvertiserAddresses[0],

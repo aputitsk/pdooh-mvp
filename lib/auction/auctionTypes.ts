@@ -1,5 +1,33 @@
+import type { UsdcMinorUnits } from "@/lib/money/usdc";
+
 type HexAddress = `0x${string}`;
 type HexSignature = `0x${string}`;
+
+export type MarketId = "new-york" | "los-angeles";
+
+export type SiteId = "times-square" | "hollywood-boulevard";
+
+export type SiteKey = `${MarketId}/${SiteId}`;
+
+export type AuctionSlotId = "slot-1" | "slot-2" | "slot-3";
+
+export type SiteIdentity = {
+  marketId: MarketId;
+  siteId: SiteId;
+  siteKey: SiteKey;
+};
+
+export type SiteConfig = SiteIdentity & {
+  name: string;
+  slotIds: readonly AuctionSlotId[];
+  auctionStartTimestampMs: number;
+};
+
+export type MarketConfig = {
+  id: MarketId;
+  name: string;
+  sites: readonly SiteConfig[];
+};
 
 export type Advertisement = {
   name: string;
@@ -8,7 +36,9 @@ export type Advertisement = {
 
 export type BidAuthorizationPayload = {
   purpose: "PDOOH_BID_AUTHORIZATION";
-  version: "1";
+  version: "2";
+  marketId: MarketId;
+  siteId: SiteId;
   advertiserAddress: HexAddress;
   businessName: string;
   advertisementName: string;
@@ -27,6 +57,9 @@ export type SignedBidAuthorization = {
   signature: HexSignature;
 };
 
+export type SiteScopedBidAuthorizationPayload =
+  BidAuthorizationPayload & SiteIdentity;
+
 export type AuctionPhase = "open" | "locked" | "live";
 
 export type SlotState = {
@@ -42,4 +75,16 @@ export type AuctionClock = {
   currentSlotIndex: number;
   cycleId: number;
   elapsedInCycle: number;
+};
+
+export type SiteAuctionState = SiteIdentity & {
+  auctionStartTimestampMs: number;
+  clock: AuctionClock;
+  slotStates: SlotState[];
+  submittedBids: boolean[];
+  paidSlots: boolean[];
+  winners: Advertisement[];
+  winnerBidAmounts: UsdcMinorUnits[];
+  winnerAdvertiserAddresses: (`0x${string}` | null)[];
+  winnerBidAuthorizations: (SignedBidAuthorization | null)[];
 };

@@ -1,6 +1,7 @@
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { createFinalizedAuctionResult } from "./finalizedAuctionResults.ts";
 import type { SignedBidAuthorization } from "@/lib/auction";
+import type { MarketId, SiteId } from "@/lib/auction/auctionTypes";
 import type { FinalizedAuctionResult } from "./settlementRecords.ts";
 
 export type FinalizedWinnerResult = {
@@ -15,6 +16,8 @@ type CreateFinalizedAuctionResultsFromWinnersSnapshotParams = {
   escrowAddress: `0x${string}`;
   treasuryAddress: `0x${string}`;
   usdcAddress: `0x${string}`;
+  marketId: MarketId;
+  siteId: SiteId;
   slotIds: readonly string[];
   winners: readonly FinalizedWinnerResult[];
   winnerBidAmounts: readonly number[];
@@ -49,6 +52,8 @@ export function createFinalizedAuctionResultsFromWinnersSnapshot(
       escrowAddress: params.escrowAddress,
       treasuryAddress: params.treasuryAddress,
       usdcAddress: params.usdcAddress,
+      marketId: params.marketId,
+      siteId: params.siteId,
       cycleId,
       slotId,
       advertiserAddress: params.winnerAdvertiserAddresses[index] ?? null,

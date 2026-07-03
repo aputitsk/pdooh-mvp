@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { createPendingSettlementRecord, createSettlementId, markSettlementFailed, markSettlementProcessing, markSettlementSettled, type FinalizedAuctionResult } from "./settlementRecords.ts";
+import { createPendingSettlementRecord, createSettlementId, isV2SettlementRecord, markSettlementFailed, markSettlementProcessing, markSettlementSettled, SETTLEMENT_IDENTITY_VERSION_V2, type FinalizedAuctionResult, type SettlementRecord } from "./settlementRecords.ts";
 
 const baseResult: FinalizedAuctionResult = {
   chainId: 5_042_002,
   escrowAddress: "0x1111111111111111111111111111111111111111",
   treasuryAddress: "0x3333333333333333333333333333333333333333",
   usdcAddress: "0x3600000000000000000000000000000000000000",
+  marketId: "new-york",
+  siteId: "times-square",
   cycleId: "cycle-1",
   slotId: "slot-1",
   advertiserAddress: "0x2222222222222222222222222222222222222222",
@@ -29,6 +31,11 @@ test("createSettlementId changes when an identity field changes", () => {
       ...baseResult,
       escrowAddress: "0x3333333333333333333333333333333333333333",
     },
+    {
+      ...baseResult,
+      marketId: "los-angeles",
+      siteId: "hollywood-boulevard",
+    },
     { ...baseResult, cycleId: "cycle-2" },
     { ...baseResult, slotId: "slot-2" },
     {
@@ -46,6 +53,25 @@ test("createSettlementId changes when an identity field changes", () => {
   }
 });
 
+test("createSettlementId separates sites with identical cycle and slot", () => {
+  const newYorkId = createSettlementId({
+    ...baseResult,
+    marketId: "new-york",
+    siteId: "times-square",
+    cycleId: "5",
+    slotId: "slot-1",
+  });
+  const losAngelesId = createSettlementId({
+    ...baseResult,
+    marketId: "los-angeles",
+    siteId: "hollywood-boulevard",
+    cycleId: "5",
+    slotId: "slot-1",
+  });
+
+  assert.notEqual(newYorkId, losAngelesId);
+});
+
 test("createPendingSettlementRecord rejects non-positive minor units", () => {
   for (const amountMinorUnits of [BigInt(0), BigInt(-1)]) {
     assert.throws(
@@ -57,6 +83,20 @@ test("createPendingSettlementRecord rejects non-positive minor units", () => {
       /amountMinorUnits must be greater than zero/
     );
   }
+});
+
+test("createPendingSettlementRecord rejects missing site identity", () => {
+  assert.throws(
+    () =>
+      createPendingSettlementRecord(
+        {
+          ...baseResult,
+          marketId: "" as FinalizedAuctionResult["marketId"],
+        },
+        "2026-06-25T12:00:00.000Z"
+      ),
+    /marketId must be a non-empty string/
+  );
 });
 
 test("createPendingSettlementRecord rejects an empty nowIso", () => {
@@ -76,12 +116,32 @@ test("createPendingSettlementRecord creates a deterministic pending record witho
   const record = createPendingSettlementRecord(input, nowIso);
 
   assert.equal(record.status, "pending");
+  assert.equal(record.identityVersion, SETTLEMENT_IDENTITY_VERSION_V2);
   assert.equal(record.createdAt, nowIso);
   assert.equal(record.updatedAt, nowIso);
   assert.equal(record.settlementId, createSettlementId(input));
   assert.deepEqual(record.result, input);
   assert.notStrictEqual(record.result, input);
   assert.deepEqual(input, inputBefore);
+});
+
+test("isV2SettlementRecord keeps legacy records out of v2 processing", () => {
+  const record = createPendingSettlementRecord(
+    baseResult,
+    "2026-06-25T12:00:00.000Z"
+  );
+  const legacyRecord = {
+    ...record,
+    identityVersion: undefined,
+    result: {
+      ...record.result,
+      marketId: undefined,
+      siteId: undefined,
+    },
+  } as unknown as SettlementRecord;
+
+  assert.equal(isV2SettlementRecord(record), true);
+  assert.equal(isV2SettlementRecord(legacyRecord), false);
 });
 
 test("settlement lifecycle follows pending to processing to settled", () => {

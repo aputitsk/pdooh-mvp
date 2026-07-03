@@ -1,15 +1,27 @@
-import type { Advertisement, SlotState } from "./auctionTypes";
+import type { Advertisement, SiteKey, SlotState } from "./auctionTypes";
 import {
+  AUCTION_SITE_STORAGE_KEYS,
+  AUCTION_SITE_STORAGE_PREFIX,
   AUCTION_STORAGE_KEYS,
   AUCTION_SLOTS,
-  MVP_DEMO_AUCTION_START_TIMESTAMP_MS,
 } from "./constants";
+import { DEFAULT_SITE_KEY, getSiteConfig } from "./siteConfig";
 import { getStoredAdvertisements as getStoredWalletAdvertisements } from "@/lib/advertisements/advertisementStorage";
 import {
   formatUSDCFromMinorUnits,
   parseUSDCToMinorUnits,
   type UsdcMinorUnits,
 } from "@/lib/money/usdc";
+
+type AuctionSiteStorageKey = keyof typeof AUCTION_SITE_STORAGE_KEYS;
+
+export type AuctionStorageState = {
+  auctionStartTimestampMs: number;
+  auctionCycleId: string | null;
+  slotStates: SlotState[];
+  submittedBids: boolean[];
+  paidSlots: boolean[];
+};
 
 export function createEmptySlotStates(): SlotState[] {
   return AUCTION_SLOTS.map(() => ({
@@ -88,6 +100,13 @@ function writeUSDCMoney(
   storage.setItem(legacyKey, formatUSDCFromMinorUnits(value));
 }
 
+export function getAuctionSiteStorageKey(
+  siteKey: SiteKey = DEFAULT_SITE_KEY,
+  key: AuctionSiteStorageKey
+) {
+  return `${AUCTION_SITE_STORAGE_PREFIX}:${siteKey}:${AUCTION_SITE_STORAGE_KEYS[key]}`;
+}
+
 export function readAuctionJson<T>(key: string, fallback: T): T {
   const storage = getBrowserStorage();
 
@@ -118,18 +137,28 @@ export function writeAuctionJson<T>(key: string, value: T) {
   storage.setItem(key, JSON.stringify(value));
 }
 
-export function getAuctionStart() {
+function setStoredAuctionStart(
+  value: number,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
   const storage = getBrowserStorage();
 
   if (storage) {
-    const auctionStart = String(MVP_DEMO_AUCTION_START_TIMESTAMP_MS);
+    const auctionStart = String(value);
+    const key = getAuctionSiteStorageKey(siteKey, "auctionStart");
 
-    if (storage.getItem(AUCTION_STORAGE_KEYS.auctionStart) !== auctionStart) {
-      storage.setItem(AUCTION_STORAGE_KEYS.auctionStart, auctionStart);
+    if (storage.getItem(key) !== auctionStart) {
+      storage.setItem(key, auctionStart);
     }
   }
+}
 
-  return MVP_DEMO_AUCTION_START_TIMESTAMP_MS;
+export function getAuctionStart(siteKey: SiteKey = DEFAULT_SITE_KEY) {
+  const auctionStart = getSiteConfig(siteKey).auctionStartTimestampMs;
+
+  setStoredAuctionStart(auctionStart, siteKey);
+
+  return auctionStart;
 }
 
 export function getStoredAdvertisements(walletAddress?: string | null) {
@@ -192,55 +221,111 @@ export function setStoredDemoTreasury(value: UsdcMinorUnits) {
   );
 }
 
-export function getStoredAuctionCycleId() {
+export function getStoredAuctionCycleId(siteKey: SiteKey = DEFAULT_SITE_KEY) {
   const storage = getBrowserStorage();
 
   if (!storage) {
     return null;
   }
 
-  return storage.getItem(AUCTION_STORAGE_KEYS.auctionCycleId);
+  return storage.getItem(getAuctionSiteStorageKey(siteKey, "auctionCycleId"));
 }
 
-export function setStoredAuctionCycleId(value: number) {
+export function setStoredAuctionCycleId(
+  value: number,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
   const storage = getBrowserStorage();
 
   if (!storage) {
     return;
   }
 
-  storage.setItem(AUCTION_STORAGE_KEYS.auctionCycleId, String(value));
+  storage.setItem(
+    getAuctionSiteStorageKey(siteKey, "auctionCycleId"),
+    String(value)
+  );
 }
 
-export function getStoredSlotStates() {
+export function getStoredSlotStates(siteKey: SiteKey = DEFAULT_SITE_KEY) {
   return readAuctionJson<SlotState[]>(
-    AUCTION_STORAGE_KEYS.slotStates,
+    getAuctionSiteStorageKey(siteKey, "slotStates"),
     createEmptySlotStates()
   );
 }
 
-export function setStoredSlotStates(value: SlotState[]) {
-  writeAuctionJson(AUCTION_STORAGE_KEYS.slotStates, value);
+export function setStoredSlotStates(
+  value: SlotState[],
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
+  writeAuctionJson(getAuctionSiteStorageKey(siteKey, "slotStates"), value);
 }
 
-export function getStoredSubmittedBids() {
+export function getStoredSubmittedBids(siteKey: SiteKey = DEFAULT_SITE_KEY) {
   return readAuctionJson<boolean[]>(
-    AUCTION_STORAGE_KEYS.submittedBids,
+    getAuctionSiteStorageKey(siteKey, "submittedBids"),
     createBooleanList(false)
   );
 }
 
-export function setStoredSubmittedBids(value: boolean[]) {
-  writeAuctionJson(AUCTION_STORAGE_KEYS.submittedBids, value);
+export function setStoredSubmittedBids(
+  value: boolean[],
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
+  writeAuctionJson(getAuctionSiteStorageKey(siteKey, "submittedBids"), value);
 }
 
-export function getStoredPaidSlots() {
+export function getStoredPaidSlots(siteKey: SiteKey = DEFAULT_SITE_KEY) {
   return readAuctionJson<boolean[]>(
-    AUCTION_STORAGE_KEYS.paidSlots,
+    getAuctionSiteStorageKey(siteKey, "paidSlots"),
     createBooleanList(false)
   );
 }
 
-export function setStoredPaidSlots(value: boolean[]) {
-  writeAuctionJson(AUCTION_STORAGE_KEYS.paidSlots, value);
+export function setStoredPaidSlots(
+  value: boolean[],
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
+  writeAuctionJson(getAuctionSiteStorageKey(siteKey, "paidSlots"), value);
+}
+
+export function loadAuctionState(
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+): AuctionStorageState {
+  return {
+    auctionStartTimestampMs: getAuctionStart(siteKey),
+    auctionCycleId: getStoredAuctionCycleId(siteKey),
+    slotStates: getStoredSlotStates(siteKey),
+    submittedBids: getStoredSubmittedBids(siteKey),
+    paidSlots: getStoredPaidSlots(siteKey),
+  };
+}
+
+export function saveAuctionState(
+  siteKey: SiteKey = DEFAULT_SITE_KEY,
+  state: Partial<AuctionStorageState>
+) {
+  if (state.auctionStartTimestampMs !== undefined) {
+    setStoredAuctionStart(state.auctionStartTimestampMs, siteKey);
+  }
+
+  if (state.auctionCycleId !== undefined && state.auctionCycleId !== null) {
+    const parsedCycleId = Number(state.auctionCycleId);
+
+    if (Number.isSafeInteger(parsedCycleId)) {
+      setStoredAuctionCycleId(parsedCycleId, siteKey);
+    }
+  }
+
+  if (state.slotStates) {
+    setStoredSlotStates(state.slotStates, siteKey);
+  }
+
+  if (state.submittedBids) {
+    setStoredSubmittedBids(state.submittedBids, siteKey);
+  }
+
+  if (state.paidSlots) {
+    setStoredPaidSlots(state.paidSlots, siteKey);
+  }
 }

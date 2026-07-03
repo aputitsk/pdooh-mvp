@@ -1,5 +1,6 @@
 import type {
   AuctionClock,
+  SiteKey,
   SignedBidAuthorization,
   SlotState,
 } from "./auctionTypes";
@@ -37,20 +38,22 @@ import {
   setStoredSubmittedBids,
   setStoredWalletBalance,
 } from "./auctionStorage";
+import { DEFAULT_SITE_KEY } from "./siteConfig";
 
-export function resetAuctionInputs() {
-  setStoredSlotStates(createEmptySlotStates());
-  setStoredSubmittedBids(createBooleanList(false));
-  setStoredPaidSlots(createBooleanList(false));
+export function resetAuctionInputs(siteKey: SiteKey = DEFAULT_SITE_KEY) {
+  setStoredSlotStates(createEmptySlotStates(), siteKey);
+  setStoredSubmittedBids(createBooleanList(false), siteKey);
+  setStoredPaidSlots(createBooleanList(false), siteKey);
 }
 
 export function updateAuctionSlot(
   slotIndex: number,
   nextState: Partial<SlotState>,
-  phase: string
+  phase: string,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
 ) {
-  const slotStates = getStoredSlotStates();
-  const submittedBids = getStoredSubmittedBids();
+  const slotStates = getStoredSlotStates(siteKey);
+  const submittedBids = getStoredSubmittedBids(siteKey);
 
   if (phase !== "open") {
     return;
@@ -64,7 +67,7 @@ export function updateAuctionSlot(
     return index === slotIndex ? { ...slotState, ...nextState } : slotState;
   });
 
-  setStoredSlotStates(nextSlotStates);
+  setStoredSlotStates(nextSlotStates, siteKey);
 }
 
 export function placeAuctionBid(
@@ -72,10 +75,11 @@ export function placeAuctionBid(
   phase: string,
   availableAuctionCapacity: UsdcMinorUnits,
   advertiserAddress: `0x${string}`,
-  bidAuthorization: SignedBidAuthorization
+  bidAuthorization: SignedBidAuthorization,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
 ) {
-  const slotStates = getStoredSlotStates();
-  const submittedBids = getStoredSubmittedBids();
+  const slotStates = getStoredSlotStates(siteKey);
+  const submittedBids = getStoredSubmittedBids(siteKey);
   const slot = slotStates[slotIndex];
   const bidAmount = getBidAmount(slot?.bid);
 
@@ -121,8 +125,8 @@ export function placeAuctionBid(
       : slotState;
   });
 
-  setStoredSlotStates(nextSlotStates);
-  setStoredSubmittedBids(nextSubmittedBids);
+  setStoredSlotStates(nextSlotStates, siteKey);
+  setStoredSubmittedBids(nextSubmittedBids, siteKey);
 
   return true;
 }
@@ -139,52 +143,60 @@ function getBidAmount(bid: string | undefined) {
   }
 }
 
-export function getCurrentAuctionWinners() {
+export function getCurrentAuctionWinners(siteKey: SiteKey = DEFAULT_SITE_KEY) {
   return selectAuctionWinners({
-    slotStates: getStoredSlotStates(),
-    submittedBids: getStoredSubmittedBids(),
+    slotStates: getStoredSlotStates(siteKey),
+    submittedBids: getStoredSubmittedBids(siteKey),
     advertisements: getStoredAdvertisements(),
   });
 }
 
-export function processAuctionPayment(slotIndex: number) {
-  const { winners, winnerBidAmounts } = getCurrentAuctionWinners();
+export function processAuctionPayment(
+  slotIndex: number,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
+  const { winners, winnerBidAmounts } = getCurrentAuctionWinners(siteKey);
   // Legacy demo-only payment ledger. It no longer controls auction access or
   // bid validation and remains until the Accounting Layer replaces it.
   const legacyDemoPaymentBalance = getStoredWalletBalance();
   const result = processAuctionSlotPayment({
     slotIndex,
-    paidSlots: getStoredPaidSlots(),
+    paidSlots: getStoredPaidSlots(siteKey),
     winners,
     winnerBidAmounts,
     walletBalance: legacyDemoPaymentBalance,
     demoTreasury: getStoredDemoTreasury(),
   });
 
-  setStoredPaidSlots(result.paidSlots);
+  setStoredPaidSlots(result.paidSlots, siteKey);
   setStoredWalletBalance(result.walletBalance);
   setStoredDemoTreasury(result.demoTreasury);
 }
 
-export function processAllUnpaidAuctionPayments() {
-  const { winners, winnerBidAmounts } = getCurrentAuctionWinners();
+export function processAllUnpaidAuctionPayments(
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
+  const { winners, winnerBidAmounts } = getCurrentAuctionWinners(siteKey);
   // Legacy demo-only payment ledger. It is isolated from escrow-backed
   // auction capacity and does not represent on-chain custody.
   const legacyDemoPaymentBalance = getStoredWalletBalance();
   const result = processAllAuctionSlotPayments({
-    paidSlots: getStoredPaidSlots(),
+    paidSlots: getStoredPaidSlots(siteKey),
     winners,
     winnerBidAmounts,
     walletBalance: legacyDemoPaymentBalance,
     demoTreasury: getStoredDemoTreasury(),
   });
 
-  setStoredPaidSlots(result.paidSlots);
+  setStoredPaidSlots(result.paidSlots, siteKey);
   setStoredWalletBalance(result.walletBalance);
   setStoredDemoTreasury(result.demoTreasury);
 }
 
-export function processDueAuctionPayments(clock: AuctionClock) {
+export function processDueAuctionPayments(
+  clock: AuctionClock,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
   if (clock.phase !== "live") {
     return;
   }
@@ -196,22 +208,25 @@ export function processDueAuctionPayments(clock: AuctionClock) {
       AUCTION_PLAYBACK_SECONDS_PER_SLOT * (index + 1);
 
     if (clock.elapsedInCycle >= slotEndTime) {
-      processAuctionPayment(index);
+      processAuctionPayment(index, siteKey);
     }
   });
 }
 
-export function syncAuctionCycle(clock: AuctionClock) {
-  const storedCycleId = getStoredAuctionCycleId();
+export function syncAuctionCycle(
+  clock: AuctionClock,
+  siteKey: SiteKey = DEFAULT_SITE_KEY
+) {
+  const storedCycleId = getStoredAuctionCycleId(siteKey);
 
   if (storedCycleId === String(clock.cycleId)) {
-    processDueAuctionPayments(clock);
+    processDueAuctionPayments(clock, siteKey);
     return;
   }
 
-  processAllUnpaidAuctionPayments();
-  setStoredAuctionCycleId(clock.cycleId);
-  resetAuctionInputs();
+  processAllUnpaidAuctionPayments(siteKey);
+  setStoredAuctionCycleId(clock.cycleId, siteKey);
+  resetAuctionInputs(siteKey);
 }
 
 export function createDefaultWinners() {

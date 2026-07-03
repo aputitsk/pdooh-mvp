@@ -11,7 +11,9 @@ const otherAdvertiserAddress = "0x3333333333333333333333333333333333333333";
 const bidAuthorization = {
   payload: {
     purpose: "PDOOH_BID_AUTHORIZATION",
-    version: "1",
+    version: "2",
+    marketId: "new-york",
+    siteId: "times-square",
     advertiserAddress,
     businessName: "Acme",
     advertisementName: "Summer Sale",
@@ -38,6 +40,8 @@ function createResult(
     escrowAddress: "0x1111111111111111111111111111111111111111",
     treasuryAddress: "0x4444444444444444444444444444444444444444",
     usdcAddress: "0x3600000000000000000000000000000000000000",
+    marketId: "new-york",
+    siteId: "times-square",
     cycleId: "cycle-1",
     slotId,
     advertiserAddress,
