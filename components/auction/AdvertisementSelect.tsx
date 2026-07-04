@@ -7,12 +7,14 @@ type AdvertisementSelectProps = {
   advertisements: Advertisement[];
   value: string;
   onChange: (value: string) => void;
+  controlClassName?: string;
 };
 
 export default function AdvertisementSelect({
   advertisements,
   value,
   onChange,
+  controlClassName = "",
 }: AdvertisementSelectProps) {
   const sortedAdvertisements = [...advertisements].sort((a, b) =>
     a.name.localeCompare(b.name, undefined, {
@@ -31,7 +33,7 @@ export default function AdvertisementSelect({
         onChange={(e) => onChange(e.target.value)}
         className={`w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-sm outline-none transition ${
           value ? "text-white" : "text-neutral-500"
-        }`}
+        } ${controlClassName}`}
       >
         <option value="" disabled>
           Select advertisement

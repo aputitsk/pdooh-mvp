@@ -26,6 +26,7 @@ export type WalletEscrowBalanceState = {
   balance: UsdcMinorUnits | null;
   formattedBalance: string;
   error: string | null;
+  updatedAtMs: number | null;
   refresh: () => void;
 };
 
@@ -42,6 +43,7 @@ const idleBalanceState: InternalWalletEscrowBalanceState = {
   formattedBalance: "0",
   error: null,
   address: null,
+  updatedAtMs: null,
 };
 function getWalletSnapshot() {
   return createWalletSnapshot(getArcWalletState());
@@ -89,6 +91,7 @@ export function useWalletEscrowBalance(): WalletEscrowBalanceState {
           formattedBalance: formatUSDCFromMinorUnits(balance),
           error: null,
           address,
+          updatedAtMs: Date.now(),
         });
       })
       .catch((error: unknown) => {
@@ -102,6 +105,7 @@ export function useWalletEscrowBalance(): WalletEscrowBalanceState {
           formattedBalance: "0",
           error: getBalanceErrorMessage(error),
           address,
+          updatedAtMs: null,
         });
       });
 
@@ -120,6 +124,7 @@ export function useWalletEscrowBalance(): WalletEscrowBalanceState {
       balance: null,
       formattedBalance: "0",
       error: "Wallet is not on Arc Testnet.",
+      updatedAtMs: null,
       refresh,
     };
   }
@@ -130,6 +135,7 @@ export function useWalletEscrowBalance(): WalletEscrowBalanceState {
       balance: null,
       formattedBalance: "0",
       error: null,
+      updatedAtMs: null,
       refresh,
     };
   }

@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { Advertisement, AuctionPhase } from "@/lib/auction";
-import { AUCTION_PLAYBACK_SECONDS_PER_SLOT } from "@/lib/auction/constants";
+import {
+  AUCTION_PLAYBACK_SECONDS_PER_SLOT,
+  DEMO_BOT_ADVERTISEMENT,
+} from "@/lib/auction/constants";
 import {
   formatUSDCFromMinorUnits,
   type UsdcMinorUnits,
@@ -12,7 +15,6 @@ const PLAYBACK_SLOT_DURATION_MS = AUCTION_PLAYBACK_SECONDS_PER_SLOT * 1000;
 
 type AuctionStatusCardProps = {
   phase: AuctionPhase | "selecting";
-  secondsRemaining: number;
   slotSecondsRemaining: number;
   currentSlotIndex: number;
   walletBalance: string;
@@ -26,9 +28,12 @@ type AuctionStatusCardProps = {
   winners: Advertisement[];
 };
 
+function isDemoBotAdvertisement(winner: Advertisement) {
+  return winner.businessName === DEMO_BOT_ADVERTISEMENT.businessName;
+}
+
 export default function AuctionStatusCard({
   phase,
-  secondsRemaining,
   slotSecondsRemaining,
   currentSlotIndex,
   walletBalance,
@@ -115,45 +120,60 @@ export default function AuctionStatusCard({
   return (
     <div className="mb-6 rounded-3xl border border-white/10 bg-neutral-900 p-5">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {isLive ? (
-            <p className="whitespace-nowrap text-sm font-semibold text-emerald-400">
-              🟢 LIVE • Next auction in {secondsRemaining} sec
-            </p>
-          ) : (
-            <p className="text-sm font-semibold text-emerald-400">Live</p>
-          )}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <FinancialRowItem label="Wallet" value={walletBalanceText} />
+          <FinancialRowItem label="Escrow" value={escrowBalanceText} />
+          <FinancialRowItem
+            label="Available"
+            value={
+              escrowBalanceStatus === "ready"
+                ? `${formatUSDCFromMinorUnits(availableAuctionCapacity)} Test USDC`
+                : "-"
+            }
+          />
+          <FinancialRowItem
+            label="Reserved"
+            value={`${formatUSDCFromMinorUnits(reservedAmount)} Test USDC`}
+          />
         </div>
 
         {shouldShowWinners && (
-          <div className="grid w-full gap-3 md:grid-cols-3">
+          <div className="grid w-full gap-3 border-t border-white/10 pt-4 md:grid-cols-3">
             {winners.map((winner, index) => {
               const isCurrentWinner = isLive && index === currentSlotIndex;
+              const isCurrentBotWinner =
+                isCurrentWinner && isDemoBotAdvertisement(winner);
               const playbackRemainingMs = getSlotPlaybackRemainingMs(index);
 
               return (
                 <div
                   key={`winner-${index}`}
                   className={
-                    isCurrentWinner
-                      ? "min-w-0 rounded-2xl border border-emerald-400/60 bg-emerald-400/10 p-4 shadow-sm shadow-emerald-950/30"
-                      : "min-w-0 rounded-2xl border border-white/10 bg-black/20 p-4"
+                    isCurrentBotWinner
+                      ? "min-w-0 rounded-2xl border border-emerald-400/60 bg-black/20 p-4"
+                      : isCurrentWinner
+                        ? "min-w-0 rounded-2xl border border-emerald-400/60 bg-emerald-400/10 p-4 shadow-sm shadow-emerald-950/30"
+                        : "min-w-0 rounded-2xl border border-white/10 bg-black/20 p-4"
                   }
                 >
                   <div
                     className={
-                      isCurrentWinner
-                        ? "flex items-center justify-between gap-3 text-xs font-semibold text-emerald-300"
-                        : "flex items-center justify-between gap-3 text-xs font-semibold text-white/50"
+                      isCurrentBotWinner
+                        ? "flex items-center justify-between gap-3 text-xs font-semibold text-white/55"
+                        : isCurrentWinner
+                          ? "flex items-center justify-between gap-3 text-xs font-semibold text-emerald-300"
+                          : "flex items-center justify-between gap-3 text-xs font-semibold text-white/50"
                     }
                   >
                     <span>Slot {index + 1}</span>
                     {playbackRemainingMs !== null && (
                       <span
                         className={
-                          isCurrentWinner
-                            ? "rounded-full border border-emerald-300/30 bg-black/35 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums tracking-[0.16em] text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.18)]"
-                            : "rounded-full border border-white/10 bg-black/30 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums tracking-[0.16em] text-white/35"
+                          isCurrentBotWinner
+                            ? "rounded-full border border-emerald-300/30 bg-black/30 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums tracking-[0.16em] text-white/55"
+                            : isCurrentWinner
+                              ? "rounded-full border border-emerald-300/30 bg-black/35 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums tracking-[0.16em] text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.18)]"
+                              : "rounded-full border border-white/10 bg-black/30 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums tracking-[0.16em] text-white/35"
                         }
                       >
                         {formatPlaybackTimer(playbackRemainingMs)}
@@ -171,23 +191,6 @@ export default function AuctionStatusCard({
             })}
           </div>
         )}
-
-        <div className="grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FinancialRowItem label="Wallet" value={walletBalanceText} />
-          <FinancialRowItem label="Escrow" value={escrowBalanceText} />
-          <FinancialRowItem
-            label="Available"
-            value={
-              escrowBalanceStatus === "ready"
-                ? `${formatUSDCFromMinorUnits(availableAuctionCapacity)} Test USDC`
-                : "-"
-            }
-          />
-          <FinancialRowItem
-            label="Reserved"
-            value={`${formatUSDCFromMinorUnits(reservedAmount)} Test USDC`}
-          />
-        </div>
       </div>
     </div>
   );

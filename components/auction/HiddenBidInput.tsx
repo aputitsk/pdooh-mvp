@@ -1,11 +1,13 @@
 type HiddenBidInputProps = {
   value: string;
   onChange: (value: string) => void;
+  controlWrapperClassName?: string;
 };
 
 export default function HiddenBidInput({
   value,
   onChange,
+  controlWrapperClassName = "",
 }: HiddenBidInputProps) {
   return (
     <div>
@@ -13,7 +15,9 @@ export default function HiddenBidInput({
         Your Bid
       </label>
 
-      <div className="flex rounded-xl border border-neutral-700 bg-neutral-950">
+      <div
+        className={`flex rounded-xl border border-neutral-700 bg-neutral-950 transition ${controlWrapperClassName}`}
+      >
         <input
           type="number"
           min="0"

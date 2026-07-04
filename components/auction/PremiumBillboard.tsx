@@ -1,9 +1,10 @@
 import styles from "./PremiumBillboard.module.css";
+import type { MarketTheme } from "./marketTheme";
 
 type PremiumBillboardProps = {
   businessName: string;
   advertisementName: string;
-  contextLabel?: string;
+  marketTheme: MarketTheme;
 };
 
 type LetterStyle = React.CSSProperties & {
@@ -27,12 +28,15 @@ function renderAdvertisementText(value: string) {
 export default function PremiumBillboard({
   businessName,
   advertisementName,
-  contextLabel,
+  marketTheme,
 }: PremiumBillboardProps) {
   return (
-    <div className="mb-10 rounded-3xl border border-neutral-800 bg-neutral-900 p-6">
+    <div
+      className={`mb-5 rounded-3xl border p-6 ${marketTheme.billboard.shellClassName}`}
+      style={marketTheme.cssVariables}
+    >
       <div
-        className={`${styles.billboard} ${styles.display} relative flex min-h-[260px] items-center justify-center overflow-hidden rounded-2xl border border-dashed border-neutral-700 bg-black`}
+        className={`${styles.billboard} ${styles.display} relative flex min-h-[260px] items-center justify-center overflow-hidden rounded-2xl border border-dashed bg-black ${marketTheme.billboard.displayClassName}`}
       >
         <div className="absolute inset-0 grid grid-cols-12 gap-px bg-white/[0.025] p-px">
           {tileIndexes.map((tileIndex) => (
@@ -43,27 +47,20 @@ export default function PremiumBillboard({
           ))}
         </div>
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,rgba(255,255,255,0.065),transparent_42%),linear-gradient(90deg,rgba(0,0,0,0.5),transparent_30%,transparent_70%,rgba(0,0,0,0.58))]" />
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/[0.095] to-transparent" />
+        <div className={`absolute inset-0 ${marketTheme.billboard.atmosphereClassName}`} />
+        <div
+          className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${marketTheme.billboard.topGlowClassName}`}
+        />
         <div className={`${styles.scanlines} absolute inset-0`} />
         <div className={`${styles.ambientGlow} absolute inset-0`} />
         <div className={`${styles.glassReflection} absolute inset-0`} />
         <div
-          className={`${styles.softLight} absolute inset-y-0 w-2/5 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.075),transparent)]`}
+          className={`${styles.softLight} absolute inset-y-0 w-2/5 ${marketTheme.billboard.softLightClassName}`}
         />
 
         <div className="relative z-10 px-8 py-12 text-center">
           <div className="w-full max-w-3xl min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/42">
-              Live Digital Billboard
-            </p>
-            {contextLabel && (
-              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/75">
-                {contextLabel}
-              </p>
-            )}
-
-            <h2 className="mt-5 text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl">
+            <h2 className="text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl">
               {businessName}
             </h2>
 

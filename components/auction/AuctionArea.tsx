@@ -5,6 +5,7 @@ import type { UsdcMinorUnits } from "@/lib/money/usdc";
 import AuctionStatusCard from "./AuctionStatusCard";
 import AuctionSlotCard from "./AuctionSlotCard";
 import DemoModeCard from "./DemoModeCard";
+import type { MarketTheme } from "./marketTheme";
 
 type AuctionAreaProps = {
   phase: AuctionPhase;
@@ -29,6 +30,7 @@ type AuctionAreaProps = {
   authorizingBidSlotIndex?: number | null;
   isWalletConnected: boolean;
   isWalletRestoring?: boolean;
+  marketTheme: MarketTheme;
   onAdvertisementChange: (slotIndex: number, value: string) => void;
   onBidChange: (slotIndex: number, value: string) => void;
   onPlaceBid: (slotIndex: number) => void | Promise<void>;
@@ -57,6 +59,7 @@ export default function AuctionArea({
   authorizingBidSlotIndex = null,
   isWalletConnected,
   isWalletRestoring = false,
+  marketTheme,
   onAdvertisementChange,
   onBidChange,
   onPlaceBid,
@@ -81,7 +84,6 @@ export default function AuctionArea({
         <>
           <AuctionStatusCard
             phase={phase}
-            secondsRemaining={secondsRemaining}
             slotSecondsRemaining={slotSecondsRemaining}
             currentSlotIndex={currentSlotIndex}
             walletBalance={walletBalance}
@@ -116,6 +118,7 @@ export default function AuctionArea({
                 isDisabled={isAuctionDisabled}
                 disabledMessage={disabledMessage}
                 bidError={bidErrors[index] ?? null}
+                marketTheme={marketTheme}
                 onAdvertisementChange={(value) =>
                   onAdvertisementChange(index, value)
                 }
@@ -134,7 +137,6 @@ export default function AuctionArea({
       {phase === "locked" && (
         <AuctionStatusCard
           phase={phase}
-          secondsRemaining={secondsRemaining}
           slotSecondsRemaining={slotSecondsRemaining}
           currentSlotIndex={currentSlotIndex}
           walletBalance={walletBalance}
@@ -152,7 +154,6 @@ export default function AuctionArea({
       {phase === "live" && (
         <AuctionStatusCard
           phase={phase}
-          secondsRemaining={secondsRemaining}
           slotSecondsRemaining={slotSecondsRemaining}
           currentSlotIndex={currentSlotIndex}
           walletBalance={walletBalance}

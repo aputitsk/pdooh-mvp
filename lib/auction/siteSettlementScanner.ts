@@ -16,6 +16,7 @@ import {
   type SettlementRecord,
 } from "@/lib/accounting/settlementRecords";
 import {
+  isRetryableFailedSettlementRecord,
   MISSING_BID_AUTHORIZATION_FAILURE_REASON,
   SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
 } from "@/lib/accounting/unresolvedSettlementReservedAmount";
@@ -46,6 +47,8 @@ type OperatorProcessResponse = {
   error?: string;
 };
 
+const PROCESSING_SETTLEMENT_RETRY_AFTER_MS = 30_000;
+
 function serializeSettlementRecord(record: SettlementRecord) {
   return {
     ...record,
@@ -73,6 +76,30 @@ function isConfiguredSiteSettlementRecord(record: SettlementRecord) {
         siteConfig.marketId === record.result.marketId &&
         siteConfig.siteId === record.result.siteId
     )
+  );
+}
+
+function isStaleProcessingSettlementRecord(
+  record: SettlementRecord,
+  nowMs = Date.now()
+) {
+  if (record.status !== "processing") {
+    return false;
+  }
+
+  const updatedAtMs = Date.parse(record.updatedAt);
+
+  return (
+    Number.isFinite(updatedAtMs) &&
+    nowMs - updatedAtMs >= PROCESSING_SETTLEMENT_RETRY_AFTER_MS
+  );
+}
+
+function isProcessableSettlementRecord(record: SettlementRecord) {
+  return (
+    record.status === "pending" ||
+    isRetryableFailedSettlementRecord(record) ||
+    isStaleProcessingSettlementRecord(record)
   );
 }
 
@@ -147,7 +174,7 @@ async function processSettlementRecord(
   repository: SettlementRepository,
   record: SettlementRecord
 ) {
-  if (record.status !== "pending") {
+  if (!isProcessableSettlementRecord(record)) {
     return;
   }
 
@@ -167,18 +194,30 @@ async function processSettlementRecord(
     latestRecord?.status === "settled" ||
     latestRecord?.status === "already_settled" ||
     latestRecord?.status === "cancelled" ||
-    latestRecord?.status === "processing" ||
-    latestRecord?.status === "failed"
+    (latestRecord?.status === "processing" &&
+      !isStaleProcessingSettlementRecord(latestRecord)) ||
+    (latestRecord?.status === "failed" &&
+      !isRetryableFailedSettlementRecord(latestRecord))
   ) {
     return;
   }
 
-  const processingRecord = markSettlementProcessing(
-    latestRecord ?? record,
-    new Date().toISOString()
-  );
-  repository.update(processingRecord);
-  notifySettlementRecordsChanged();
+  const processingRecord =
+    latestRecord?.status === "processing"
+      ? latestRecord
+      : markSettlementProcessing(
+          latestRecord ?? record,
+          new Date().toISOString()
+        );
+
+  if (processingRecord.status !== "processing") {
+    return;
+  }
+
+  if (processingRecord !== latestRecord) {
+    repository.update(processingRecord);
+    notifySettlementRecordsChanged();
+  }
 
   try {
     const response = await fetch("/api/operator/process", {
@@ -276,6 +315,19 @@ export async function runSiteSettlementScanner(walletAddress: string | null) {
       }
     });
   });
+
+  repository
+    .listByStatus("failed")
+    .filter(isRetryableFailedSettlementRecord)
+    .forEach((record) => {
+      processSettlementTasks.push(processSettlementRecord(repository, record));
+    });
+  repository
+    .listByStatus("processing")
+    .filter((record) => isStaleProcessingSettlementRecord(record))
+    .forEach((record) => {
+      processSettlementTasks.push(processSettlementRecord(repository, record));
+    });
 
   await Promise.all(processSettlementTasks);
 }

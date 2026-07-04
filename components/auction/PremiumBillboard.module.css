@@ -12,16 +12,16 @@
       116deg,
       transparent 0%,
       transparent 22%,
-      rgba(255, 255, 255, 0.06) 23%,
-      rgba(255, 255, 255, 0.015) 34%,
+      rgba(255, 255, 255, 0.1) 23%,
+      rgba(255, 255, 255, 0.026) 34%,
       transparent 35%,
       transparent 100%
     ),
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.075),
       transparent 34%,
-      rgba(255, 255, 255, 0.018) 100%
+      rgba(255, 255, 255, 0.03) 100%
     );
   pointer-events: none;
 }
@@ -37,13 +37,13 @@
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.035) 0,
-      rgba(255, 255, 255, 0.035) 1px,
+      rgba(255, 255, 255, 0.055) 0,
+      rgba(255, 255, 255, 0.055) 1px,
       transparent 1px,
       transparent 7px
     );
   mix-blend-mode: screen;
-  opacity: 0.18;
+  opacity: 0.26;
   pointer-events: none;
 }
 
@@ -52,20 +52,20 @@
   background:
     radial-gradient(
       circle at 50% 54%,
-      rgba(79, 140, 255, 0.12),
+      var(--market-billboard-glow-primary, rgba(79, 140, 255, 0.12)),
       transparent 44%
     ),
     radial-gradient(
       circle at 18% 18%,
-      rgba(255, 255, 255, 0.055),
+      var(--market-billboard-glow-secondary, rgba(255, 255, 255, 0.055)),
       transparent 32%
     );
-  opacity: 0.64;
+  opacity: 0.9;
   pointer-events: none;
 }
 
 .tile {
-  opacity: 0.42;
+  opacity: 0.58;
 }
 
 .adName {
@@ -77,8 +77,8 @@
   text-align: center;
   line-height: 1.04;
   text-shadow:
-    0 1px 16px rgba(255, 255, 255, 0.16),
-    0 0 34px rgba(148, 163, 184, 0.1);
+    0 1px 18px rgba(255, 255, 255, 0.22),
+    0 0 42px var(--market-billboard-text-glow, rgba(148, 163, 184, 0.1));
 }
 
 .adNameMotion {
@@ -95,7 +95,7 @@
     transparent 0%,
     rgba(255, 255, 255, 0.05) 26%,
     rgba(255, 255, 255, 0.46) 48%,
-    rgba(203, 213, 225, 0.18) 70%,
+    var(--market-billboard-shimmer, rgba(203, 213, 225, 0.18)) 70%,
     transparent 100%
   );
   content: "";
@@ -107,17 +107,17 @@
   z-index: 1;
 }
 
-.tile:nth-child(19n),
-.tile:nth-child(37n) {
-  animation: modulePulse 7.5s ease-in-out infinite;
-}
-
 .letter {
   animation: letterRiseLoop 9s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: calc(var(--letter-index) * 18ms);
   display: inline-block;
   position: relative;
   z-index: 2;
+}
+
+.tile:nth-child(19n),
+.tile:nth-child(37n) {
+  animation: modulePulse 7.5s ease-in-out infinite;
 }
 
 @keyframes billboardFade {
@@ -173,12 +173,12 @@
 @keyframes ambientBreath {
   0%,
   100% {
-    opacity: 0.46;
+    opacity: 0.66;
     transform: scale(1);
   }
 
   48% {
-    opacity: 0.72;
+    opacity: 1;
     transform: scale(1.015);
   }
 }
@@ -188,20 +188,6 @@
     opacity: 0;
     filter: blur(9px);
     transform: translateY(22px) scale(0.96);
-  }
-
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes letterRise {
-  from {
-    opacity: 0;
-    filter: blur(8px);
-    transform: translateY(18px) scale(0.96);
   }
 
   to {
