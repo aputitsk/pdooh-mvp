@@ -1,0 +1,92 @@
+.feeSignal {
+  position: relative;
+  min-width: 220px;
+  padding-bottom: 0.35rem;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: rgb(255 255 255 / 62%);
+  text-align: center;
+}
+
+.feeSignalPulse {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 58%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(52 211 153 / 82%),
+    transparent
+  );
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgb(16 185 129 / 42%);
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.02);
+  animation: feeSignalSweep 6.8s ease-in-out infinite;
+}
+
+@keyframes feeSignalSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-132%) scaleX(0.02);
+  }
+
+  8% {
+    opacity: 0;
+    transform: translateX(-132%) scaleX(0.02);
+  }
+
+  16% {
+    opacity: 1;
+    transform: translateX(-92%) scaleX(0.45);
+  }
+
+  28% {
+    opacity: 1;
+    transform: translateX(-50%) scaleX(1);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateX(-8%) scaleX(0.45);
+  }
+
+  48% {
+    opacity: 0;
+    transform: translateX(32%) scaleX(0.02);
+  }
+
+  56% {
+    opacity: 0;
+    transform: translateX(32%) scaleX(0.02);
+  }
+
+  64% {
+    opacity: 1;
+    transform: translateX(-8%) scaleX(0.45);
+  }
+
+  76% {
+    opacity: 1;
+    transform: translateX(-50%) scaleX(1);
+  }
+
+  88% {
+    opacity: 1;
+    transform: translateX(-92%) scaleX(0.45);
+  }
+
+  96% {
+    opacity: 0;
+    transform: translateX(-132%) scaleX(0.02);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-132%) scaleX(0.02);
+  }
+}

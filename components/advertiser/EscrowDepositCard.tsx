@@ -11,7 +11,11 @@ import {
   parseUSDCToMinorUnits,
   type UsdcMinorUnits,
 } from "@/lib/money/usdc";
-import { getArcScanTransactionUrl } from "@/lib/arc/arcScanUrls";
+import {
+  getArcScanAddressUrl,
+  getArcScanTransactionUrl,
+} from "@/lib/arc/arcScanUrls";
+import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
 
 type EscrowActionStatus =
   | "idle"
@@ -40,8 +44,16 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Escrow deposit failed.";
 }
 
-function formatTransactionHash(transactionHash: string) {
-  return `${transactionHash.slice(0, 6)}...${transactionHash.slice(-4)}`;
+function formatOnchainReference(value: string) {
+  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
+function getConfiguredEscrowAddress() {
+  try {
+    return getArcEscrowAddress();
+  } catch {
+    return null;
+  }
 }
 
 function CopyIcon() {
@@ -67,6 +79,37 @@ function CopyIcon() {
   );
 }
 
+function ExternalLinkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className="h-3.5 w-3.5"
+    >
+      <path
+        d="M8 5H5.5A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16h8a1.5 1.5 0 0 0 1.5-1.5V12"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M11 4h5v5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m10 10 5.5-5.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function TransactionReceiptRow({
   label,
   transactionHash,
@@ -84,7 +127,7 @@ function TransactionReceiptRow({
 
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-mono text-xs text-white/55">
-          {formatTransactionHash(transactionHash)}
+          {formatOnchainReference(transactionHash)}
         </span>
         <button
           type="button"
@@ -135,7 +178,7 @@ export default function EscrowDepositCard({
   const [withdrawTransactionHash, setWithdrawTransactionHash] = useState<
     string | null
   >(null);
-  const [copiedTransactionHash, setCopiedTransactionHash] = useState<
+  const [copiedOnchainReference, setCopiedOnchainReference] = useState<
     string | null
   >(null);
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +200,7 @@ export default function EscrowDepositCard({
     escrowBalanceMinorUnits !== null &&
     escrowBalanceMinorUnits > 0 &&
     reservedAmount === 0;
+  const escrowContractAddress = getConfiguredEscrowAddress();
 
   useEffect(() => {
     return () => {
@@ -166,16 +210,16 @@ export default function EscrowDepositCard({
     };
   }, []);
 
-  async function handleCopyTransactionHash(transactionHash: string) {
-    await navigator.clipboard.writeText(transactionHash);
-    setCopiedTransactionHash(transactionHash);
+  async function handleCopyOnchainReference(value: string) {
+    await navigator.clipboard.writeText(value);
+    setCopiedOnchainReference(value);
 
     if (copyNoticeTimeoutRef.current) {
       clearTimeout(copyNoticeTimeoutRef.current);
     }
 
     copyNoticeTimeoutRef.current = setTimeout(() => {
-      setCopiedTransactionHash(null);
+      setCopiedOnchainReference(null);
     }, 1600);
   }
 
@@ -318,6 +362,43 @@ export default function EscrowDepositCard({
           balance.
         </p>
 
+        {escrowContractAddress ? (
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/45">
+            <span>AuctionEscrow:</span>
+            <span className="font-mono text-white/60">
+              {formatOnchainReference(escrowContractAddress)}
+            </span>
+            <button
+              type="button"
+              aria-label="Copy AuctionEscrow address"
+              onClick={() =>
+                void handleCopyOnchainReference(escrowContractAddress)
+              }
+              className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+            >
+              <CopyIcon />
+            </button>
+            <a
+              href={getArcScanAddressUrl(escrowContractAddress)}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="View AuctionEscrow on ArcScan"
+              className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+            >
+              <ExternalLinkIcon />
+            </a>
+            {copiedOnchainReference === escrowContractAddress ? (
+              <span
+                role="status"
+                aria-live="polite"
+                className="font-semibold text-emerald-300"
+              >
+                Copied
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         {reservedAmount > 0 && (
           <p className="mt-2 text-xs font-medium text-amber-200">
             Reserved for active bids and unresolved settlements:{" "}
@@ -375,9 +456,9 @@ export default function EscrowDepositCard({
         <TransactionReceiptRow
           label="Approval transaction"
           transactionHash={approvalTransactionHash}
-          isCopied={copiedTransactionHash === approvalTransactionHash}
+          isCopied={copiedOnchainReference === approvalTransactionHash}
           onCopy={(transactionHash) =>
-            void handleCopyTransactionHash(transactionHash)
+            void handleCopyOnchainReference(transactionHash)
           }
         />
       )}
@@ -386,9 +467,9 @@ export default function EscrowDepositCard({
         <TransactionReceiptRow
           label="Deposit transaction"
           transactionHash={depositTransactionHash}
-          isCopied={copiedTransactionHash === depositTransactionHash}
+          isCopied={copiedOnchainReference === depositTransactionHash}
           onCopy={(transactionHash) =>
-            void handleCopyTransactionHash(transactionHash)
+            void handleCopyOnchainReference(transactionHash)
           }
         />
       )}
@@ -397,9 +478,9 @@ export default function EscrowDepositCard({
         <TransactionReceiptRow
           label="Withdraw transaction"
           transactionHash={withdrawTransactionHash}
-          isCopied={copiedTransactionHash === withdrawTransactionHash}
+          isCopied={copiedOnchainReference === withdrawTransactionHash}
           onCopy={(transactionHash) =>
-            void handleCopyTransactionHash(transactionHash)
+            void handleCopyOnchainReference(transactionHash)
           }
         />
       )}

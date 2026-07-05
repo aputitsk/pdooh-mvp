@@ -11,6 +11,7 @@ import {
 } from "viem";
 
 import { ARC_TREASURY_ADDRESS } from "./arcConfig";
+import { refreshArcFeeSignal } from "./arcFeeSignal";
 import {
   ARC_CHAIN_ID,
   ARC_CHAIN_NAME,
@@ -145,4 +146,6 @@ export async function waitForArcTransaction(hash: Hash) {
   if (receipt.status !== "success") {
     throw new Error("The Arc Testnet transaction was reverted.");
   }
+
+  void refreshArcFeeSignal();
 }

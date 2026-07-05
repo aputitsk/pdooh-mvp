@@ -25,6 +25,7 @@ import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
 const subscribeToHydration = () => () => {};
 const getHydratedSnapshot = () => true;
 const getServerHydrationSnapshot = () => false;
+const CIRCLE_FAUCET_URL = "https://faucet.circle.com";
 
 export default function AdvertiserPage() {
   const {
@@ -225,6 +226,20 @@ export default function AdvertiserPage() {
                 onSaveBusinessNameEdit={handleSaveBusinessNameEdit}
                 onCancelBusinessNameEdit={handleCancelBusinessNameEdit}
               />
+
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-xs text-white/45">
+                <span>Need Test USDC?</span>
+                <a
+                  href={CIRCLE_FAUCET_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-emerald-300 underline-offset-2 hover:underline"
+                >
+                  Get Test USDC
+                </a>
+                <span aria-hidden="true">·</span>
+                <span>Testnet USDC has no real value</span>
+              </div>
 
               <EscrowDepositCard
                 escrowBalance={walletEscrowBalance.formattedBalance}

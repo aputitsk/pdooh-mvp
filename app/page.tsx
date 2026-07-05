@@ -1,5 +1,4 @@
 import AppBackground from "@/components/layout/AppBackground";
-import TreasuryBalanceWidget from "@/components/home/TreasuryBalanceWidget";
 
 const blockchainAdvantages = [
   {
@@ -23,10 +22,6 @@ export default function Home() {
   return (
     <AppBackground className="px-6 py-8">
       <section className="relative mx-auto flex min-h-[82vh] max-w-6xl flex-col items-center justify-center">
-        <div className="mb-6 w-full max-w-[60rem] md:absolute md:right-0 md:top-0 md:mb-0 md:w-[220px]">
-          <TreasuryBalanceWidget />
-        </div>
-
         <div className="text-center">
           <div className="mb-5 rounded-full border border-[#4F8CFF]/35 bg-[#10284D]/45 px-4 py-2 text-sm text-[#E7F0FF] shadow-[0_0_10px_#4F8CFF18]">
             Built for Arc · Test USDC · Demo Mode
