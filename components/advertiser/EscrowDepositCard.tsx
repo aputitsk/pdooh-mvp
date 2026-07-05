@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   depositEscrowFunds,
@@ -11,6 +11,7 @@ import {
   parseUSDCToMinorUnits,
   type UsdcMinorUnits,
 } from "@/lib/money/usdc";
+import { getArcScanTransactionUrl } from "@/lib/arc/arcScanUrls";
 
 type EscrowActionStatus =
   | "idle"
@@ -39,6 +40,82 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Escrow deposit failed.";
 }
 
+function formatTransactionHash(transactionHash: string) {
+  return `${transactionHash.slice(0, 6)}...${transactionHash.slice(-4)}`;
+}
+
+function CopyIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className="h-3.5 w-3.5"
+    >
+      <path
+        d="M7 7.5A1.5 1.5 0 0 1 8.5 6h6A1.5 1.5 0 0 1 16 7.5v6a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 7 13.5v-6Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M4 12.5v-7A1.5 1.5 0 0 1 5.5 4h7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function TransactionReceiptRow({
+  label,
+  transactionHash,
+  isCopied,
+  onCopy,
+}: {
+  label: string;
+  transactionHash: string;
+  isCopied: boolean;
+  onCopy: (transactionHash: string) => void;
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+      <p className="text-sm font-semibold text-white/70">{label}</p>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-mono text-xs text-white/55">
+          {formatTransactionHash(transactionHash)}
+        </span>
+        <button
+          type="button"
+          aria-label={`Copy ${label.toLowerCase()} hash`}
+          onClick={() => onCopy(transactionHash)}
+          className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+        >
+          <CopyIcon />
+        </button>
+        <a
+          href={getArcScanTransactionUrl(transactionHash)}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-semibold text-emerald-300 underline-offset-2 hover:underline"
+        >
+          View on ArcScan
+        </a>
+        {isCopied ? (
+          <span
+            role="status"
+            aria-live="polite"
+            className="text-[11px] font-semibold text-emerald-300"
+          >
+            Copied
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function EscrowDepositCard({
   onSuccess,
   escrowBalance,
@@ -58,7 +135,13 @@ export default function EscrowDepositCard({
   const [withdrawTransactionHash, setWithdrawTransactionHash] = useState<
     string | null
   >(null);
+  const [copiedTransactionHash, setCopiedTransactionHash] = useState<
+    string | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
+  const copyNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const isBusy =
     status === "validating" ||
@@ -74,6 +157,27 @@ export default function EscrowDepositCard({
     escrowBalanceMinorUnits !== null &&
     escrowBalanceMinorUnits > 0 &&
     reservedAmount === 0;
+
+  useEffect(() => {
+    return () => {
+      if (copyNoticeTimeoutRef.current) {
+        clearTimeout(copyNoticeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  async function handleCopyTransactionHash(transactionHash: string) {
+    await navigator.clipboard.writeText(transactionHash);
+    setCopiedTransactionHash(transactionHash);
+
+    if (copyNoticeTimeoutRef.current) {
+      clearTimeout(copyNoticeTimeoutRef.current);
+    }
+
+    copyNoticeTimeoutRef.current = setTimeout(() => {
+      setCopiedTransactionHash(null);
+    }, 1600);
+  }
 
   async function handleDeposit() {
     setStatus("validating");
@@ -268,39 +372,36 @@ export default function EscrowDepositCard({
       </div>
 
       {approvalTransactionHash && (
-        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-          <p className="text-sm font-semibold text-white/70">
-            Approval transaction
-          </p>
-
-          <p className="mt-2 break-all font-mono text-xs text-white/50">
-            {approvalTransactionHash}
-          </p>
-        </div>
+        <TransactionReceiptRow
+          label="Approval transaction"
+          transactionHash={approvalTransactionHash}
+          isCopied={copiedTransactionHash === approvalTransactionHash}
+          onCopy={(transactionHash) =>
+            void handleCopyTransactionHash(transactionHash)
+          }
+        />
       )}
 
       {depositTransactionHash && (
-        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-          <p className="text-sm font-semibold text-white/70">
-            Deposit transaction
-          </p>
-
-          <p className="mt-2 break-all font-mono text-xs text-white/50">
-            {depositTransactionHash}
-          </p>
-        </div>
+        <TransactionReceiptRow
+          label="Deposit transaction"
+          transactionHash={depositTransactionHash}
+          isCopied={copiedTransactionHash === depositTransactionHash}
+          onCopy={(transactionHash) =>
+            void handleCopyTransactionHash(transactionHash)
+          }
+        />
       )}
 
       {withdrawTransactionHash && (
-        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-          <p className="text-sm font-semibold text-white/70">
-            Withdraw transaction
-          </p>
-
-          <p className="mt-2 break-all font-mono text-xs text-white/50">
-            {withdrawTransactionHash}
-          </p>
-        </div>
+        <TransactionReceiptRow
+          label="Withdraw transaction"
+          transactionHash={withdrawTransactionHash}
+          isCopied={copiedTransactionHash === withdrawTransactionHash}
+          onCopy={(transactionHash) =>
+            void handleCopyTransactionHash(transactionHash)
+          }
+        />
       )}
 
       {status === "success" && (

@@ -10,6 +10,7 @@ import {
   type WalletProviderOption,
   type WalletState,
 } from "@/lib/wallet";
+import { getArcScanAddressUrl } from "@/lib/arc/arcScanUrls";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 const restoringWallet: WalletState = {
@@ -82,15 +83,50 @@ function isUserRejectedWalletRequest(error: unknown) {
   return false;
 }
 
+function ExternalLinkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className="h-4 w-4"
+    >
+      <path
+        d="M8 5H5.5A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16h8a1.5 1.5 0 0 0 1.5-1.5V12"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M11 4h5v5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m10 10 5.5-5.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export default function WalletButton() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isCopyNoticeVisible, setIsCopyNoticeVisible] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [walletProviders, setWalletProviders] = useState<
     WalletProviderOption[]
   >([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const isConnectingRef = useRef(false);
+  const copyNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const isMounted = useSyncExternalStore(
     subscribeToHydration,
@@ -124,6 +160,14 @@ export default function WalletButton() {
       document.removeEventListener("mousedown", handleDocumentClick);
     };
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (copyNoticeTimeoutRef.current) {
+        clearTimeout(copyNoticeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Wallet connection failed";
@@ -191,6 +235,15 @@ export default function WalletButton() {
   async function handleCopyAddress(address: string) {
     await navigator.clipboard.writeText(address);
     setIsMenuOpen(false);
+    setIsCopyNoticeVisible(true);
+
+    if (copyNoticeTimeoutRef.current) {
+      clearTimeout(copyNoticeTimeoutRef.current);
+    }
+
+    copyNoticeTimeoutRef.current = setTimeout(() => {
+      setIsCopyNoticeVisible(false);
+    }, 1800);
   }
 
   function handleDisconnect() {
@@ -220,19 +273,49 @@ export default function WalletButton() {
 
         {isMenuOpen ? (
           <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
-            <div className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-100">
-              {formatWalletAddress(wallet.address)}
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+              <span className="text-sm font-semibold text-zinc-100">
+                {formatWalletAddress(wallet.address)}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Copy wallet address"
+                  onClick={() =>
+                    void (wallet.address && handleCopyAddress(wallet.address))
+                  }
+                  className="rounded-full p-1.5 text-zinc-300 transition hover:bg-zinc-900 hover:text-white"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className="h-4 w-4"
+                  >
+                    <path
+                      d="M7 7.5A1.5 1.5 0 0 1 8.5 6h6A1.5 1.5 0 0 1 16 7.5v6a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 7 13.5v-6Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M4 12.5v-7A1.5 1.5 0 0 1 5.5 4h7"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <a
+                  href={getArcScanAddressUrl(wallet.address)}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="View wallet address on ArcScan"
+                  className="rounded-full p-1.5 text-zinc-300 transition hover:bg-zinc-900 hover:text-white"
+                >
+                  <ExternalLinkIcon />
+                </a>
+              </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                void (wallet.address && handleCopyAddress(wallet.address))
-              }
-              className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-zinc-900"
-            >
-              <span>Copy address</span>
-            </button>
 
             <button
               type="button"
@@ -242,6 +325,16 @@ export default function WalletButton() {
               <span>⏻</span>
               <span>Disconnect</span>
             </button>
+          </div>
+        ) : null}
+
+        {isCopyNoticeVisible ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute right-0 z-50 mt-2 whitespace-nowrap rounded-full border border-emerald-300/20 bg-zinc-950 px-3 py-2 text-xs font-semibold text-emerald-200 shadow-xl shadow-black/40"
+          >
+            Address copied
           </div>
         ) : null}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { SettlementRecord } from "@/lib/accounting/settlementRecords";
 import {
@@ -8,7 +8,7 @@ import {
   formatTransactionHash,
   getLastSuccessfulSettlement,
 } from "@/lib/accounting/settlementSummary";
-import { ARC_EXPLORER_URL } from "@/lib/arc/arcConstants";
+import { getArcScanTransactionUrl } from "@/lib/arc/arcScanUrls";
 import { MARKET_CONFIGS, SITE_CONFIGS } from "@/lib/auction/siteConfig";
 
 type LatestSettlementCardProps = {
@@ -32,15 +32,64 @@ function getSettlementSiteLabel(record: SettlementRecord) {
   return siteConfig ? `${marketName} / ${siteConfig.name}` : `${marketId} / ${siteId}`;
 }
 
+function CopyIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className="h-3.5 w-3.5"
+    >
+      <path
+        d="M7 7.5A1.5 1.5 0 0 1 8.5 6h6A1.5 1.5 0 0 1 16 7.5v6a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 7 13.5v-6Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M4 12.5v-7A1.5 1.5 0 0 1 5.5 4h7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export default function LatestSettlementCard({
   settlementRecords,
 }: LatestSettlementCardProps) {
   const [isViewingMemo, setIsViewingMemo] = useState(false);
+  const [isTransactionHashCopied, setIsTransactionHashCopied] =
+    useState(false);
+  const copyNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const lastSuccessfulSettlement =
     getLastSuccessfulSettlement(settlementRecords);
   const lastSettlementSiteLabel = lastSuccessfulSettlement
     ? getSettlementSiteLabel(lastSuccessfulSettlement)
     : null;
+
+  useEffect(() => {
+    return () => {
+      if (copyNoticeTimeoutRef.current) {
+        clearTimeout(copyNoticeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  async function handleCopyTransactionHash(transactionHash: string) {
+    await navigator.clipboard.writeText(transactionHash);
+    setIsTransactionHashCopied(true);
+
+    if (copyNoticeTimeoutRef.current) {
+      clearTimeout(copyNoticeTimeoutRef.current);
+    }
+
+    copyNoticeTimeoutRef.current = setTimeout(() => {
+      setIsTransactionHashCopied(false);
+    }, 1600);
+  }
 
   if (isViewingMemo && lastSuccessfulSettlement) {
     const memoRows = [
@@ -96,7 +145,7 @@ export default function LatestSettlementCard({
   return (
     <div className="h-[220px] rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-center shadow-sm shadow-black/10">
       <p className="text-[11px] font-medium uppercase tracking-widest text-white/40">
-        Latest Settlement
+        Latest Settlement - Memo
       </p>
 
       {lastSuccessfulSettlement ? (
@@ -115,17 +164,40 @@ export default function LatestSettlementCard({
 
           {lastSuccessfulSettlement.txHash ? (
             <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
-              <p className="break-all font-mono text-[11px] text-white/50">
-                Tx: {formatTransactionHash(lastSuccessfulSettlement.txHash)}
-              </p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="font-mono text-[11px] text-white/50">
+                  Tx: {formatTransactionHash(lastSuccessfulSettlement.txHash)}
+                </p>
+                <button
+                  type="button"
+                  aria-label="Copy settlement transaction hash"
+                  onClick={() =>
+                    void handleCopyTransactionHash(
+                      lastSuccessfulSettlement.txHash ?? ""
+                    )
+                  }
+                  className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+                >
+                  <CopyIcon />
+                </button>
+                {isTransactionHashCopied ? (
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    className="text-[10px] font-semibold text-emerald-300"
+                  >
+                    Copied
+                  </span>
+                ) : null}
+              </div>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
                 <a
-                  href={`${ARC_EXPLORER_URL}/tx/${lastSuccessfulSettlement.txHash}`}
+                  href={getArcScanTransactionUrl(lastSuccessfulSettlement.txHash)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-[11px] font-semibold text-emerald-300 underline-offset-2 hover:underline"
                 >
-                  View on Explorer
+                  View on ArcScan
                 </a>
                 <button
                   type="button"
