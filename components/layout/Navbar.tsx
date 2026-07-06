@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import LandingLaunchControl from "@/components/layout/LandingLaunchControl";
 import WalletButton from "@/components/layout/WalletButton";
 import styles from "./Navbar.module.css";
 
@@ -67,12 +68,7 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <Link
-              href="/advertiser"
-              className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-neutral-200"
-            >
-              Launch App
-            </Link>
+            <LandingLaunchControl />
           </div>
         </div>
       </nav>

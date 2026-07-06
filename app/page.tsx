@@ -29,6 +29,14 @@ export default function Home() {
           <h1 className="text-3xl font-bold tracking-tight md:text-5xl">
             pDOOH Auction Demo
           </h1>
+
+          <div className="mx-auto mt-5 max-w-[60rem] rounded-2xl border border-neutral-800 bg-neutral-900/40 px-4 py-4 text-left text-xs leading-5 text-white/70 lg:whitespace-nowrap lg:text-sm lg:leading-6">
+            <span className="font-semibold text-white">
+              Digital Out-of-Home (DOOH)
+            </span>{" "}
+            is digital advertising displayed on public screens such as billboards,
+            shopping malls, airports, and transit stations.
+          </div>
         </div>
 
         <div className="mt-8 w-full max-w-[60rem] space-y-5 text-left text-base leading-8 text-white/65">
@@ -52,14 +60,6 @@ export default function Home() {
             with a fixed bid of{" "}
             <span className="font-semibold text-white">0.02 Test USDC</span>.
           </p>
-        </div>
-
-        <div className="mt-7 w-full max-w-[60rem] rounded-2xl border border-neutral-800 bg-neutral-900/40 px-6 py-4 text-left text-sm leading-6 text-neutral-400">
-          <span className="font-semibold text-white">
-            Digital Out-of-Home (DOOH)
-          </span>{" "}
-          is digital advertising displayed on public screens such as billboards,
-          shopping malls, airports, and transit stations.
         </div>
 
         <div className="mt-7 w-full max-w-6xl">
