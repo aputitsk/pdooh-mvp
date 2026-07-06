@@ -241,6 +241,9 @@ export default function LatestSettlementCard({
                 ) : null}
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                <span className="text-[11px] font-semibold text-white/45">
+                  Settled on Arc Testnet
+                </span>
                 <a
                   href={getArcScanTransactionUrl(lastSuccessfulSettlement.txHash)}
                   target="_blank"

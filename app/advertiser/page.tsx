@@ -169,6 +169,11 @@ export default function AdvertiserPage() {
     setIsEditingBusinessName(false);
   }
 
+  function handleEscrowSuccess() {
+    walletUsdcBalance.refresh();
+    walletEscrowBalance.refresh();
+  }
+
   return (
     <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-5xl">
@@ -228,7 +233,7 @@ export default function AdvertiserPage() {
               />
 
               <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-xs text-white/45">
-                <span>Need Test USDC?</span>
+                <span>Need USDC for escrow?</span>
                 <a
                   href={CIRCLE_FAUCET_URL}
                   target="_blank"
@@ -237,7 +242,7 @@ export default function AdvertiserPage() {
                 >
                   Get Test USDC
                 </a>
-                <span aria-hidden="true">·</span>
+                <span aria-hidden="true">&middot;</span>
                 <span>Testnet USDC has no real value</span>
               </div>
 
@@ -247,10 +252,7 @@ export default function AdvertiserPage() {
                 escrowBalanceStatus={walletEscrowBalance.status}
                 escrowBalanceError={walletEscrowBalance.error}
                 reservedAmount={reservedAmount}
-                onSuccess={() => {
-                  walletUsdcBalance.refresh();
-                  walletEscrowBalance.refresh();
-                }}
+                onSuccess={handleEscrowSuccess}
               />
             </>
           )}

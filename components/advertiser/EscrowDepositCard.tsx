@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
   depositEscrowFunds,
@@ -40,12 +40,22 @@ type EscrowDepositCardProps = {
   reservedAmount: UsdcMinorUnits;
 };
 
+type ReceiptTransaction = {
+  label: string;
+  transactionHash: string;
+  isCopied: boolean;
+};
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Escrow deposit failed.";
 }
 
 function formatOnchainReference(value: string) {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
+function formatWideOnchainReference(value: string) {
+  return `${value.slice(0, 18)}...${value.slice(-14)}`;
 }
 
 function getConfiguredEscrowAddress() {
@@ -119,41 +129,79 @@ function TransactionReceiptRow({
   label: string;
   transactionHash: string;
   isCopied: boolean;
-  onCopy: (transactionHash: string) => void;
+  onCopy: () => void;
 }) {
   return (
-    <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-      <p className="text-sm font-semibold text-white/70">{label}</p>
-
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="font-mono text-xs text-white/55">
-          {formatOnchainReference(transactionHash)}
-        </span>
-        <button
-          type="button"
-          aria-label={`Copy ${label.toLowerCase()} hash`}
-          onClick={() => onCopy(transactionHash)}
-          className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
-        >
-          <CopyIcon />
-        </button>
-        <a
-          href={getArcScanTransactionUrl(transactionHash)}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs font-semibold text-emerald-300 underline-offset-2 hover:underline"
-        >
-          View on ArcScan
-        </a>
-        {isCopied ? (
-          <span
-            role="status"
-            aria-live="polite"
-            className="text-[11px] font-semibold text-emerald-300"
-          >
-            Copied
+    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-xs font-semibold text-white/70">
+            {label}
           </span>
-        ) : null}
+          <span className="font-mono text-xs text-white/55 md:hidden">
+            {formatOnchainReference(transactionHash)}
+          </span>
+          <span
+            className="hidden min-w-0 truncate font-mono text-xs text-white/55 md:inline"
+            title={transactionHash}
+          >
+            {formatWideOnchainReference(transactionHash)}
+          </span>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <button
+            type="button"
+            aria-label={`Copy ${label.toLowerCase()} transaction hash`}
+            onClick={onCopy}
+            className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+          >
+            <CopyIcon />
+          </button>
+          <a
+            href={getArcScanTransactionUrl(transactionHash)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-semibold text-emerald-300 underline-offset-2 hover:underline"
+          >
+            ArcScan
+          </a>
+          {isCopied ? (
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-[11px] font-semibold text-emerald-300"
+            >
+              Copied
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransactionReceipt({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div
+      id="escrow-transaction-receipt"
+      className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-white/35">
+          Transaction receipt
+        </p>
+        <p className="text-[11px] font-semibold text-white/40">
+          Arc Testnet
+        </p>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {children}
       </div>
     </div>
   );
@@ -178,6 +226,7 @@ export default function EscrowDepositCard({
   const [withdrawTransactionHash, setWithdrawTransactionHash] = useState<
     string | null
   >(null);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [copiedOnchainReference, setCopiedOnchainReference] = useState<
     string | null
   >(null);
@@ -228,6 +277,7 @@ export default function EscrowDepositCard({
     setApprovalTransactionHash(null);
     setDepositTransactionHash(null);
     setWithdrawTransactionHash(null);
+    setIsReceiptOpen(false);
     setError(null);
 
     try {
@@ -268,6 +318,7 @@ export default function EscrowDepositCard({
     setApprovalTransactionHash(null);
     setDepositTransactionHash(null);
     setWithdrawTransactionHash(null);
+    setIsReceiptOpen(false);
     setError(null);
 
     try {
@@ -341,6 +392,39 @@ export default function EscrowDepositCard({
         : escrowBalanceStatus === "error"
           ? escrowBalanceError
           : "Connect wallet to read escrow balance";
+  const receiptTransactions: ReceiptTransaction[] = [];
+
+  if (approvalTransactionHash) {
+    receiptTransactions.push({
+      label: "Approval",
+      transactionHash: approvalTransactionHash,
+      isCopied: copiedOnchainReference === approvalTransactionHash,
+    });
+  }
+
+  if (depositTransactionHash) {
+    receiptTransactions.push({
+      label: "Deposit",
+      transactionHash: depositTransactionHash,
+      isCopied: copiedOnchainReference === depositTransactionHash,
+    });
+  }
+
+  if (withdrawTransactionHash) {
+    receiptTransactions.push({
+      label: "Withdraw",
+      transactionHash: withdrawTransactionHash,
+      isCopied: copiedOnchainReference === withdrawTransactionHash,
+    });
+  }
+
+  const hasReceiptTransactions = receiptTransactions.length > 0;
+  const confirmationMessage =
+    status === "success"
+      ? "Escrow deposit confirmed"
+      : status === "withdraw_success"
+        ? "Escrow withdraw confirmed"
+        : null;
 
   return (
     <div className="rounded-3xl border border-blue-400/30 bg-blue-400/[0.06] p-6">
@@ -452,50 +536,53 @@ export default function EscrowDepositCard({
         )}
       </div>
 
-      {approvalTransactionHash && (
-        <TransactionReceiptRow
-          label="Approval transaction"
-          transactionHash={approvalTransactionHash}
-          isCopied={copiedOnchainReference === approvalTransactionHash}
-          onCopy={(transactionHash) =>
-            void handleCopyOnchainReference(transactionHash)
-          }
-        />
-      )}
+      {confirmationMessage ? (
+        <div className="mt-4 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm font-semibold">
+          <span className="text-emerald-300">{confirmationMessage}</span>
+          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-0.5 text-[11px] text-emerald-200">
+            Final on Arc Testnet
+          </span>
+          {hasReceiptTransactions ? (
+            <button
+              type="button"
+              aria-expanded={isReceiptOpen}
+              aria-controls="escrow-transaction-receipt"
+              onClick={() => setIsReceiptOpen((isOpen) => !isOpen)}
+              className="text-sm font-semibold text-emerald-300 underline-offset-2 hover:underline"
+            >
+              {isReceiptOpen ? "Hide receipt" : "View receipt"}
+            </button>
+          ) : null}
+        </div>
+      ) : hasReceiptTransactions ? (
+        <div className="mt-4 flex items-center">
+          <button
+            type="button"
+            aria-expanded={isReceiptOpen}
+            aria-controls="escrow-transaction-receipt"
+            onClick={() => setIsReceiptOpen((isOpen) => !isOpen)}
+            className="text-sm font-semibold text-emerald-300 underline-offset-2 hover:underline"
+          >
+            {isReceiptOpen ? "Hide receipt" : "View receipt"}
+          </button>
+        </div>
+      ) : null}
 
-      {depositTransactionHash && (
-        <TransactionReceiptRow
-          label="Deposit transaction"
-          transactionHash={depositTransactionHash}
-          isCopied={copiedOnchainReference === depositTransactionHash}
-          onCopy={(transactionHash) =>
-            void handleCopyOnchainReference(transactionHash)
-          }
-        />
-      )}
-
-      {withdrawTransactionHash && (
-        <TransactionReceiptRow
-          label="Withdraw transaction"
-          transactionHash={withdrawTransactionHash}
-          isCopied={copiedOnchainReference === withdrawTransactionHash}
-          onCopy={(transactionHash) =>
-            void handleCopyOnchainReference(transactionHash)
-          }
-        />
-      )}
-
-      {status === "success" && (
-        <p className="mt-4 text-sm font-semibold text-emerald-300">
-          Escrow deposit confirmed
-        </p>
-      )}
-
-      {status === "withdraw_success" && (
-        <p className="mt-4 text-sm font-semibold text-emerald-300">
-          Escrow withdraw confirmed
-        </p>
-      )}
+      {hasReceiptTransactions && isReceiptOpen ? (
+        <TransactionReceipt>
+          {receiptTransactions.map((transaction) => (
+            <TransactionReceiptRow
+              key={`${transaction.label}-${transaction.transactionHash}`}
+              label={transaction.label}
+              transactionHash={transaction.transactionHash}
+              isCopied={transaction.isCopied}
+              onCopy={() =>
+                void handleCopyOnchainReference(transaction.transactionHash)
+              }
+            />
+          ))}
+        </TransactionReceipt>
+      ) : null}
 
       {status === "error" && error && (
         <p className="mt-4 text-sm text-red-300">{error}</p>

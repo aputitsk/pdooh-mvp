@@ -16,6 +16,33 @@ The Business Profile, advertisements, internal demo balance, auction state, winn
 
 Operator settlement is enabled through the Vercel API route at `/api/operator/process`. The advertiser signs an EIP-712 Bid Authorization at Place Bid; settlement after playback remains automatic and requires no wallet popup after winning.
 
+## Integrated Arc and Circle Surface
+
+The project currently integrates the following Arc/Circle-related surfaces:
+
+- Arc Testnet network configuration, including chain ID, RPC URL, native USDC symbol, and ArcScan explorer metadata.
+- Injected external wallet connection for MetaMask/Rabby-style browser wallets, including EIP-6963 discovery, `window.ethereum` fallback, Arc Testnet switching, and local session restoration.
+- Circle Viem adapter initialization through `@circle-fin/adapter-viem-v2` after a browser wallet provider is selected.
+- Read-only ERC-20 USDC balance reads for the connected Arc Testnet wallet.
+- Manual ERC-20 USDC Treasury transfer through the wallet transaction layer and Arc transaction adapter.
+- Independent `AuctionEscrow` ERC-20 USDC `approve -> deposit`, `withdraw`, and operator `settle` paths.
+- EIP-712 Bid Authorization at bid time, so settlement after playback can be submitted by the server-side Operator without another advertiser wallet popup.
+- Server-side operator settlement through `/api/operator/process`, using `OPERATOR_PRIVATE_KEY` as a server-only Vercel environment variable.
+- Settlement memo metadata generation and submission through the Arc Memo contract during operator settlement.
+- ArcScan UI links for wallet, escrow, settlement, and escrow transaction references where hashes or addresses are already available.
+- Copy actions for relevant wallet addresses, contract addresses, transaction hashes, and settlement identifiers.
+- Arc Testnet fee signal UI based on client-side Arc gas-price reads, without polling or backend API routes.
+- Circle Faucet external link for obtaining Test USDC on Arc Testnet.
+
+The project does not currently integrate:
+
+- Circle App Kit Swap execution or quote APIs;
+- `@circle-fin/app-kit` or `@circle-fin/swap-kit`;
+- Circle User-Controlled Wallet or email/social wallet login;
+- Circle CCTP, bridging, or cross-chain funding;
+- a dedicated `/fund` route, funding page shell, or swap preview UI;
+- any custom backend quote, swap, gas polling, or Circle Wallet service.
+
 ## Arc Testnet Configuration
 
 The active Arc integration uses:

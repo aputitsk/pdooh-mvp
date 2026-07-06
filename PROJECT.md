@@ -179,3 +179,4 @@ Vercel must store `OPERATOR_PRIVATE_KEY` only as a server-side environment varia
 - Browser JSON is not trusted directly for settlement.
 - Withdraw reserved amount includes active temporary bid reservations and unresolved retryable settlement obligations.
 - App Kit Send is not implemented.
+- There is no dedicated `/fund` route or funding/swap page. The current UI only links to Circle Faucet for Test USDC.
