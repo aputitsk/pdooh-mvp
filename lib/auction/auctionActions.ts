@@ -15,10 +15,6 @@ import {
   AUCTION_SLOTS,
   DEMO_BOT_ADVERTISEMENT,
 } from "./constants";
-import {
-  processAllAuctionSlotPayments,
-  processAuctionSlotPayment,
-} from "./auctionPayments";
 import { getBidExposureWithCandidate } from "./auctionRules";
 import { selectAuctionWinners } from "./auctionWinners";
 import {
@@ -26,17 +22,13 @@ import {
   createEmptySlotStates,
   getStoredAdvertisements,
   getStoredAuctionCycleId,
-  getStoredDemoTreasury,
   getStoredPaidSlots,
   getStoredSlotStates,
   getStoredSubmittedBids,
-  getStoredWalletBalance,
   setStoredAuctionCycleId,
-  setStoredDemoTreasury,
   setStoredPaidSlots,
   setStoredSlotStates,
   setStoredSubmittedBids,
-  setStoredWalletBalance,
 } from "./auctionStorage";
 import { DEFAULT_SITE_KEY } from "./siteConfig";
 
@@ -155,42 +147,28 @@ export function processAuctionPayment(
   slotIndex: number,
   siteKey: SiteKey = DEFAULT_SITE_KEY
 ) {
-  const { winners, winnerBidAmounts } = getCurrentAuctionWinners(siteKey);
-  // Legacy demo-only payment ledger. It no longer controls auction access or
-  // bid validation and remains until the Accounting Layer replaces it.
-  const legacyDemoPaymentBalance = getStoredWalletBalance();
-  const result = processAuctionSlotPayment({
-    slotIndex,
-    paidSlots: getStoredPaidSlots(siteKey),
-    winners,
-    winnerBidAmounts,
-    walletBalance: legacyDemoPaymentBalance,
-    demoTreasury: getStoredDemoTreasury(),
-  });
+  const paidSlots = getStoredPaidSlots(siteKey);
 
-  setStoredPaidSlots(result.paidSlots, siteKey);
-  setStoredWalletBalance(result.walletBalance);
-  setStoredDemoTreasury(result.demoTreasury);
+  if (paidSlots[slotIndex]) {
+    return;
+  }
+
+  setStoredPaidSlots(
+    paidSlots.map((isPaid, index) => index === slotIndex ? true : isPaid),
+    siteKey
+  );
 }
 
 export function processAllUnpaidAuctionPayments(
   siteKey: SiteKey = DEFAULT_SITE_KEY
 ) {
-  const { winners, winnerBidAmounts } = getCurrentAuctionWinners(siteKey);
-  // Legacy demo-only payment ledger. It is isolated from escrow-backed
-  // auction capacity and does not represent on-chain custody.
-  const legacyDemoPaymentBalance = getStoredWalletBalance();
-  const result = processAllAuctionSlotPayments({
-    paidSlots: getStoredPaidSlots(siteKey),
-    winners,
-    winnerBidAmounts,
-    walletBalance: legacyDemoPaymentBalance,
-    demoTreasury: getStoredDemoTreasury(),
-  });
+  const paidSlots = getStoredPaidSlots(siteKey);
 
-  setStoredPaidSlots(result.paidSlots, siteKey);
-  setStoredWalletBalance(result.walletBalance);
-  setStoredDemoTreasury(result.demoTreasury);
+  if (paidSlots.every(Boolean)) {
+    return;
+  }
+
+  setStoredPaidSlots(paidSlots.map(() => true), siteKey);
 }
 
 export function processDueAuctionPayments(
