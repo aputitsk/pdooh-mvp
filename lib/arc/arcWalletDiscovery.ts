@@ -7,6 +7,12 @@ export type BrowserWalletProvider = {
     event: string,
     listener: (...args: unknown[]) => void
   ) => void;
+  providers?: BrowserWalletProvider[];
+  isMetaMask?: boolean;
+  isRabby?: boolean;
+  isOkxWallet?: boolean;
+  isOKExWallet?: boolean;
+  isOKXWallet?: boolean;
 };
 
 type Eip6963ProviderDetail = {
@@ -40,7 +46,7 @@ export type DiscoveredWalletProvider = ArcWalletProviderOption & {
 
 export type DiscoveredWalletProviders = {
   eip6963: DiscoveredWalletProvider[];
-  legacy: DiscoveredWalletProvider | null;
+  legacy: DiscoveredWalletProvider[];
 };
 
 declare global {
@@ -53,9 +59,86 @@ declare global {
   }
 }
 
+const legacyProviderId = "window.ethereum";
+
+function isTruthyProviderFlag(value: unknown) {
+  return value === true;
+}
+
+function getLegacyProviderWallet(provider: BrowserWalletProvider) {
+  if (isTruthyProviderFlag(provider.isRabby)) {
+    return SUPPORTED_WALLETS.find((wallet) => wallet.id === "rabby") ?? null;
+  }
+
+  if (
+    isTruthyProviderFlag(provider.isOkxWallet) ||
+    isTruthyProviderFlag(provider.isOKExWallet) ||
+    isTruthyProviderFlag(provider.isOKXWallet)
+  ) {
+    return SUPPORTED_WALLETS.find((wallet) => wallet.id === "okx") ?? null;
+  }
+
+  if (isTruthyProviderFlag(provider.isMetaMask)) {
+    return SUPPORTED_WALLETS.find((wallet) => wallet.id === "metamask") ?? null;
+  }
+
+  return null;
+}
+
+function getLegacyWalletProviders() {
+  if (!window.ethereum) {
+    return [];
+  }
+
+  const rawProviders =
+    Array.isArray(window.ethereum.providers) &&
+    window.ethereum.providers.length > 0
+      ? window.ethereum.providers
+      : [window.ethereum];
+  const providers: DiscoveredWalletProvider[] = [];
+  const seenProviderIds = new Set<string>();
+
+  rawProviders.forEach((provider) => {
+    const wallet = getLegacyProviderWallet(provider);
+
+    if (!wallet) {
+      return;
+    }
+
+    const id = `${legacyProviderId}:${wallet.id}`;
+
+    if (seenProviderIds.has(id)) {
+      return;
+    }
+
+    seenProviderIds.add(id);
+    providers.push({
+      id,
+      name: wallet.name,
+      icon: wallet.icon,
+      rdns: wallet.rdns[0] ?? null,
+      provider,
+    });
+  });
+
+  if (providers.length > 0) {
+    return providers;
+  }
+
+  return [
+    {
+      id: legacyProviderId,
+      name: "Browser Wallet",
+      icon: null,
+      rdns: null,
+      provider: window.ethereum,
+    },
+  ];
+}
+
 export async function discoverInjectedWalletProviders(): Promise<DiscoveredWalletProviders> {
   if (typeof window === "undefined") {
-    return { eip6963: [], legacy: null };
+    return { eip6963: [], legacy: [] };
   }
 
   const providers = new Map<string, Eip6963ProviderDetail>();
@@ -78,15 +161,7 @@ export async function discoverInjectedWalletProviders(): Promise<DiscoveredWalle
 
   return {
     eip6963: eip6963Providers,
-    legacy: window.ethereum
-      ? {
-          id: "window.ethereum",
-          name: "Browser Wallet",
-          icon: null,
-          rdns: null,
-          provider: window.ethereum,
-        }
-      : null,
+    legacy: getLegacyWalletProviders(),
   };
 }
 
@@ -94,8 +169,9 @@ export async function getInjectedWalletProvider(
   providerId?: string
 ): Promise<DiscoveredWalletProvider> {
   const { eip6963, legacy } = await discoverInjectedWalletProviders();
+  const providers = [...eip6963, ...legacy];
 
-  if (eip6963.length === 0 && !legacy) {
+  if (providers.length === 0) {
     throw new Error("No browser wallet found.");
   }
 
@@ -103,38 +179,35 @@ export async function getInjectedWalletProvider(
     throw new Error("Choose a browser wallet.");
   }
 
-  if (eip6963.length > 0) {
-    const selectedProvider = eip6963.find(
-      (provider) => provider.id === providerId
-    );
+  const selectedProvider = providers.find(
+    (provider) => provider.id === providerId
+  );
 
-    if (!selectedProvider) {
-      throw new Error("Selected browser wallet was not found.");
-    }
-
+  if (selectedProvider) {
     return selectedProvider;
   }
 
-  if (!legacy || providerId !== legacy.id) {
-    throw new Error("Selected browser wallet was not found.");
-  }
-
-  return legacy;
+  throw new Error("Selected browser wallet was not found.");
 }
 
 export async function getArcWalletProviders(): Promise<
   ArcWalletCatalogOption[]
 > {
-  const { eip6963 } = await discoverInjectedWalletProviders();
+  const { eip6963, legacy } = await discoverInjectedWalletProviders();
 
-  return SUPPORTED_WALLETS.map((wallet) => {
+  const supportedWalletOptions = SUPPORTED_WALLETS.map((wallet) => {
     const matchingProviders = eip6963.filter(
       (provider) =>
         provider.rdns !== null &&
         wallet.rdns.some((rdns) => rdns === provider.rdns)
     );
-    const installedProvider =
-      matchingProviders.length === 1 ? matchingProviders[0] : null;
+    const matchingLegacyProvider =
+      legacy.find(
+        (provider) =>
+          provider.rdns !== null &&
+          wallet.rdns.some((rdns) => rdns === provider.rdns)
+      ) ?? null;
+    const installedProvider = matchingProviders[0] ?? matchingLegacyProvider;
 
     return {
       id: wallet.id,
@@ -144,4 +217,21 @@ export async function getArcWalletProviders(): Promise<
       providerId: installedProvider?.id ?? null,
     };
   });
+
+  const hasSupportedProvider = supportedWalletOptions.some(
+    (provider) => provider.installed
+  );
+  const genericLegacyOptions = hasSupportedProvider
+    ? []
+    : legacy
+        .filter((provider) => provider.rdns === null)
+        .map((provider) => ({
+          id: provider.id,
+          name: provider.name,
+          icon: provider.icon,
+          installed: true,
+          providerId: provider.id,
+        }));
+
+  return [...supportedWalletOptions, ...genericLegacyOptions];
 }

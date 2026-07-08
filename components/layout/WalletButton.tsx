@@ -21,6 +21,9 @@ const restoringWallet: WalletState = {
   address: null,
 };
 
+const walletNotDetectedMessage =
+  "Wallet not detected. Open this site in the MetaMask, Rabby, or OKX wallet browser.";
+
 let cachedWallet = restoringWallet;
 
 function getWalletSnapshot() {
@@ -160,15 +163,19 @@ export default function WalletButton() {
 
     try {
       const providers = await getWalletProviders();
+      const hasAvailableProvider = providers.some(
+        (provider) => provider.installed && provider.providerId
+      );
 
       if (providers.length === 0) {
         setWalletProviders([]);
-        setConnectError("No browser wallet found");
+        setConnectError(walletNotDetectedMessage);
         setIsMenuOpen(true);
         return;
       }
 
       setWalletProviders(providers);
+      setConnectError(hasAvailableProvider ? null : walletNotDetectedMessage);
       setIsMenuOpen(true);
     } catch (error) {
       handleConnectionError(error);
@@ -328,7 +335,7 @@ export default function WalletButton() {
                   {provider.name}
                 </span>
                 <span className="text-xs">
-                  {provider.installed ? "Installed" : "Not installed"}
+                  {provider.installed ? "Ready" : "Not detected"}
                 </span>
               </button>
             ))

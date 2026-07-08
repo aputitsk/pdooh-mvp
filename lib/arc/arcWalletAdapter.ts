@@ -325,7 +325,7 @@ export async function refreshArcWalletState() {
   }
 
   try {
-    const { eip6963 } = await discoverInjectedWalletProviders();
+    const { eip6963, legacy } = await discoverInjectedWalletProviders();
 
     if (isAppDisconnectLocked()) {
       clearProviderBinding();
@@ -343,9 +343,14 @@ export async function refreshArcWalletState() {
       return;
     }
 
-    const selectedProvider = storedBinding?.rdns
-      ? eip6963.find((provider) => provider.rdns === storedBinding.rdns)
-      : null;
+    const discoveredProviders = [...eip6963, ...legacy];
+    const selectedProvider =
+      discoveredProviders.find((provider) => provider.id === storedBinding?.id) ??
+      (storedBinding?.rdns
+        ? discoveredProviders.find(
+            (provider) => provider.rdns === storedBinding.rdns
+          )
+        : null);
 
     if (!selectedProvider) {
       clearProviderBinding();
