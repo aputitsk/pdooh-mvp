@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import AdvertisementsCard from "@/components/advertiser/AdvertisementsCard";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
 import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
@@ -288,10 +287,6 @@ export default function AdvertiserPage() {
                 onSuccess={handleEscrowSuccess}
               />
             </>
-          )}
-
-          {!isWalletRestoring && canShowWorkspace && (
-            <AdvertisementsCard advertisementCount={advertisements.length} />
           )}
 
           {!isWalletRestoring && canGoToAuction && (

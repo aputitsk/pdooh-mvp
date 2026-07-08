@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { runSiteSettlementScanner } from "@/lib/auction/siteSettlementScanner";
 import { useWalletStore } from "@/lib/wallet";
 
-const HEARTBEAT_INTERVAL_MS = 500;
+const HEARTBEAT_INTERVAL_MS = 1000;
 
 export default function AuctionSettlementHeartbeat() {
   const wallet = useWalletStore();

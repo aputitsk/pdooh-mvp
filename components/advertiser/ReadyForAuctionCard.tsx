@@ -35,22 +35,22 @@ export default function ReadyForAuctionCard({
       </h2>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-          <p className="text-sm text-white/50">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p className="shrink-0 text-sm text-white/50">
             Advertisements
           </p>
 
-          <p className="mt-2 text-3xl font-bold">
+          <p className="shrink-0 text-xl font-bold">
             {advertisementCount}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-          <p className="text-sm text-white/50">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p className="shrink-0 text-sm text-white/50">
             Escrow Balance
           </p>
 
-          <p className="mt-2 break-words text-xl font-bold">
+          <p className="min-w-0 truncate text-right text-xl font-bold">
             {balanceText}
           </p>
         </div>
@@ -61,12 +61,21 @@ export default function ReadyForAuctionCard({
         pDOOH auction.
       </p>
 
-      <Link
-        href="/screen"
-        className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
-      >
-        Go to Auction
-      </Link>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <Link
+          href="/advertisements"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+        >
+          Open Advertisements
+        </Link>
+
+        <Link
+          href="/screen"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+        >
+          Go to Auction
+        </Link>
+      </div>
     </div>
   );
 }

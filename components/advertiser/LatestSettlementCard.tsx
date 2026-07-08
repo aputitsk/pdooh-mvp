@@ -12,6 +12,7 @@ import {
 } from "@/lib/accounting/settlementSummary";
 import { getArcScanTransactionUrl } from "@/lib/arc/arcScanUrls";
 import { MARKET_CONFIGS, SITE_CONFIGS } from "@/lib/auction/siteConfig";
+import CopyButton from "@/components/ui/CopyButton";
 
 type LatestSettlementCardProps = {
   settlementRecords: readonly SettlementRecord[];
@@ -34,52 +35,6 @@ function getSettlementSiteLabel(record: SettlementRecord) {
   return siteConfig ? `${marketName} / ${siteConfig.name}` : `${marketId} / ${siteId}`;
 }
 
-function getSettlementStateCounts(records: readonly SettlementRecord[]) {
-  return records.reduce(
-    (counts, record) => {
-      if (
-        record.status === "pending_playback" ||
-        record.status === "ready_to_settle"
-      ) {
-        counts.pending += 1;
-      } else if (record.status === "processing") {
-        counts.processing += 1;
-      } else if (
-        record.status === "failed_retryable" ||
-        record.status === "failed_terminal"
-      ) {
-        counts.failed += 1;
-      }
-
-      return counts;
-    },
-    { pending: 0, processing: 0, failed: 0 }
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      fill="none"
-      className="h-3.5 w-3.5"
-    >
-      <path
-        d="M7 7.5A1.5 1.5 0 0 1 8.5 6h6A1.5 1.5 0 0 1 16 7.5v6a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 7 13.5v-6Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M4 12.5v-7A1.5 1.5 0 0 1 5.5 4h7"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 export default function LatestSettlementCard({
   settlementRecords,
 }: LatestSettlementCardProps) {
@@ -93,11 +48,6 @@ export default function LatestSettlementCard({
   const lastSuccessfulSettlement =
     getLastSuccessfulSettlement(settlementRecords);
   const platformRevenue = getPlatformRevenue(settlementRecords);
-  const settlementStateCounts = getSettlementStateCounts(settlementRecords);
-  const hasUnresolvedSettlementState =
-    settlementStateCounts.pending > 0 ||
-    settlementStateCounts.processing > 0 ||
-    settlementStateCounts.failed > 0;
   const lastSettlementSiteLabel = lastSuccessfulSettlement
     ? getSettlementSiteLabel(lastSuccessfulSettlement)
     : null;
@@ -178,14 +128,11 @@ export default function LatestSettlementCard({
                   </p>
                   {isSettlementId ? (
                     <>
-                      <button
-                        type="button"
-                        aria-label="Copy settlement ID"
+                      <CopyButton
+                        ariaLabel="Copy settlement ID"
                         onClick={() => void handleCopySettlementId(value)}
                         className="shrink-0 rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
-                      >
-                        <CopyIcon />
-                      </button>
+                      />
                       {isSettlementIdCopied ? (
                         <span
                           role="status"
@@ -226,14 +173,6 @@ export default function LatestSettlementCard({
         </p>
       </div>
 
-      {hasUnresolvedSettlementState ? (
-        <p className="mt-2 text-[11px] font-medium text-white/45">
-          Pending {settlementStateCounts.pending} / Processing{" "}
-          {settlementStateCounts.processing} / Failed{" "}
-          {settlementStateCounts.failed}
-        </p>
-      ) : null}
-
       {lastSuccessfulSettlement ? (
         <>
           <p className="mt-2 text-base font-bold text-white">
@@ -248,24 +187,21 @@ export default function LatestSettlementCard({
             </p>
           )}
 
-          {lastSuccessfulSettlement.txHash ? (
-            <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-3">
+            {lastSuccessfulSettlement.txHash ? (
               <div className="flex items-center justify-center gap-2">
                 <p className="font-mono text-[11px] text-white/50">
                   Tx: {formatTransactionHash(lastSuccessfulSettlement.txHash)}
                 </p>
-                <button
-                  type="button"
-                  aria-label="Copy settlement transaction hash"
+                <CopyButton
+                  ariaLabel="Copy settlement transaction hash"
                   onClick={() =>
                     void handleCopyTransactionHash(
                       lastSuccessfulSettlement.txHash ?? ""
                     )
                   }
                   className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
-                >
-                  <CopyIcon />
-                </button>
+                />
                 {isTransactionHashCopied ? (
                   <span
                     role="status"
@@ -276,10 +212,17 @@ export default function LatestSettlementCard({
                   </span>
                 ) : null}
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-                <span className="text-[11px] font-semibold text-white/45">
-                  Settled on Arc Testnet
-                </span>
+            ) : (
+              <p className="text-[11px] leading-4 text-white/40">
+                No settlement transaction hash is available.
+              </p>
+            )}
+
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              <span className="text-[11px] font-semibold text-white/45">
+                Settled on Arc Testnet
+              </span>
+              {lastSuccessfulSettlement.txHash ? (
                 <a
                   href={getArcScanTransactionUrl(lastSuccessfulSettlement.txHash)}
                   target="_blank"
@@ -288,20 +231,16 @@ export default function LatestSettlementCard({
                 >
                   View on ArcScan
                 </a>
-                <button
-                  type="button"
-                  onClick={() => setIsViewingMemo(true)}
-                  className="text-[11px] font-semibold text-emerald-300 underline-offset-2 hover:underline"
-                >
-                  View memo
-                </button>
-              </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setIsViewingMemo(true)}
+                className="text-[11px] font-semibold text-emerald-300 underline-offset-2 hover:underline"
+              >
+                View memo
+              </button>
             </div>
-          ) : (
-            <p className="mt-3 text-[11px] leading-4 text-white/40">
-              No settlement transaction hash is available.
-            </p>
-          )}
+          </div>
         </>
       ) : (
         <p className="mt-3 text-[11px] leading-4 text-white/40">

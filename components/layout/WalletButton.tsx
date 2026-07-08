@@ -11,6 +11,8 @@ import {
   type WalletState,
 } from "@/lib/wallet";
 import { getArcScanAddressUrl } from "@/lib/arc/arcScanUrls";
+import CopyButton from "@/components/ui/CopyButton";
+import ExternalLinkButton from "@/components/ui/ExternalLinkButton";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 const restoringWallet: WalletState = {
@@ -81,37 +83,6 @@ function isUserRejectedWalletRequest(error: unknown) {
   }
 
   return false;
-}
-
-function ExternalLinkIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      fill="none"
-      className="h-4 w-4"
-    >
-      <path
-        d="M8 5H5.5A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16h8a1.5 1.5 0 0 0 1.5-1.5V12"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M11 4h5v5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m10 10 5.5-5.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
 }
 
 export default function WalletButton() {
@@ -278,42 +249,20 @@ export default function WalletButton() {
                 {formatWalletAddress(wallet.address)}
               </span>
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Copy wallet address"
+                <CopyButton
+                  ariaLabel="Copy wallet address"
                   onClick={() =>
                     void (wallet.address && handleCopyAddress(wallet.address))
                   }
                   className="rounded-full p-1.5 text-zinc-300 transition hover:bg-zinc-900 hover:text-white"
-                >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    className="h-4 w-4"
-                  >
-                    <path
-                      d="M7 7.5A1.5 1.5 0 0 1 8.5 6h6A1.5 1.5 0 0 1 16 7.5v6a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 7 13.5v-6Z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M4 12.5v-7A1.5 1.5 0 0 1 5.5 4h7"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <a
+                  iconClassName="h-4 w-4"
+                />
+                <ExternalLinkButton
                   href={getArcScanAddressUrl(wallet.address)}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="View wallet address on ArcScan"
+                  ariaLabel="View wallet address on ArcScan"
                   className="rounded-full p-1.5 text-zinc-300 transition hover:bg-zinc-900 hover:text-white"
-                >
-                  <ExternalLinkIcon />
-                </a>
+                  iconClassName="h-4 w-4"
+                />
               </div>
             </div>
 

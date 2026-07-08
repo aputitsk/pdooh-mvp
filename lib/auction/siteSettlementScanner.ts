@@ -484,10 +484,14 @@ async function processSettlementRecord(
         throw new Error(result.error || "Settlement processing failed.");
       }
 
+      const currentRecord = repository.getById(processingRecord.settlementId);
+      const transactionHash =
+        result.transactionHash ?? currentRecord?.txHash ?? processingRecord.txHash;
+
       repository.update(
         markSettlementSettled(
           processingRecord,
-          result.transactionHash,
+          transactionHash,
           new Date().toISOString()
         )
       );
