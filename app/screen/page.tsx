@@ -248,6 +248,8 @@ export default function ScreenPage() {
           winner={liveWinner}
           marketTheme={marketTheme}
           isLive={phase === "live"}
+          locationName={auction.siteConfig.name}
+          slotNumber={currentSlotIndex + 1}
         />
 
         <SiteSelectorCards

@@ -12,6 +12,8 @@ type LiveScreenProps = {
   winner: Advertisement | null;
   marketTheme: MarketTheme;
   isLive: boolean;
+  locationName: string;
+  slotNumber: number;
 };
 
 type LetterStyle = React.CSSProperties & {
@@ -38,6 +40,8 @@ export default function LiveScreen({
   winner,
   marketTheme,
   isLive,
+  locationName,
+  slotNumber,
 }: LiveScreenProps) {
   const isPersonalAdvertisement =
     winner !== null && !isDemoBotAdvertisement(winner);
@@ -66,6 +70,12 @@ export default function LiveScreen({
         <div
           className={`pointer-events-none absolute inset-x-8 bottom-0 h-20 ${marketTheme.liveScreen.reflectionClassName} ${reflectionStateClassName}`}
         />
+
+        {isLive && (
+          <div className="pointer-events-none absolute right-4 top-4 z-20 rounded-md border border-white/10 bg-black/35 px-2.5 py-1 text-xs font-semibold tracking-normal text-white/55 shadow-[0_0_18px_rgba(255,255,255,0.08)] backdrop-blur-sm">
+            {locationName} · Slot {slotNumber}
+          </div>
+        )}
 
         <div className={`relative z-10 text-center ${contentStateClassName}`}>
           {winner ? (

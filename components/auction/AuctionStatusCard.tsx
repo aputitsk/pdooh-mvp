@@ -122,9 +122,12 @@ export default function AuctionStatusCard({
       <div className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FinancialRowItem label="Wallet" value={walletBalanceText} />
-          <FinancialRowItem label="Escrow" value={escrowBalanceText} />
           <FinancialRowItem
-            label="Available"
+            label="Escrow: Your auction deposit"
+            value={escrowBalanceText}
+          />
+          <FinancialRowItem
+            label="Available for bids"
             value={
               escrowBalanceStatus === "ready"
                 ? `${formatUSDCFromMinorUnits(availableAuctionCapacity)} Test USDC`
@@ -205,7 +208,7 @@ function FinancialRowItem({
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/45">
+      <p className="truncate text-sm font-semibold tracking-normal text-white/55">
         {label}
       </p>
       <p className="mt-1 truncate text-sm font-semibold text-white">{value}</p>

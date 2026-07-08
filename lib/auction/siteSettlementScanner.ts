@@ -48,6 +48,115 @@ type OperatorProcessResponse = {
 };
 
 const PROCESSING_SETTLEMENT_RETRY_AFTER_MS = 30_000;
+const SETTLEMENT_PROCESSING_LEASE_MS = 90_000;
+const SETTLEMENT_PROCESSING_LEASE_KEY_PREFIX =
+  "pdooh-accounting-settlement-lease:";
+
+type SettlementProcessingLease = {
+  ownerId: string;
+  expiresAtMs: number;
+};
+
+let settlementProcessingLeaseOwnerId: string | null = null;
+
+function getSettlementProcessingLeaseOwnerId() {
+  if (settlementProcessingLeaseOwnerId) {
+    return settlementProcessingLeaseOwnerId;
+  }
+
+  settlementProcessingLeaseOwnerId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}:${Math.random()}`;
+
+  return settlementProcessingLeaseOwnerId;
+}
+
+function getSettlementProcessingLeaseKey(settlementId: `0x${string}`) {
+  return `${SETTLEMENT_PROCESSING_LEASE_KEY_PREFIX}${settlementId.toLowerCase()}`;
+}
+
+function readSettlementProcessingLease(
+  key: string
+): SettlementProcessingLease | null {
+  try {
+    const value = window.localStorage.getItem(key);
+
+    if (!value) {
+      return null;
+    }
+
+    const lease = JSON.parse(value) as Partial<SettlementProcessingLease>;
+
+    if (
+      typeof lease.ownerId !== "string" ||
+      typeof lease.expiresAtMs !== "number" ||
+      !Number.isFinite(lease.expiresAtMs)
+    ) {
+      return null;
+    }
+
+    return {
+      ownerId: lease.ownerId,
+      expiresAtMs: lease.expiresAtMs,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function tryAcquireSettlementProcessingLease(settlementId: `0x${string}`) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const key = getSettlementProcessingLeaseKey(settlementId);
+  const ownerId = getSettlementProcessingLeaseOwnerId();
+  const nowMs = Date.now();
+  const currentLease = readSettlementProcessingLease(key);
+
+  if (
+    currentLease &&
+    currentLease.ownerId !== ownerId &&
+    currentLease.expiresAtMs > nowMs
+  ) {
+    return false;
+  }
+
+  const nextLease: SettlementProcessingLease = {
+    ownerId,
+    expiresAtMs: nowMs + SETTLEMENT_PROCESSING_LEASE_MS,
+  };
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(nextLease));
+  } catch {
+    return true;
+  }
+
+  const storedLease = readSettlementProcessingLease(key);
+
+  return (
+    storedLease?.ownerId === ownerId &&
+    storedLease.expiresAtMs === nextLease.expiresAtMs
+  );
+}
+
+function releaseSettlementProcessingLease(settlementId: `0x${string}`) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const key = getSettlementProcessingLeaseKey(settlementId);
+  const ownerId = getSettlementProcessingLeaseOwnerId();
+  const currentLease = readSettlementProcessingLease(key);
+
+  if (currentLease?.ownerId !== ownerId) {
+    return;
+  }
+
+  window.localStorage.removeItem(key);
+}
 
 function serializeSettlementRecord(record: SettlementRecord) {
   return {
@@ -188,98 +297,106 @@ async function processSettlementRecord(
     return;
   }
 
-  const latestRecord = repository.getById(record.settlementId);
-
-  if (
-    latestRecord?.status === "settled" ||
-    latestRecord?.status === "already_settled" ||
-    latestRecord?.status === "cancelled" ||
-    (latestRecord?.status === "processing" &&
-      !isStaleProcessingSettlementRecord(latestRecord)) ||
-    (latestRecord?.status === "failed" &&
-      !isRetryableFailedSettlementRecord(latestRecord))
-  ) {
+  if (!tryAcquireSettlementProcessingLease(record.settlementId)) {
     return;
-  }
-
-  const processingRecord =
-    latestRecord?.status === "processing"
-      ? latestRecord
-      : markSettlementProcessing(
-          latestRecord ?? record,
-          new Date().toISOString()
-        );
-
-  if (processingRecord.status !== "processing") {
-    return;
-  }
-
-  if (processingRecord !== latestRecord) {
-    repository.update(processingRecord);
-    notifySettlementRecordsChanged();
   }
 
   try {
-    const response = await fetch("/api/operator/process", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(serializeSettlementRecord(processingRecord)),
-    });
-    const result = (await response.json()) as OperatorProcessResponse;
+    const latestRecord = repository.getById(record.settlementId);
 
     if (
-      !response.ok ||
-      !result.ok ||
-      (result.status !== "settled" && result.status !== "already_settled")
+      latestRecord?.status === "settled" ||
+      latestRecord?.status === "already_settled" ||
+      latestRecord?.status === "cancelled" ||
+      (latestRecord?.status === "processing" &&
+        !isStaleProcessingSettlementRecord(latestRecord)) ||
+      (latestRecord?.status === "failed" &&
+        !isRetryableFailedSettlementRecord(latestRecord))
     ) {
-      if (result.code === "SETTLEMENT_WINDOW_NOT_OPEN") {
-        repository.update(
-          markSettlementCancelled(
-            processingRecord,
-            SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
-            new Date().toISOString()
-          )
-        );
-        notifySettlementRecordsChanged();
-        return;
-      }
-
-      throw new Error(result.error || "Settlement processing failed.");
+      return;
     }
 
-    if (result.status === "already_settled" && !result.transactionHash) {
-      const currentRecord = repository.getById(processingRecord.settlementId);
+    const processingRecord =
+      latestRecord?.status === "processing"
+        ? latestRecord
+        : markSettlementProcessing(
+            latestRecord ?? record,
+            new Date().toISOString()
+          );
 
-      if (currentRecord?.status !== "settled" || !currentRecord.txHash) {
+    if (processingRecord.status !== "processing") {
+      return;
+    }
+
+    if (processingRecord !== latestRecord) {
+      repository.update(processingRecord);
+      notifySettlementRecordsChanged();
+    }
+
+    try {
+      const response = await fetch("/api/operator/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(serializeSettlementRecord(processingRecord)),
+      });
+      const result = (await response.json()) as OperatorProcessResponse;
+
+      if (
+        !response.ok ||
+        !result.ok ||
+        (result.status !== "settled" && result.status !== "already_settled")
+      ) {
+        if (result.code === "SETTLEMENT_WINDOW_NOT_OPEN") {
+          repository.update(
+            markSettlementCancelled(
+              processingRecord,
+              SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
+              new Date().toISOString()
+            )
+          );
+          notifySettlementRecordsChanged();
+          return;
+        }
+
+        throw new Error(result.error || "Settlement processing failed.");
+      }
+
+      if (result.status === "already_settled" && !result.transactionHash) {
+        const currentRecord = repository.getById(processingRecord.settlementId);
+
+        if (currentRecord?.status !== "settled" || !currentRecord.txHash) {
+          repository.update(
+            markSettlementAlreadySettled(
+              processingRecord,
+              new Date().toISOString()
+            )
+          );
+        }
+      } else if (result.transactionHash) {
         repository.update(
-          markSettlementAlreadySettled(
+          markSettlementSettled(
             processingRecord,
+            result.transactionHash,
             new Date().toISOString()
           )
         );
+      } else {
+        throw new Error("Settlement transaction hash is missing.");
       }
-    } else if (result.transactionHash) {
+
+      notifySettlementRecordsChanged();
+    } catch (error) {
       repository.update(
-        markSettlementSettled(
+        markSettlementFailed(
           processingRecord,
-          result.transactionHash,
+          error instanceof Error ? error.message : "Settlement processing failed.",
           new Date().toISOString()
         )
       );
-    } else {
-      throw new Error("Settlement transaction hash is missing.");
+      notifySettlementRecordsChanged();
     }
-
-    notifySettlementRecordsChanged();
-  } catch (error) {
-    repository.update(
-      markSettlementFailed(
-        processingRecord,
-        error instanceof Error ? error.message : "Settlement processing failed.",
-        new Date().toISOString()
-      )
-    );
-    notifySettlementRecordsChanged();
+  } finally {
+    releaseSettlementProcessingLease(record.settlementId);
   }
 }
 
@@ -299,6 +416,17 @@ export async function runSiteSettlementScanner(walletAddress: string | null) {
   const repository = createBrowserSettlementRepository();
   const nowIso = new Date().toISOString();
   const processSettlementTasks: Promise<void>[] = [];
+  const queuedSettlementIds = new Set<string>();
+  const queueSettlementProcessing = (record: SettlementRecord) => {
+    const settlementId = record.settlementId.toLowerCase();
+
+    if (queuedSettlementIds.has(settlementId)) {
+      return;
+    }
+
+    queuedSettlementIds.add(settlementId);
+    processSettlementTasks.push(processSettlementRecord(repository, record));
+  };
 
   SITE_CONFIGS.forEach((siteConfig) => {
     const records = syncSiteAuctionAndCreateSettlementRecords({
@@ -311,22 +439,27 @@ export async function runSiteSettlementScanner(walletAddress: string | null) {
     records.forEach((record) => {
       if (repository.saveIfAbsent(record)) {
         notifySettlementRecordsChanged();
-        processSettlementTasks.push(processSettlementRecord(repository, record));
+        queueSettlementProcessing(record);
       }
     });
   });
 
   repository
+    .listByStatus("pending")
+    .forEach((record) => {
+      queueSettlementProcessing(record);
+    });
+  repository
     .listByStatus("failed")
     .filter(isRetryableFailedSettlementRecord)
     .forEach((record) => {
-      processSettlementTasks.push(processSettlementRecord(repository, record));
+      queueSettlementProcessing(record);
     });
   repository
     .listByStatus("processing")
     .filter((record) => isStaleProcessingSettlementRecord(record))
     .forEach((record) => {
-      processSettlementTasks.push(processSettlementRecord(repository, record));
+      queueSettlementProcessing(record);
     });
 
   await Promise.all(processSettlementTasks);

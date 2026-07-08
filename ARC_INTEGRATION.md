@@ -120,6 +120,18 @@ The project does not include `@circle-fin/app-kit` and does not call `AppKit`, `
 
 The manual Treasury transfer must therefore not be described as App Kit Send.
 
+## App Kit Planning Notes
+
+The current browser-wallet adapter direction is compatible with App Kit Send, Bridge, and Unified Balance. Browser wallets such as MetaMask, Rabby, Trust Wallet, and other EIP-1193 providers can be adapted with `createViemAdapterFromProvider({ provider: window.ethereum })` after the user selects a provider.
+
+App Kit Swap is server-side only at this stage. It requires a Kit Key and a server-side adapter such as a private key, Circle Wallets, or Turnkey. A future pDOOH swap or funding route must keep `KIT_KEY`, private keys, Circle API keys, and Entity Secrets out of browser bundles and route all Swap execution through a server boundary.
+
+Before executing Swap, a server route should call `estimateSwap` with the same parameters to display the estimated output, guaranteed minimum, fee breakdown, and a realistic slippage or stop-limit floor. Arc Testnet swap liquidity is limited to USDC, EURC, and cirBTC, and thin testnet liquidity can cause frequent reverts even when the code path is correct.
+
+Bridge uses CCTP. FAST bridge fees are taken from the transferred USDC amount, so tiny Arc Testnet transfers can fail with a "Max fee must be less than amount" style error. A funding UI should either send an amount above the FAST fee or offer SLOW transfer speed, which avoids the fast-transfer fee and takes longer.
+
+Production App Kit adapters should use project-controlled RPC endpoints instead of default public RPCs. Public endpoints are rate-limited, so a production funding or settlement flow should map each supported blockchain to an Alchemy, QuickNode, or equivalent RPC URL.
+
 ## Payment Service Boundary
 
 The runtime payment path is:

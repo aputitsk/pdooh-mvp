@@ -67,6 +67,39 @@ export default function AdvertiserPage() {
     wallet.connected,
   ]);
 
+  useEffect(() => {
+    if (!wallet.connected || !wallet.address) {
+      return;
+    }
+
+    const refreshEscrowBalanceOnFocus = () => {
+      refreshWalletEscrowBalance();
+    };
+    const refreshEscrowBalanceOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshWalletEscrowBalance();
+      }
+    };
+
+    window.addEventListener("focus", refreshEscrowBalanceOnFocus);
+    document.addEventListener(
+      "visibilitychange",
+      refreshEscrowBalanceOnVisibilityChange
+    );
+
+    return () => {
+      window.removeEventListener("focus", refreshEscrowBalanceOnFocus);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshEscrowBalanceOnVisibilityChange
+      );
+    };
+  }, [
+    refreshWalletEscrowBalance,
+    wallet.address,
+    wallet.connected,
+  ]);
+
   const settlementRecords = isHydrated ? listBrowserSettlementRecords() : [];
   const unresolvedSettlementReservedAmount =
     getUnresolvedSettlementReservedAmount(
