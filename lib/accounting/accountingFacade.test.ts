@@ -4,7 +4,29 @@ import test from "node:test";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { createPendingSettlementRecords } from "./accountingFacade.ts";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { createSettlementRepository } from "./settlementRepository.ts";
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { createSettlementId, SETTLEMENT_IDENTITY_VERSION_V2 } from "./settlementRecords.ts";
+
+class MemoryStorage {
+  private readonly values = new Map<string, string>();
+
+  get length() {
+    return this.values.size;
+  }
+
+  getItem(key: string) {
+    return this.values.get(key) ?? null;
+  }
+
+  key(index: number) {
+    return [...this.values.keys()][index] ?? null;
+  }
+
+  setItem(key: string, value: string) {
+    this.values.set(key, value);
+  }
+}
 
 const nowIso = "2026-06-25T12:00:00.000Z";
 const bidAuthorization = {
@@ -47,11 +69,11 @@ const snapshot = {
   winnerBidAuthorizations: [bidAuthorization],
 };
 
-test("facade creates pending settlement records from an auction snapshot", () => {
+test("facade creates pending playback settlement records from a locked auction snapshot", () => {
   const records = createPendingSettlementRecords({ snapshot, nowIso });
 
   assert.equal(records.length, 1);
-  assert.equal(records[0].status, "pending");
+  assert.equal(records[0].status, "pending_playback");
   assert.equal(records[0].identityVersion, SETTLEMENT_IDENTITY_VERSION_V2);
   assert.equal(records[0].createdAt, nowIso);
   assert.equal(records[0].updatedAt, nowIso);
@@ -71,6 +93,16 @@ test("facade creates pending settlement records from an auction snapshot", () =>
     amountMinorUnits: BigInt(1_500_000),
     bidAuthorization,
   });
+});
+
+test("repeated locked snapshots are idempotent when saved", () => {
+  const repository = createSettlementRepository(new MemoryStorage());
+  const firstRecords = createPendingSettlementRecords({ snapshot, nowIso });
+  const secondRecords = createPendingSettlementRecords({ snapshot, nowIso });
+
+  assert.equal(repository.saveIfAbsent(firstRecords[0]), true);
+  assert.equal(repository.saveIfAbsent(secondRecords[0]), false);
+  assert.equal(repository.listByStatus("pending_playback").length, 1);
 });
 
 test("facade skips invalid and Demo Bot winners", () => {

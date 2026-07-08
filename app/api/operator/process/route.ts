@@ -414,20 +414,21 @@ function createCandidateFromRequest(
   }
 
   const currentClock = getAuctionClock(siteConfig.auctionStartTimestampMs);
-  const eligibleSlotIds = getSettlementEligibleLiveSlotIds(
-    currentClock,
-    siteConfig.slotIds
-  );
+  const settlementCycleId = Number(input.result.cycleId);
+  const eligibleSlotIds =
+    currentClock.cycleId === settlementCycleId
+      ? getSettlementEligibleLiveSlotIds(currentClock, siteConfig.slotIds)
+      : [];
+  const hasPlaybackReached =
+    Number.isSafeInteger(settlementCycleId) &&
+    (currentClock.cycleId > settlementCycleId ||
+      eligibleSlotIds.includes(input.result.slotId));
 
-  if (
-    currentClock.phase !== "live" ||
-    String(currentClock.cycleId) !== input.result.cycleId ||
-    !eligibleSlotIds.includes(input.result.slotId)
-  ) {
+  if (!hasPlaybackReached) {
     return {
       ok: false,
-      code: "SETTLEMENT_WINDOW_NOT_OPEN",
-      error: "Settlement window is not open for this cycle and slot.",
+      code: "SETTLEMENT_NOT_READY",
+      error: "Settlement playback has not reached this cycle and slot.",
     };
   }
 
@@ -517,6 +518,25 @@ export async function POST(request: Request) {
     }
 
     const escrowAddress = getArcEscrowAddress();
+    const publicClient = createPublicClient({
+      chain: arcTestnetChain,
+      transport: http(ARC_RPC_URL),
+    });
+
+    const alreadyProcessed = await publicClient.readContract({
+      address: escrowAddress,
+      abi: auctionEscrowAbi,
+      functionName: "processedSettlement",
+      args: [input.settlementId],
+    });
+
+    if (alreadyProcessed) {
+      return Response.json({
+        ok: true,
+        settlementId: input.settlementId,
+        status: "settled",
+      });
+    }
 
     const candidateResult = createCandidateFromRequest(
       input,
@@ -569,10 +589,6 @@ export async function POST(request: Request) {
     // signed bid payload, checks the Demo Bot threshold and shared demo clock,
     // but this is not a production server-side auction ledger.
     const account = privateKeyToAccount(getOperatorPrivateKey());
-    const publicClient = createPublicClient({
-      chain: arcTestnetChain,
-      transport: http(ARC_RPC_URL),
-    });
     const walletClient = createWalletClient({
       account,
       chain: arcTestnetChain,
@@ -589,21 +605,6 @@ export async function POST(request: Request) {
       throw new Error(
         "OPERATOR_PRIVATE_KEY does not match the escrow operator."
       );
-    }
-
-    const alreadyProcessed = await publicClient.readContract({
-      address: escrowAddress,
-      abi: auctionEscrowAbi,
-      functionName: "processedSettlement",
-      args: [input.settlementId],
-    });
-
-    if (alreadyProcessed) {
-      return Response.json({
-        ok: true,
-        settlementId: input.settlementId,
-        status: "already_settled",
-      });
     }
 
     const memoCode = await publicClient.getCode({

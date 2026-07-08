@@ -44,12 +44,12 @@ export function listSettlementRecords(
   repository: SettlementRepository
 ): SettlementRecord[] {
   return [
-    ...repository.listByStatus("pending"),
+    ...repository.listByStatus("pending_playback"),
+    ...repository.listByStatus("ready_to_settle"),
     ...repository.listByStatus("processing"),
     ...repository.listByStatus("settled"),
-    ...repository.listByStatus("already_settled"),
-    ...repository.listByStatus("cancelled"),
-    ...repository.listByStatus("failed"),
+    ...repository.listByStatus("failed_retryable"),
+    ...repository.listByStatus("failed_terminal"),
   ];
 }
 

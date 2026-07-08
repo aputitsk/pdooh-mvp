@@ -1,7 +1,9 @@
 import type {
   SettlementRecord,
   SettlementStatus,
+  StoredSettlementRecord,
 } from "./settlementRecords";
+import { normalizeStoredSettlementRecord } from "./settlementRecords";
 
 const SETTLEMENT_RECORD_KEY_PREFIX = "pdooh-accounting-settlement:";
 
@@ -12,7 +14,7 @@ type SettlementRecordStorage = {
   setItem(key: string, value: string): void;
 };
 
-type StoredSettlementRecord = Omit<SettlementRecord, "result"> & {
+type SerializedSettlementRecord = Omit<StoredSettlementRecord, "result"> & {
   result: Omit<SettlementRecord["result"], "amountMinorUnits"> & {
     amountMinorUnits: string;
   };
@@ -34,7 +36,7 @@ export function isSettlementRecordStorageKey(key: string) {
 }
 
 function serializeSettlementRecord(record: SettlementRecord) {
-  const storedRecord: StoredSettlementRecord = {
+  const storedRecord: SerializedSettlementRecord = {
     ...record,
     result: {
       ...record.result,
@@ -47,16 +49,16 @@ function serializeSettlementRecord(record: SettlementRecord) {
 
 function deserializeSettlementRecord(value: string): SettlementRecord | null {
   try {
-    const storedRecord = JSON.parse(value) as StoredSettlementRecord;
+    const storedRecord = JSON.parse(value) as SerializedSettlementRecord;
     const amountMinorUnits = BigInt(storedRecord.result.amountMinorUnits);
 
-    return {
+    return normalizeStoredSettlementRecord({
       ...storedRecord,
       result: {
         ...storedRecord.result,
         amountMinorUnits,
       },
-    };
+    });
   } catch {
     return null;
   }

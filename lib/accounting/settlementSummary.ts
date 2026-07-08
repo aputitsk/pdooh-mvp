@@ -8,7 +8,7 @@ import {
 const LAST_SETTLEMENT_DISPLAY_DECIMALS = 3;
 
 export function isSuccessfulSettlement(record: SettlementRecord) {
-  return record.status === "settled" || record.status === "already_settled";
+  return record.status === "settled";
 }
 
 function addSafeMinorUnits(

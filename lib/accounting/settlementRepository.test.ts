@@ -60,7 +60,7 @@ test("saveIfAbsent does not duplicate the same settlementId", () => {
 
   assert.equal(repository.saveIfAbsent(record), true);
   assert.equal(repository.saveIfAbsent(record), false);
-  assert.equal(repository.listByStatus("pending").length, 1);
+  assert.equal(repository.listByStatus("pending_playback").length, 1);
 });
 
 test("different settlementIds in one cycle are stored separately", () => {
@@ -72,7 +72,7 @@ test("different settlementIds in one cycle are stored separately", () => {
   assert.notEqual(first.settlementId, second.settlementId);
   assert.equal(repository.saveIfAbsent(first), true);
   assert.equal(repository.saveIfAbsent(second), true);
-  assert.equal(repository.listByStatus("pending").length, 2);
+  assert.equal(repository.listByStatus("pending_playback").length, 2);
 });
 
 test("getById returns the stored record", () => {
@@ -95,7 +95,7 @@ test("update replaces an existing SettlementRecord", () => {
   assert.deepEqual(repository.getById(record.settlementId), processing);
 });
 
-test('listByStatus("pending") returns only pending records', () => {
+test('listByStatus("pending_playback") returns only pending playback records', () => {
   const repository = createSettlementRepository(new MemoryStorage());
   const pending = createRecord("slot-1", BigInt(1_500_000));
   const settled = {
@@ -104,7 +104,7 @@ test('listByStatus("pending") returns only pending records', () => {
   };
   const failed = {
     ...createRecord("slot-3", BigInt(3_000_000)),
-    status: "failed" as const,
+    status: "failed_retryable" as const,
     failureReason: "Settlement failed.",
   };
 
@@ -112,5 +112,5 @@ test('listByStatus("pending") returns only pending records', () => {
   repository.saveIfAbsent(settled);
   repository.saveIfAbsent(failed);
 
-  assert.deepEqual(repository.listByStatus("pending"), [pending]);
+  assert.deepEqual(repository.listByStatus("pending_playback"), [pending]);
 });

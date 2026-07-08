@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { createPendingSettlementRecord, markSettlementFailed, markSettlementProcessing, markSettlementSettled, type FinalizedAuctionResult, type SettlementRecord } from "./settlementRecords.ts";
+import { createPendingSettlementRecord, markSettlementFailedRetryable, markSettlementFailedTerminal, markSettlementProcessing, markSettlementReadyToSettle, markSettlementSettled, type FinalizedAuctionResult, type SettlementRecord } from "./settlementRecords.ts";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { getUnresolvedSettlementReservedAmount, isRetryableFailedSettlementRecord, MISSING_BID_AUTHORIZATION_FAILURE_REASON } from "./unresolvedSettlementReservedAmount.ts";
 
@@ -71,46 +71,61 @@ function createFailedRecord(
   record: SettlementRecord,
   failureReason = "RPC unavailable."
 ) {
-  return markSettlementFailed(
-    markSettlementProcessing(record, "2026-06-25T12:01:00.000Z"),
+  return markSettlementFailedRetryable(
+    markSettlementProcessing(
+      markSettlementReadyToSettle(record, "2026-06-25T12:00:30.000Z"),
+      "2026-06-25T12:01:00.000Z"
+    ),
     failureReason,
     "2026-06-25T12:02:00.000Z"
   );
 }
 
-test("unresolved reserved amount includes pending processing and retryable failed records", () => {
-  const pending = createPendingRecord("slot-1", BigInt(1_500_000));
-  const processing = markSettlementProcessing(
+test("unresolved reserved amount includes pending ready processing and retryable failed records", () => {
+  const pendingPlayback = createPendingRecord("slot-1", BigInt(1_500_000));
+  const ready = markSettlementReadyToSettle(
     createPendingRecord("slot-2", BigInt(2_000_000)),
+    "2026-06-25T12:00:30.000Z"
+  );
+  const processing = markSettlementProcessing(
+    markSettlementReadyToSettle(
+      createPendingRecord("slot-3", BigInt(3_000_000)),
+      "2026-06-25T12:00:30.000Z"
+    ),
     "2026-06-25T12:01:00.000Z"
   );
   const retryableFailed = createFailedRecord(
-    createPendingRecord("slot-3", BigInt(3_000_000))
+    createPendingRecord("slot-4", BigInt(4_000_000))
   );
 
   assert.equal(
     getUnresolvedSettlementReservedAmount(
-      [pending, processing, retryableFailed],
-      advertiserAddress
+      [pendingPlayback, ready, processing, retryableFailed],
+      advertiserAddress,
+      Date.parse("2026-06-25T12:03:00.000Z")
     ),
-    6_500_000
+    10_500_000
   );
 });
 
-test("unresolved reserved amount excludes settled permanently failed and other advertiser records", () => {
+test("unresolved reserved amount excludes settled terminal failed and other advertiser records", () => {
   const settled = markSettlementSettled(
     markSettlementProcessing(
-      createPendingRecord("slot-1", BigInt(1_500_000)),
+      markSettlementReadyToSettle(
+        createPendingRecord("slot-1", BigInt(1_500_000)),
+        "2026-06-25T12:00:30.000Z"
+      ),
       "2026-06-25T12:01:00.000Z"
     ),
     "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "2026-06-25T12:02:00.000Z"
   );
-  const missingAuthorizationFailed = createFailedRecord(
+  const missingAuthorizationFailed = markSettlementFailedTerminal(
     createPendingRecord("slot-2", BigInt(2_000_000), {
       bidAuthorization: undefined,
     }),
-    MISSING_BID_AUTHORIZATION_FAILURE_REASON
+    MISSING_BID_AUTHORIZATION_FAILURE_REASON,
+    "2026-06-25T12:02:00.000Z"
   );
   const otherAdvertiserPending = createPendingRecord("slot-3", BigInt(3_000_000), {
     advertiserAddress: otherAdvertiserAddress,
@@ -139,20 +154,35 @@ test("unsigned pending legacy records do not reserve withdraw funds forever", ()
   );
 });
 
-test("failed settlement retryability requires bid authorization and non-permanent reason", () => {
+test("failed retryable settlement reserves only while retry is still possible", () => {
   const retryableFailed = createFailedRecord(
     createPendingRecord("slot-1", BigInt(1_500_000))
   );
-  const missingAuthorizationFailed = createFailedRecord(
-    createPendingRecord("slot-2", BigInt(2_000_000), {
-      bidAuthorization: undefined,
-    }),
-    MISSING_BID_AUTHORIZATION_FAILURE_REASON
+  const terminalFailed = markSettlementFailedTerminal(
+    createPendingRecord("slot-2", BigInt(2_000_000)),
+    MISSING_BID_AUTHORIZATION_FAILURE_REASON,
+    "2026-06-25T12:02:00.000Z"
   );
 
-  assert.equal(isRetryableFailedSettlementRecord(retryableFailed), true);
   assert.equal(
-    isRetryableFailedSettlementRecord(missingAuthorizationFailed),
+    isRetryableFailedSettlementRecord(
+      retryableFailed,
+      Date.parse("2026-06-25T12:03:00.000Z")
+    ),
+    true
+  );
+  assert.equal(
+    isRetryableFailedSettlementRecord(
+      retryableFailed,
+      Date.parse("2026-06-25T12:31:00.000Z")
+    ),
+    false
+  );
+  assert.equal(
+    isRetryableFailedSettlementRecord(
+      terminalFailed,
+      Date.parse("2026-06-25T12:03:00.000Z")
+    ),
     false
   );
 });

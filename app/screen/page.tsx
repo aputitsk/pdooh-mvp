@@ -97,8 +97,7 @@ function getPendingEscrowRefreshSettledAmount(
 
   return settlementRecords.reduce((total, record) => {
     if (
-      record.status !== "settled" &&
-      record.status !== "already_settled"
+      record.status !== "settled"
     ) {
       return total;
     }

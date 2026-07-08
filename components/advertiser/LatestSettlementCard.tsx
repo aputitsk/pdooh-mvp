@@ -34,6 +34,29 @@ function getSettlementSiteLabel(record: SettlementRecord) {
   return siteConfig ? `${marketName} / ${siteConfig.name}` : `${marketId} / ${siteId}`;
 }
 
+function getSettlementStateCounts(records: readonly SettlementRecord[]) {
+  return records.reduce(
+    (counts, record) => {
+      if (
+        record.status === "pending_playback" ||
+        record.status === "ready_to_settle"
+      ) {
+        counts.pending += 1;
+      } else if (record.status === "processing") {
+        counts.processing += 1;
+      } else if (
+        record.status === "failed_retryable" ||
+        record.status === "failed_terminal"
+      ) {
+        counts.failed += 1;
+      }
+
+      return counts;
+    },
+    { pending: 0, processing: 0, failed: 0 }
+  );
+}
+
 function CopyIcon() {
   return (
     <svg
@@ -70,6 +93,11 @@ export default function LatestSettlementCard({
   const lastSuccessfulSettlement =
     getLastSuccessfulSettlement(settlementRecords);
   const platformRevenue = getPlatformRevenue(settlementRecords);
+  const settlementStateCounts = getSettlementStateCounts(settlementRecords);
+  const hasUnresolvedSettlementState =
+    settlementStateCounts.pending > 0 ||
+    settlementStateCounts.processing > 0 ||
+    settlementStateCounts.failed > 0;
   const lastSettlementSiteLabel = lastSuccessfulSettlement
     ? getSettlementSiteLabel(lastSuccessfulSettlement)
     : null;
@@ -197,6 +225,14 @@ export default function LatestSettlementCard({
           {formatSettlementRevenue(platformRevenue)} Test USDC
         </p>
       </div>
+
+      {hasUnresolvedSettlementState ? (
+        <p className="mt-2 text-[11px] font-medium text-white/45">
+          Pending {settlementStateCounts.pending} / Processing{" "}
+          {settlementStateCounts.processing} / Failed{" "}
+          {settlementStateCounts.failed}
+        </p>
+      ) : null}
 
       {lastSuccessfulSettlement ? (
         <>

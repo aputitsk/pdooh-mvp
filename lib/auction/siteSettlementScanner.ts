@@ -7,10 +7,10 @@ import {
 } from "@/lib/accounting/settlementRepository";
 import { notifySettlementRecordsChanged } from "@/lib/accounting/settlementRecordSync";
 import {
-  markSettlementCancelled,
-  markSettlementFailed,
-  markSettlementAlreadySettled,
+  markSettlementFailedRetryable,
+  markSettlementFailedTerminal,
   markSettlementProcessing,
+  markSettlementReadyToSettle,
   markSettlementSettled,
   isV2SettlementRecord,
   type SettlementRecord,
@@ -18,7 +18,6 @@ import {
 import {
   isRetryableFailedSettlementRecord,
   MISSING_BID_AUTHORIZATION_FAILURE_REASON,
-  SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
 } from "@/lib/accounting/unresolvedSettlementReservedAmount";
 import { ARC_TREASURY_ADDRESS } from "@/lib/arc/arcConfig";
 import {
@@ -42,15 +41,28 @@ import type { SiteConfig } from "./auctionTypes";
 type OperatorProcessResponse = {
   ok: boolean;
   code?: string;
-  status?: "settled" | "already_settled";
+  status?: "settled";
   transactionHash?: `0x${string}`;
   error?: string;
 };
 
 const PROCESSING_SETTLEMENT_RETRY_AFTER_MS = 30_000;
-const SETTLEMENT_PROCESSING_LEASE_MS = 90_000;
+const SETTLEMENT_PROCESSING_LEASE_MS = 15_000;
 const SETTLEMENT_PROCESSING_LEASE_KEY_PREFIX =
   "pdooh-accounting-settlement-lease:";
+const TERMINAL_OPERATOR_ERROR_CODES = new Set([
+  "INVALID_REQUEST",
+  "INVALID_BID_AUTHORIZATION",
+  "BID_AUTHORIZATION_EXPIRED",
+  "BID_AUTHORIZATION_SIGNER_MISMATCH",
+  "INVALID_BID_AUTHORIZATION_SIGNATURE",
+  "SETTLEMENT_RESULT_MISMATCH",
+  "SETTLEMENT_ID_MISMATCH",
+  "BID_DID_NOT_BEAT_DEMO_BOT",
+  "INVALID_SLOT",
+  "SETTLEMENT_CONFIG_MISMATCH",
+  "UNKNOWN_SITE",
+]);
 
 type SettlementProcessingLease = {
   ownerId: string;
@@ -58,6 +70,8 @@ type SettlementProcessingLease = {
 };
 
 let settlementProcessingLeaseOwnerId: string | null = null;
+let isSettlementProcessingLeaseCleanupRegistered = false;
+const activeSettlementProcessingLeaseIds = new Set<`0x${string}`>();
 
 function getSettlementProcessingLeaseOwnerId() {
   if (settlementProcessingLeaseOwnerId) {
@@ -74,6 +88,22 @@ function getSettlementProcessingLeaseOwnerId() {
 
 function getSettlementProcessingLeaseKey(settlementId: `0x${string}`) {
   return `${SETTLEMENT_PROCESSING_LEASE_KEY_PREFIX}${settlementId.toLowerCase()}`;
+}
+
+function registerSettlementProcessingLeaseCleanup() {
+  if (
+    typeof window === "undefined" ||
+    isSettlementProcessingLeaseCleanupRegistered
+  ) {
+    return;
+  }
+
+  isSettlementProcessingLeaseCleanupRegistered = true;
+  window.addEventListener("pagehide", () => {
+    [...activeSettlementProcessingLeaseIds].forEach((settlementId) => {
+      releaseSettlementProcessingLease(settlementId);
+    });
+  });
 }
 
 function readSettlementProcessingLease(
@@ -110,6 +140,8 @@ function tryAcquireSettlementProcessingLease(settlementId: `0x${string}`) {
     return false;
   }
 
+  registerSettlementProcessingLeaseCleanup();
+
   const key = getSettlementProcessingLeaseKey(settlementId);
   const ownerId = getSettlementProcessingLeaseOwnerId();
   const nowMs = Date.now();
@@ -136,10 +168,15 @@ function tryAcquireSettlementProcessingLease(settlementId: `0x${string}`) {
 
   const storedLease = readSettlementProcessingLease(key);
 
-  return (
+  const isAcquired =
     storedLease?.ownerId === ownerId &&
-    storedLease.expiresAtMs === nextLease.expiresAtMs
-  );
+    storedLease.expiresAtMs === nextLease.expiresAtMs;
+
+  if (isAcquired) {
+    activeSettlementProcessingLeaseIds.add(settlementId);
+  }
+
+  return isAcquired;
 }
 
 function releaseSettlementProcessingLease(settlementId: `0x${string}`) {
@@ -152,10 +189,12 @@ function releaseSettlementProcessingLease(settlementId: `0x${string}`) {
   const currentLease = readSettlementProcessingLease(key);
 
   if (currentLease?.ownerId !== ownerId) {
+    activeSettlementProcessingLeaseIds.delete(settlementId);
     return;
   }
 
   window.localStorage.removeItem(key);
+  activeSettlementProcessingLeaseIds.delete(settlementId);
 }
 
 function serializeSettlementRecord(record: SettlementRecord) {
@@ -169,26 +208,32 @@ function serializeSettlementRecord(record: SettlementRecord) {
 }
 
 function markMissingBidAuthorization(record: SettlementRecord): SettlementRecord {
-  return {
-    ...record,
-    status: "failed",
-    updatedAt: new Date().toISOString(),
-    failureReason: MISSING_BID_AUTHORIZATION_FAILURE_REASON,
-  };
-}
-
-function isConfiguredSiteSettlementRecord(record: SettlementRecord) {
-  return (
-    isV2SettlementRecord(record) &&
-    SITE_CONFIGS.some(
-      (siteConfig) =>
-        siteConfig.marketId === record.result.marketId &&
-        siteConfig.siteId === record.result.siteId
-    )
+  return markSettlementFailedTerminal(
+    record,
+    MISSING_BID_AUTHORIZATION_FAILURE_REASON,
+    new Date().toISOString()
   );
 }
 
-function isStaleProcessingSettlementRecord(
+function isConfiguredSiteSettlementRecord(record: SettlementRecord) {
+  return getSettlementRecordSiteConfig(record) !== null;
+}
+
+function getSettlementRecordSiteConfig(record: SettlementRecord) {
+  if (!isV2SettlementRecord(record)) {
+    return null;
+  }
+
+  return (
+    SITE_CONFIGS.find(
+      (siteConfig) =>
+        siteConfig.marketId === record.result.marketId &&
+        siteConfig.siteId === record.result.siteId
+    ) ?? null
+  );
+}
+
+export function isStaleProcessingSettlementRecord(
   record: SettlementRecord,
   nowMs = Date.now()
 ) {
@@ -204,12 +249,95 @@ function isStaleProcessingSettlementRecord(
   );
 }
 
+function isSettlementRecordEligibleForProcessing(record: SettlementRecord) {
+  const siteConfig = getSettlementRecordSiteConfig(record);
+
+  if (!siteConfig) {
+    return false;
+  }
+
+  const clock = getAuctionClock(siteConfig.auctionStartTimestampMs);
+
+  if (String(clock.cycleId) !== record.result.cycleId) {
+    return false;
+  }
+
+  return getSettlementEligibleLiveSlotIds(
+    clock,
+    siteConfig.slotIds
+  ).some((slotId) => slotId === record.result.slotId);
+}
+
+export function hasSettlementPlaybackReached(record: SettlementRecord) {
+  const siteConfig = getSettlementRecordSiteConfig(record);
+
+  if (!siteConfig) {
+    return false;
+  }
+
+  const recordCycleId = Number(record.result.cycleId);
+
+  if (!Number.isSafeInteger(recordCycleId)) {
+    return false;
+  }
+
+  const clock = getAuctionClock(siteConfig.auctionStartTimestampMs);
+
+  if (clock.cycleId > recordCycleId) {
+    return true;
+  }
+
+  if (clock.cycleId < recordCycleId) {
+    return false;
+  }
+
+  return isSettlementRecordEligibleForProcessing(record);
+}
+
 function isProcessableSettlementRecord(record: SettlementRecord) {
   return (
-    record.status === "pending" ||
+    record.status === "ready_to_settle" ||
     isRetryableFailedSettlementRecord(record) ||
     isStaleProcessingSettlementRecord(record)
   );
+}
+
+function promoteSettlementRecordIfReady(
+  repository: SettlementRepository,
+  record: SettlementRecord,
+  nowIso: string
+) {
+  if (record.status !== "pending_playback") {
+    return record;
+  }
+
+  if (!hasSettlementPlaybackReached(record)) {
+    return record;
+  }
+
+  const readyRecord = markSettlementReadyToSettle(record, nowIso);
+  repository.update(readyRecord);
+  notifySettlementRecordsChanged();
+  return readyRecord;
+}
+
+export function recoverStaleProcessingSettlementRecord(
+  repository: SettlementRepository,
+  record: SettlementRecord,
+  nowIso: string
+) {
+  if (!isStaleProcessingSettlementRecord(record)) {
+    return record;
+  }
+
+  const readyRecord = markSettlementReadyToSettle(record, nowIso);
+  repository.update(readyRecord);
+  notifySettlementRecordsChanged();
+  return readyRecord;
+}
+
+function isTerminalOperatorError(code: string | undefined) {
+  return Boolean(code && TERMINAL_OPERATOR_ERROR_CODES.has(code));
 }
 
 function syncSiteAuctionAndCreateSettlementRecords(params: {
@@ -220,9 +348,6 @@ function syncSiteAuctionAndCreateSettlementRecords(params: {
 }): SettlementRecord[] {
   const { siteConfig, escrowAddress, walletAddress, nowIso } = params;
   const clock = getAuctionClock(siteConfig.auctionStartTimestampMs);
-
-  syncAuctionCycle(clock, siteConfig.siteKey);
-
   const slotStates = getStoredSlotStates(siteConfig.siteKey);
   const submittedBids = getStoredSubmittedBids(siteConfig.siteKey);
   const {
@@ -246,37 +371,31 @@ function syncSiteAuctionAndCreateSettlementRecords(params: {
     winnerAdvertiserAddresses,
   });
 
-  if (!escrowAddress || clock.phase !== "live") {
-    return [];
-  }
+  const settlementRecords =
+    escrowAddress && (clock.phase === "locked" || clock.phase === "live")
+      ? createPendingSettlementRecords({
+          snapshot: {
+            phase: clock.phase,
+            cycleId: clock.cycleId,
+            chainId: ARC_CHAIN_ID,
+            escrowAddress,
+            treasuryAddress: ARC_TREASURY_ADDRESS,
+            usdcAddress: ARC_USDC_CONTRACT_ADDRESS,
+            marketId: siteConfig.marketId,
+            siteId: siteConfig.siteId,
+            slotIds: siteConfig.slotIds,
+            winners,
+            winnerBidAmounts,
+            winnerAdvertiserAddresses,
+            winnerBidAuthorizations,
+          },
+          nowIso,
+        })
+      : [];
 
-  const settlementEligibleSlotIds = getSettlementEligibleLiveSlotIds(
-    clock,
-    siteConfig.slotIds
-  );
+  syncAuctionCycle(clock, siteConfig.siteKey);
 
-  if (settlementEligibleSlotIds.length === 0) {
-    return [];
-  }
-
-  return createPendingSettlementRecords({
-    snapshot: {
-      phase: clock.phase,
-      cycleId: clock.cycleId,
-      chainId: ARC_CHAIN_ID,
-      escrowAddress,
-      treasuryAddress: ARC_TREASURY_ADDRESS,
-      usdcAddress: ARC_USDC_CONTRACT_ADDRESS,
-      marketId: siteConfig.marketId,
-      siteId: siteConfig.siteId,
-      slotIds: settlementEligibleSlotIds,
-      winners,
-      winnerBidAmounts,
-      winnerAdvertiserAddresses,
-      winnerBidAuthorizations,
-    },
-    nowIso,
-  });
+  return settlementRecords;
 }
 
 async function processSettlementRecord(
@@ -288,6 +407,10 @@ async function processSettlementRecord(
   }
 
   if (!isConfiguredSiteSettlementRecord(record)) {
+    return;
+  }
+
+  if (!hasSettlementPlaybackReached(record)) {
     return;
   }
 
@@ -306,11 +429,11 @@ async function processSettlementRecord(
 
     if (
       latestRecord?.status === "settled" ||
-      latestRecord?.status === "already_settled" ||
-      latestRecord?.status === "cancelled" ||
+      latestRecord?.status === "failed_terminal" ||
+      latestRecord?.status === "pending_playback" ||
       (latestRecord?.status === "processing" &&
         !isStaleProcessingSettlementRecord(latestRecord)) ||
-      (latestRecord?.status === "failed" &&
+      (latestRecord?.status === "failed_retryable" &&
         !isRetryableFailedSettlementRecord(latestRecord))
     ) {
       return;
@@ -344,13 +467,13 @@ async function processSettlementRecord(
       if (
         !response.ok ||
         !result.ok ||
-        (result.status !== "settled" && result.status !== "already_settled")
+        result.status !== "settled"
       ) {
-        if (result.code === "SETTLEMENT_WINDOW_NOT_OPEN") {
+        if (isTerminalOperatorError(result.code)) {
           repository.update(
-            markSettlementCancelled(
+            markSettlementFailedTerminal(
               processingRecord,
-              SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON,
+              result.error || "Settlement processing failed permanently.",
               new Date().toISOString()
             )
           );
@@ -361,33 +484,18 @@ async function processSettlementRecord(
         throw new Error(result.error || "Settlement processing failed.");
       }
 
-      if (result.status === "already_settled" && !result.transactionHash) {
-        const currentRecord = repository.getById(processingRecord.settlementId);
-
-        if (currentRecord?.status !== "settled" || !currentRecord.txHash) {
-          repository.update(
-            markSettlementAlreadySettled(
-              processingRecord,
-              new Date().toISOString()
-            )
-          );
-        }
-      } else if (result.transactionHash) {
-        repository.update(
-          markSettlementSettled(
-            processingRecord,
-            result.transactionHash,
-            new Date().toISOString()
-          )
-        );
-      } else {
-        throw new Error("Settlement transaction hash is missing.");
-      }
+      repository.update(
+        markSettlementSettled(
+          processingRecord,
+          result.transactionHash,
+          new Date().toISOString()
+        )
+      );
 
       notifySettlementRecordsChanged();
     } catch (error) {
       repository.update(
-        markSettlementFailed(
+        markSettlementFailedRetryable(
           processingRecord,
           error instanceof Error ? error.message : "Settlement processing failed.",
           new Date().toISOString()
@@ -445,19 +553,32 @@ export async function runSiteSettlementScanner(walletAddress: string | null) {
   });
 
   repository
-    .listByStatus("pending")
+    .listByStatus("pending_playback")
+    .forEach((record) => {
+      const readyRecord = promoteSettlementRecordIfReady(
+        repository,
+        record,
+        nowIso
+      );
+      queueSettlementProcessing(readyRecord);
+    });
+  repository
+    .listByStatus("ready_to_settle")
     .forEach((record) => {
       queueSettlementProcessing(record);
     });
   repository
-    .listByStatus("failed")
-    .filter(isRetryableFailedSettlementRecord)
+    .listByStatus("failed_retryable")
+    .filter((record) => isRetryableFailedSettlementRecord(record))
     .forEach((record) => {
       queueSettlementProcessing(record);
     });
   repository
     .listByStatus("processing")
     .filter((record) => isStaleProcessingSettlementRecord(record))
+    .map((record) =>
+      recoverStaleProcessingSettlementRecord(repository, record, nowIso)
+    )
     .forEach((record) => {
       queueSettlementProcessing(record);
     });

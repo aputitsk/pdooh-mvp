@@ -10,9 +10,15 @@ export type SettlementIdentityVersion =
 type HexAddress = `0x${string}`;
 
 export type SettlementStatus =
-  | "pending"
+  | "pending_playback"
+  | "ready_to_settle"
   | "processing"
   | "settled"
+  | "failed_retryable"
+  | "failed_terminal";
+
+type LegacySettlementStatus =
+  | "pending"
   | "already_settled"
   | "cancelled"
   | "failed";
@@ -42,6 +48,10 @@ export type SettlementRecord = {
   updatedAt: string;
   txHash?: HexAddress;
   failureReason?: string;
+};
+
+export type StoredSettlementRecord = Omit<SettlementRecord, "status"> & {
+  status: SettlementStatus | LegacySettlementStatus;
 };
 
 function normalizeAddress(value: HexAddress): HexAddress {
@@ -129,10 +139,31 @@ export function createPendingSettlementRecord(
   return {
     settlementId: createSettlementId(result),
     identityVersion: SETTLEMENT_IDENTITY_VERSION_V2,
-    status: "pending",
+    status: "pending_playback",
     result: cloneFinalizedAuctionResult(result),
     createdAt: nowIso,
     updatedAt: nowIso,
+  };
+}
+
+export function markSettlementReadyToSettle(
+  record: SettlementRecord,
+  nowIso: string
+): SettlementRecord {
+  if (
+    record.status !== "pending_playback" &&
+    record.status !== "processing"
+  ) {
+    throw new Error("Only pending playback or stale processing settlements can become ready.");
+  }
+
+  assertNonEmptyString(nowIso, "nowIso");
+
+  return {
+    ...record,
+    status: "ready_to_settle",
+    updatedAt: nowIso,
+    failureReason: undefined,
   };
 }
 
@@ -140,8 +171,11 @@ export function markSettlementProcessing(
   record: SettlementRecord,
   nowIso: string
 ): SettlementRecord {
-  if (record.status !== "pending" && record.status !== "failed") {
-    throw new Error("Only pending or failed settlements can be processed.");
+  if (
+    record.status !== "ready_to_settle" &&
+    record.status !== "failed_retryable"
+  ) {
+    throw new Error("Only ready or retryable settlements can be processed.");
   }
 
   assertNonEmptyString(nowIso, "nowIso");
@@ -156,7 +190,7 @@ export function markSettlementProcessing(
 
 export function markSettlementSettled(
   record: SettlementRecord,
-  transactionHash: HexAddress,
+  transactionHash: HexAddress | undefined,
   nowIso: string
 ): SettlementRecord {
   if (record.status !== "processing") {
@@ -174,32 +208,13 @@ export function markSettlementSettled(
   };
 }
 
-export function markSettlementAlreadySettled(
-  record: SettlementRecord,
-  nowIso: string
-): SettlementRecord {
-  if (record.status !== "processing") {
-    throw new Error("Only processing settlements can be marked already settled.");
-  }
-
-  assertNonEmptyString(nowIso, "nowIso");
-
-  return {
-    ...record,
-    status: "already_settled",
-    updatedAt: nowIso,
-    txHash: undefined,
-    failureReason: undefined,
-  };
-}
-
-export function markSettlementCancelled(
+export function markSettlementFailedTerminal(
   record: SettlementRecord,
   failureReason: string,
   nowIso: string
 ): SettlementRecord {
-  if (record.status !== "processing" && record.status !== "failed") {
-    throw new Error("Only processing or failed settlements can be cancelled.");
+  if (record.status === "settled") {
+    throw new Error("Settled settlements cannot fail.");
   }
 
   assertNonEmptyString(failureReason, "failureReason");
@@ -207,14 +222,14 @@ export function markSettlementCancelled(
 
   return {
     ...record,
-    status: "cancelled",
+    status: "failed_terminal",
     updatedAt: nowIso,
     txHash: undefined,
     failureReason,
   };
 }
 
-export function markSettlementFailed(
+export function markSettlementFailedRetryable(
   record: SettlementRecord,
   failureReason: string,
   nowIso: string
@@ -228,8 +243,40 @@ export function markSettlementFailed(
 
   return {
     ...record,
-    status: "failed",
+    status: "failed_retryable",
     updatedAt: nowIso,
     failureReason,
   };
+}
+
+export function normalizeStoredSettlementRecord(
+  record: StoredSettlementRecord
+): SettlementRecord {
+  if (record.status === "pending") {
+    return { ...record, status: "pending_playback" };
+  }
+
+  if (record.status === "already_settled") {
+    return {
+      ...record,
+      status: "settled",
+      txHash: undefined,
+      failureReason: undefined,
+    };
+  }
+
+  if (record.status === "cancelled") {
+    return { ...record, status: "failed_terminal" };
+  }
+
+  if (record.status === "failed") {
+    return {
+      ...record,
+      status: record.result.bidAuthorization
+        ? "failed_retryable"
+        : "failed_terminal",
+    };
+  }
+
+  return record as SettlementRecord;
 }

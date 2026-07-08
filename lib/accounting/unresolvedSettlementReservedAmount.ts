@@ -23,31 +23,41 @@ function toSafeMinorUnits(value: bigint): UsdcMinorUnits | null {
 }
 
 export function isRetryableFailedSettlementRecord(
-  record: SettlementRecord
+  record: SettlementRecord,
+  nowMs = Date.now()
 ): boolean {
+  if (record.status !== "failed_retryable" || !record.result.bidAuthorization) {
+    return false;
+  }
+
+  const expiresAtMs = Date.parse(record.result.bidAuthorization.payload.expiresAt);
+
   return (
-    record.status === "failed" &&
-    Boolean(record.result.bidAuthorization) &&
-    record.failureReason !== MISSING_BID_AUTHORIZATION_FAILURE_REASON &&
-    record.failureReason !== SETTLEMENT_WINDOW_CLOSED_FAILURE_REASON
+    Number.isFinite(expiresAtMs) &&
+    expiresAtMs > nowMs
   );
 }
 
-function reservesAdvertiserFunds(record: SettlementRecord): boolean {
+function reservesAdvertiserFunds(
+  record: SettlementRecord,
+  nowMs: number
+): boolean {
   if (!record.result.bidAuthorization) {
     return false;
   }
 
   return (
-    record.status === "pending" ||
+    record.status === "pending_playback" ||
+    record.status === "ready_to_settle" ||
     record.status === "processing" ||
-    isRetryableFailedSettlementRecord(record)
+    isRetryableFailedSettlementRecord(record, nowMs)
   );
 }
 
 export function getUnresolvedSettlementReservedAmount(
   settlementRecords: readonly SettlementRecord[],
-  advertiserAddress: `0x${string}` | string | null
+  advertiserAddress: `0x${string}` | string | null,
+  nowMs = Date.now()
 ): UsdcMinorUnits {
   if (!advertiserAddress) {
     return 0;
@@ -59,7 +69,7 @@ export function getUnresolvedSettlementReservedAmount(
     if (
       record.result.advertiserAddress.toLowerCase() !==
         normalizedAdvertiserAddress ||
-      !reservesAdvertiserFunds(record)
+      !reservesAdvertiserFunds(record, nowMs)
     ) {
       return total;
     }

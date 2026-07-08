@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { createPendingSettlementRecord, createSettlementId, isV2SettlementRecord, markSettlementFailed, markSettlementProcessing, markSettlementSettled, SETTLEMENT_IDENTITY_VERSION_V2, type FinalizedAuctionResult, type SettlementRecord } from "./settlementRecords.ts";
+import { createPendingSettlementRecord, createSettlementId, isV2SettlementRecord, markSettlementFailedRetryable, markSettlementFailedTerminal, markSettlementProcessing, markSettlementReadyToSettle, markSettlementSettled, normalizeStoredSettlementRecord, SETTLEMENT_IDENTITY_VERSION_V2, type FinalizedAuctionResult, type SettlementRecord, type StoredSettlementRecord } from "./settlementRecords.ts";
 
 const baseResult: FinalizedAuctionResult = {
   chainId: 5_042_002,
@@ -108,14 +108,14 @@ test("createPendingSettlementRecord rejects an empty nowIso", () => {
   }
 });
 
-test("createPendingSettlementRecord creates a deterministic pending record without mutating input", () => {
+test("createPendingSettlementRecord creates a deterministic pending playback record without mutating input", () => {
   const nowIso = "2026-06-25T12:00:00.000Z";
   const input: FinalizedAuctionResult = { ...baseResult };
   const inputBefore = { ...input };
 
   const record = createPendingSettlementRecord(input, nowIso);
 
-  assert.equal(record.status, "pending");
+  assert.equal(record.status, "pending_playback");
   assert.equal(record.identityVersion, SETTLEMENT_IDENTITY_VERSION_V2);
   assert.equal(record.createdAt, nowIso);
   assert.equal(record.updatedAt, nowIso);
@@ -144,13 +144,17 @@ test("isV2SettlementRecord keeps legacy records out of v2 processing", () => {
   assert.equal(isV2SettlementRecord(legacyRecord), false);
 });
 
-test("settlement lifecycle follows pending to processing to settled", () => {
+test("settlement lifecycle follows pending playback to ready to processing to settled", () => {
   const pending = createPendingSettlementRecord(
     baseResult,
     "2026-06-25T12:00:00.000Z"
   );
-  const processing = markSettlementProcessing(
+  const ready = markSettlementReadyToSettle(
     pending,
+    "2026-06-25T12:00:30.000Z"
+  );
+  const processing = markSettlementProcessing(
+    ready,
     "2026-06-25T12:01:00.000Z"
   );
   const settled = markSettlementSettled(
@@ -159,6 +163,7 @@ test("settlement lifecycle follows pending to processing to settled", () => {
     "2026-06-25T12:02:00.000Z"
   );
 
+  assert.equal(ready.status, "ready_to_settle");
   assert.equal(processing.status, "processing");
   assert.equal(settled.status, "settled");
   assert.equal(
@@ -167,16 +172,20 @@ test("settlement lifecycle follows pending to processing to settled", () => {
   );
 });
 
-test("only failed settlements can retry after the initial pending attempt", () => {
+test("retryable failed settlements can return to processing", () => {
   const pending = createPendingSettlementRecord(
     baseResult,
     "2026-06-25T12:00:00.000Z"
   );
-  const processing = markSettlementProcessing(
+  const ready = markSettlementReadyToSettle(
     pending,
+    "2026-06-25T12:00:30.000Z"
+  );
+  const processing = markSettlementProcessing(
+    ready,
     "2026-06-25T12:01:00.000Z"
   );
-  const failed = markSettlementFailed(
+  const failed = markSettlementFailedRetryable(
     processing,
     "RPC unavailable.",
     "2026-06-25T12:02:00.000Z"
@@ -186,7 +195,7 @@ test("only failed settlements can retry after the initial pending attempt", () =
     "2026-06-25T12:03:00.000Z"
   );
 
-  assert.equal(failed.status, "failed");
+  assert.equal(failed.status, "failed_retryable");
   assert.equal(retry.status, "processing");
   assert.throws(() =>
     markSettlementProcessing(
@@ -194,4 +203,49 @@ test("only failed settlements can retry after the initial pending attempt", () =
       "2026-06-25T12:04:00.000Z"
     )
   );
+});
+
+test("terminal failed settlements cannot be processed again", () => {
+  const pending = createPendingSettlementRecord(
+    baseResult,
+    "2026-06-25T12:00:00.000Z"
+  );
+  const terminal = markSettlementFailedTerminal(
+    pending,
+    "Bid authorization expired.",
+    "2026-06-25T12:01:00.000Z"
+  );
+
+  assert.equal(terminal.status, "failed_terminal");
+  assert.throws(() =>
+    markSettlementProcessing(terminal, "2026-06-25T12:02:00.000Z")
+  );
+});
+
+test("normalizeStoredSettlementRecord migrates legacy statuses", () => {
+  const record = createPendingSettlementRecord(
+    baseResult,
+    "2026-06-25T12:00:00.000Z"
+  );
+  const pending = normalizeStoredSettlementRecord({
+    ...record,
+    status: "pending",
+  } as StoredSettlementRecord);
+  const alreadySettled = normalizeStoredSettlementRecord({
+    ...record,
+    status: "already_settled",
+  } as StoredSettlementRecord);
+  const cancelled = normalizeStoredSettlementRecord({
+    ...record,
+    status: "cancelled",
+  } as StoredSettlementRecord);
+  const failed = normalizeStoredSettlementRecord({
+    ...record,
+    status: "failed",
+  } as StoredSettlementRecord);
+
+  assert.equal(pending.status, "pending_playback");
+  assert.equal(alreadySettled.status, "settled");
+  assert.equal(cancelled.status, "failed_terminal");
+  assert.equal(failed.status, "failed_terminal");
 });
