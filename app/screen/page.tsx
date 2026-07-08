@@ -25,6 +25,7 @@ import type { SettlementRecord } from "@/lib/accounting/settlementRecords";
 import { AUCTION_TOTAL_CYCLE_SECONDS } from "@/lib/auction/constants";
 import {
   DEFAULT_SITE_KEY,
+  SITE_CONFIGS,
   type SiteKey,
   useDemoAuctionStore,
   useSharedEscrowTemporaryReservedAmounts,
@@ -36,7 +37,37 @@ import {
 } from "@/lib/wallet";
 
 let lastSelectedSiteKey: SiteKey = DEFAULT_SITE_KEY;
+const SELECTED_SITE_STORAGE_KEY = "pdooh-auction-selected-site";
 const SETTLED_BALANCE_REFRESH_GRACE_MS = 6_000;
+
+function isSiteKey(value: string | null): value is SiteKey {
+  return SITE_CONFIGS.some((siteConfig) => siteConfig.siteKey === value);
+}
+
+function getStoredSelectedSiteKey() {
+  if (typeof window === "undefined") {
+    return lastSelectedSiteKey;
+  }
+
+  const storedSiteKey = window.localStorage.getItem(SELECTED_SITE_STORAGE_KEY);
+
+  if (!isSiteKey(storedSiteKey)) {
+    return lastSelectedSiteKey;
+  }
+
+  lastSelectedSiteKey = storedSiteKey;
+  return storedSiteKey;
+}
+
+function setStoredSelectedSiteKey(siteKey: SiteKey) {
+  lastSelectedSiteKey = siteKey;
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(SELECTED_SITE_STORAGE_KEY, siteKey);
+}
 
 function normalizeBidInput(value: string) {
   return value.startsWith(".") ? `0${value}` : value;
@@ -97,7 +128,7 @@ function getPendingEscrowRefreshSettledAmount(
 
 export default function ScreenPage() {
   const [selectedSiteKey, setSelectedSiteKey] =
-    useState<SiteKey>(lastSelectedSiteKey);
+    useState<SiteKey>(() => getStoredSelectedSiteKey());
   const auction = useDemoAuctionStore(selectedSiteKey);
   const wallet = useWalletStore();
   const walletUsdcBalance = useWalletUsdcBalance();
@@ -109,7 +140,7 @@ export default function ScreenPage() {
     useState<number | null>(null);
   const handleSiteChange = useCallback((siteKey: SiteKey) => {
     setBidErrors({});
-    lastSelectedSiteKey = siteKey;
+    setStoredSelectedSiteKey(siteKey);
     setSelectedSiteKey(siteKey);
   }, []);
   const settlementRecordVersion = useSyncExternalStore(
