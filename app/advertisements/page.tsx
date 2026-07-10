@@ -329,7 +329,7 @@ export default function AdvertisementsPage() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[380px_1fr]">
+        <div className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-1 lg:grid-cols-[380px_1fr]">
           <CreateAdvertisementCard
             adName={adName}
             errorMessage={errorMessage}
@@ -344,7 +344,7 @@ export default function AdvertisementsPage() {
               <EmptyAdvertisementsCard />
             ) : (
               <>
-                <div className="grid gap-5 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-5 md:grid-cols-2">
                   {paginatedAdvertisements.map((advertisement) => (
                     <AdvertisementCard
                       key={`${advertisement.businessName}-${advertisement.name}`}

@@ -10,14 +10,17 @@ import styles from "./Navbar.module.css";
 const appLinks = [
   {
     label: "Advertiser",
+    mobileLabel: "Advertiser",
     href: "/advertiser",
   },
   {
     label: "Advertisements",
+    mobileLabel: "Ads",
     href: "/advertisements",
   },
   {
     label: "Auction",
+    mobileLabel: "Live",
     href: "/screen",
   },
 ];
@@ -51,24 +54,31 @@ export default function Navbar() {
     return (
       <nav className={styles.navShell}>
         <div
-          className={`${styles.glassPanel} mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 py-4 text-white sm:flex-row sm:justify-between sm:px-6 sm:py-5`}
+          className={`${styles.glassPanel} ${styles.navPanel} mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 py-4 text-white sm:flex-row sm:justify-between sm:px-6 sm:py-5`}
         >
-          <Link href="/" aria-label="pDOOH Home">
-            <BrandLogo />
-          </Link>
+          <div className={styles.primaryRow}>
+            <Link href="/" aria-label="pDOOH Home" className={styles.brandLink}>
+              <BrandLogo />
+            </Link>
+          </div>
 
-          <div className="flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2">
-            {appLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium text-neutral-400 transition hover:bg-white/[0.06] hover:text-white sm:px-4 sm:text-sm`}
-              >
-                {link.label}
-              </Link>
-            ))}
+          <div className={styles.actionGroup}>
+            <div className={`${styles.linksRow} flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2`}>
+              {appLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium text-neutral-400 transition hover:bg-white/[0.06] hover:text-white sm:px-4 sm:text-sm`}
+                >
+                  <span className={styles.fullLabel}>{link.label}</span>
+                  <span className={styles.mobileLabel}>{link.mobileLabel}</span>
+                </Link>
+              ))}
+            </div>
 
-            <LandingLaunchControl />
+            <div className={styles.navAction}>
+              <LandingLaunchControl />
+            </div>
           </div>
         </div>
       </nav>
@@ -78,32 +88,39 @@ export default function Navbar() {
   return (
     <nav className={styles.navShell}>
       <div
-        className={`${styles.glassPanel} mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 py-4 text-white sm:flex-row sm:justify-between sm:px-6 sm:py-5`}
+        className={`${styles.glassPanel} ${styles.navPanel} mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 py-4 text-white sm:flex-row sm:justify-between sm:px-6 sm:py-5`}
       >
-        <Link href="/" aria-label="pDOOH Home">
-          <BrandLogo />
-        </Link>
+        <div className={styles.primaryRow}>
+          <Link href="/" aria-label="pDOOH Home" className={styles.brandLink}>
+            <BrandLogo />
+          </Link>
+        </div>
 
-        <div className="flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2">
-          {appLinks.map((link) => {
-            const isActive = pathname === link.href;
+        <div className={styles.actionGroup}>
+          <div className={`${styles.linksRow} flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2`}>
+            {appLinks.map((link) => {
+              const isActive = pathname === link.href;
 
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium transition sm:px-4 sm:text-sm ${
-                  isActive
-                    ? `${styles.navLinkActive} text-white`
-                    : "text-neutral-400 hover:bg-white/[0.06] hover:text-white"
-                }`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium transition sm:px-4 sm:text-sm ${
+                    isActive
+                      ? `${styles.navLinkActive} text-white`
+                      : "text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+                  }`}
+                >
+                  <span className={styles.fullLabel}>{link.label}</span>
+                  <span className={styles.mobileLabel}>{link.mobileLabel}</span>
+                </Link>
+              );
+            })}
+          </div>
 
-          <WalletButton />
+          <div className={styles.navAction}>
+            <WalletButton />
+          </div>
         </div>
       </div>
     </nav>

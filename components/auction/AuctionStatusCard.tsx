@@ -141,7 +141,7 @@ export default function AuctionStatusCard({
         </div>
 
         {shouldShowWinners && (
-          <div className="grid w-full gap-3 border-t border-white/10 pt-4 md:grid-cols-3">
+          <div className="auction-landscape-slot-grid grid w-full gap-3 border-t border-white/10 pt-4 md:grid-cols-3">
             {winners.map((winner, index) => {
               const isCurrentWinner = isLive && index === currentSlotIndex;
               const isCurrentBotWinner =
