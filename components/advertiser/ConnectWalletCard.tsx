@@ -1,3 +1,5 @@
+import ArcNetworkSwitchButton from "@/components/wallet/ArcNetworkSwitchButton";
+
 type ConnectWalletCardProps = {
   isWalletConnected: boolean;
   walletStatus: "restoring" | "connected" | "disconnected";
@@ -58,6 +60,8 @@ export default function ConnectWalletCard({
           {balanceText}
         </p>
       </div>
+
+      <ArcNetworkSwitchButton />
     </div>
   );
 }

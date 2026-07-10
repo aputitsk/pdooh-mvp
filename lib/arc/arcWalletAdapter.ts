@@ -1,7 +1,6 @@
 import {
   getCurrentChainId,
   parseChainId,
-  switchToArcTestnet,
 } from "./arcWalletNetwork";
 import type { ArcWalletState } from "./arcWalletTypes";
 import type { BrowserWalletProvider } from "./arcWalletDiscovery";
@@ -159,12 +158,7 @@ export async function syncArcWalletFromAppKit({
   const syncToken = ++activeSyncToken;
   let nextChainId = parseChainId(chainId);
 
-  try {
-    await switchToArcTestnet(provider);
-    nextChainId = await readProviderChainId(provider);
-  } catch {
-    nextChainId = (await readProviderChainId(provider)) ?? nextChainId;
-  }
+  nextChainId = (await readProviderChainId(provider)) ?? nextChainId;
 
   if (syncToken !== activeSyncToken) {
     return;

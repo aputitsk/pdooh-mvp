@@ -6,6 +6,10 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { getArcScanAddressUrl } from "@/lib/arc/arcScanUrls";
 import { isArcAppKitConfigured } from "@/lib/arc/arcAppKitConfig";
 import {
+  clearArcNetworkConnectionAttempt,
+  markArcNetworkConnectionAttempt,
+} from "@/lib/wallet/arcNetworkSwitchState";
+import {
   formatWalletAddress,
   getWalletState,
   logOutWallet,
@@ -14,6 +18,7 @@ import {
 } from "@/lib/wallet";
 import CopyButton from "@/components/ui/CopyButton";
 import ExternalLinkButton from "@/components/ui/ExternalLinkButton";
+import ArcNetworkSwitchButton from "@/components/wallet/ArcNetworkSwitchButton";
 
 const disconnectedWallet: WalletState = {
   status: "disconnected",
@@ -196,10 +201,12 @@ function AppKitWalletButton() {
 
   function handleConnectClick() {
     setConnectError(null);
+    markArcNetworkConnectionAttempt();
 
     void Promise.resolve()
       .then(() => open({ view: "Connect" }))
       .catch((error: unknown) => {
+        clearArcNetworkConnectionAttempt();
         setConnectError(
           error instanceof Error ? error.message : "Wallet connection failed"
         );
@@ -216,7 +223,10 @@ function AppKitWalletButton() {
 
   if (wallet.connected && wallet.address) {
     return (
-      <ConnectedWalletMenu wallet={wallet} onDisconnect={handleDisconnect} />
+      <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+        <ArcNetworkSwitchButton variant="compact" />
+        <ConnectedWalletMenu wallet={wallet} onDisconnect={handleDisconnect} />
+      </div>
     );
   }
 
