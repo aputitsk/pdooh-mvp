@@ -1,6 +1,7 @@
 import AuctionSettlementHeartbeat from "@/components/auction/AuctionSettlementHeartbeat";
 import Footer from "@/components/layout/Footer";
 import Navbar from "@/components/layout/Navbar";
+import AppKitWalletProvider from "@/components/wallet/AppKitWalletProvider";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -24,10 +25,14 @@ export default function RootLayout({
         className="min-h-full bg-[#05060A] text-white"
         suppressHydrationWarning
       >
-        <Navbar />
-        <AuctionSettlementHeartbeat />
-        {children}
-        <Footer />
+        <AppKitWalletProvider>
+          <div className="app-shell">
+            <Navbar />
+            <AuctionSettlementHeartbeat />
+            {children}
+            <Footer />
+          </div>
+        </AppKitWalletProvider>
       </body>
     </html>
   );

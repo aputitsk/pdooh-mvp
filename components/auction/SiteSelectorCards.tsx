@@ -57,7 +57,7 @@ export default function SiteSelectorCards({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="phone-landscape-card-grid grid gap-3 md:grid-cols-2">
         {SITE_CONFIGS.map((siteConfig) => {
           const isSelected = selectedSiteKey === siteConfig.siteKey;
           const theme = getMarketTheme(siteConfig.siteKey);

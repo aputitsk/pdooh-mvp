@@ -230,7 +230,7 @@ export default function AdvertiserPage() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-5">
+        <div className="phone-landscape-card-grid mt-8 grid gap-5">
           <ConnectWalletCard
             isWalletConnected={wallet.connected}
             walletStatus={wallet.status}

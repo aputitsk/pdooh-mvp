@@ -34,7 +34,7 @@ export default function ReadyForAuctionCard({
         {businessName} is ready to participate.
       </h2>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="phone-landscape-card-grid mt-6 grid gap-4 md:grid-cols-2">
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
           <p className="shrink-0 text-sm text-white/50">
             Advertisements

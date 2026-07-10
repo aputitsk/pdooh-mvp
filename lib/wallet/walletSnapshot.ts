@@ -8,7 +8,7 @@ type WalletSnapshotValue = {
 };
 
 const emptyWalletSnapshotValue: WalletSnapshotValue = {
-  status: "restoring",
+  status: "disconnected",
   connected: false,
   address: null,
   chainId: null,

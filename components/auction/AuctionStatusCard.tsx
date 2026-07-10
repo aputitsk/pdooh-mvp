@@ -120,7 +120,7 @@ export default function AuctionStatusCard({
   return (
     <div className="mb-6 rounded-3xl border border-white/10 bg-neutral-900 p-5">
       <div className="flex flex-col gap-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="phone-landscape-card-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FinancialRowItem label="Wallet" value={walletBalanceText} />
           <FinancialRowItem
             label="Escrow: Your auction deposit"
@@ -141,7 +141,7 @@ export default function AuctionStatusCard({
         </div>
 
         {shouldShowWinners && (
-          <div className="grid w-full gap-3 border-t border-white/10 pt-4 md:grid-cols-3">
+          <div className="phone-landscape-slot-grid grid w-full gap-3 border-t border-white/10 pt-4 md:grid-cols-3">
             {winners.map((winner, index) => {
               const isCurrentWinner = isLive && index === currentSlotIndex;
               const isCurrentBotWinner =
