@@ -97,7 +97,7 @@ export default function AuctionArea({
             winners={winners}
           />
 
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="auction-landscape-slot-grid grid gap-5 md:grid-cols-3">
             {slots.map((time, index) => (
               <AuctionSlotCard
                 key={time}

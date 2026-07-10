@@ -119,7 +119,7 @@ export function withArcSwitchTimeout<T>(promise: Promise<T>) {
     timeoutId = setTimeout(() => {
       reject(
         new Error(
-          "Wallet opened, but Arc Testnet was not activated. Reconnect wallet to enable Arc Testnet."
+          "Wallet opened, but Arc Testnet was not activated."
         )
       );
     }, ARC_SWITCH_TIMEOUT_MS);

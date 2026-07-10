@@ -144,6 +144,16 @@ export default function ArcNetworkSwitchButton({
     await open({ view: "Connect" });
   }
 
+  async function handleDisconnectWallet() {
+    clearArcNetworkSwitchState();
+
+    try {
+      await disconnect({ namespace: "eip155" });
+    } finally {
+      logOutWallet();
+    }
+  }
+
   const action = requiresReconnect ? handleReconnectWallet : handleSwitchToArc;
   const compactLabel = requiresReconnect
     ? "Reconnect wallet"
@@ -168,21 +178,41 @@ export default function ArcNetworkSwitchButton({
         >
           {compactLabel}
         </button>
+        {requiresReconnect ? (
+          <button
+            type="button"
+            onClick={() => void handleDisconnectWallet()}
+            className="rounded-full border border-yellow-100/25 px-3 py-1 text-xs font-bold text-yellow-100 transition hover:bg-yellow-100/10"
+          >
+            Disconnect
+          </button>
+        ) : null}
       </div>
     );
   }
 
   return (
     <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 p-4 text-sm text-yellow-100">
-      <p className="font-semibold">{message}</p>
-      <button
-        type="button"
-        onClick={() => void action()}
-        disabled={isSwitching}
-        className="mt-3 inline-flex min-h-10 items-center justify-center rounded-full bg-yellow-200 px-4 py-2 text-sm font-bold text-zinc-950 transition hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-70"
-      >
-        {cardLabel}
-      </button>
+      <p className="whitespace-pre-line font-semibold">{message}</p>
+      <div className="mt-3 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => void action()}
+          disabled={isSwitching}
+          className="inline-flex min-h-10 items-center justify-center rounded-full bg-yellow-200 px-4 py-2 text-sm font-bold text-zinc-950 transition hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-70"
+        >
+          {cardLabel}
+        </button>
+        {requiresReconnect ? (
+          <button
+            type="button"
+            onClick={() => void handleDisconnectWallet()}
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-yellow-100/25 px-4 py-2 text-sm font-bold text-yellow-100 transition hover:bg-yellow-100/10"
+          >
+            Disconnect
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

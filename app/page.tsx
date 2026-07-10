@@ -67,7 +67,7 @@ export default function Home() {
             Why Blockchain?
           </h2>
 
-          <div className="mt-4 grid gap-5 md:grid-cols-2">
+          <div className="home-landscape-card-grid mt-4 grid gap-5 md:grid-cols-2">
             {blockchainAdvantages.map((item) => (
               <div
                 key={item.title}

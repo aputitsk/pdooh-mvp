@@ -59,6 +59,20 @@ function getNestedErrorCode(error: unknown): number | string | null {
   return null;
 }
 
+function isUserRejectedError(code: number | string | null, message: string) {
+  const normalizedMessage = message.toLowerCase();
+
+  return (
+    code === 4001 ||
+    normalizedMessage.includes("user rejected") ||
+    normalizedMessage.includes("user denied") ||
+    normalizedMessage.includes("rejected")
+  );
+}
+
+const walletConnectReconnectMessage =
+  "Arc Testnet is not enabled for this wallet connection.\n\nReconnect your wallet to enable Arc Testnet.";
+
 export function markArcNetworkConnectionAttempt() {
   connectionAttemptId += 1;
   connectionAttempt = {
@@ -114,16 +128,20 @@ export function formatArcNetworkSwitchError(
     error instanceof Error ? error.message : typeof error === "string" ? error : "";
   const normalizedMessage = message.toLowerCase();
 
-  if (context?.isWalletConnect && context.sessionIncludesArc === false) {
-    return "Reconnect wallet to enable Arc Testnet";
+  if (
+    context?.isWalletConnect &&
+    (context.sessionIncludesArc === false ||
+      normalizedMessage.includes("not activated") ||
+      normalizedMessage.includes("does not allow") ||
+      normalizedMessage.includes("unsupported") ||
+      normalizedMessage.includes("unknown chain") ||
+      normalizedMessage.includes("unrecognized chain") ||
+      normalizedMessage.includes("not added"))
+  ) {
+    return walletConnectReconnectMessage;
   }
 
-  if (
-    code === 4001 ||
-    normalizedMessage.includes("user rejected") ||
-    normalizedMessage.includes("user denied") ||
-    normalizedMessage.includes("rejected")
-  ) {
+  if (isUserRejectedError(code, message)) {
     return "Network switch was rejected. You are still connected; switch to Arc Testnet when ready.";
   }
 
@@ -161,7 +179,14 @@ export function setArcNetworkSwitchError(
   context?: ArcNetworkSwitchErrorContext
 ) {
   const requiresReconnect =
-    Boolean(context?.isWalletConnect) && context?.sessionIncludesArc === false;
+    Boolean(context?.isWalletConnect) &&
+    !isUserRejectedError(
+      getNestedErrorCode(error),
+      error instanceof Error ? error.message : typeof error === "string" ? error : ""
+    ) &&
+    (context?.sessionIncludesArc === false ||
+      formatArcNetworkSwitchError(error, context) ===
+        walletConnectReconnectMessage);
 
   setSwitchState({
     status: requiresReconnect ? "reconnect_required" : "error",

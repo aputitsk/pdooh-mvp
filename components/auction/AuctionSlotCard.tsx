@@ -90,13 +90,13 @@ export default function AuctionSlotCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-lg border p-5 transition duration-200 ${marketTheme.slot.cardBackgroundClassName} ${cardStateClassName}`}
+      className={`auction-landscape-slot-card relative overflow-hidden rounded-lg border p-5 transition duration-200 ${marketTheme.slot.cardBackgroundClassName} ${cardStateClassName}`}
     >
       <div
         className={`absolute left-0 top-0 h-px w-full bg-gradient-to-r ${accentClassName}`}
       />
 
-      <div className="relative mb-5 flex items-start justify-between gap-4">
+      <div className="auction-landscape-slot-header relative mb-5 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="text-lg font-semibold tracking-normal text-white">
             Slot {slotNumber}
@@ -122,7 +122,7 @@ export default function AuctionSlotCard({
 
         <fieldset
           disabled={isLocked}
-          className="space-y-4 border-t border-white/10 pt-5 disabled:opacity-60"
+          className="auction-landscape-slot-fieldset space-y-4 border-t border-white/10 pt-5 disabled:opacity-60"
         >
           <AdvertisementSelect
             advertisements={advertisements}
