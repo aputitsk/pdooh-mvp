@@ -5,6 +5,7 @@ import AdvertisementCard from "@/components/advertisements/AdvertisementCard";
 import CreateAdvertisementCard from "@/components/advertisements/CreateAdvertisementCard";
 import EmptyAdvertisementsCard from "@/components/advertisements/EmptyAdvertisementsCard";
 import AppBackground from "@/components/layout/AppBackground";
+import styles from "./AdvertisementsPage.module.css";
 import {
   ADVERTISEMENT_NAME_MAX_LENGTH,
   addAdvertisement,
@@ -329,7 +330,9 @@ export default function AdvertisementsPage() {
           </div>
         )}
 
-        <div className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-1 lg:grid-cols-[380px_1fr]">
+        <div
+          className={`${styles.landscapeWorkspaceGrid} mt-8 grid gap-6 lg:grid-cols-[380px_1fr]`}
+        >
           <CreateAdvertisementCard
             adName={adName}
             errorMessage={errorMessage}
@@ -344,7 +347,9 @@ export default function AdvertisementsPage() {
               <EmptyAdvertisementsCard />
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-5 md:grid-cols-2">
+                <div
+                  className={`${styles.landscapeCardGrid} grid gap-5 md:grid-cols-2`}
+                >
                   {paginatedAdvertisements.map((advertisement) => (
                     <AdvertisementCard
                       key={`${advertisement.businessName}-${advertisement.name}`}

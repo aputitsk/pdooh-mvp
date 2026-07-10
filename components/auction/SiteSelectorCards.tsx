@@ -57,7 +57,7 @@ export default function SiteSelectorCards({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 landscape:[@media(max-height:560px)]:grid-cols-2">
         {SITE_CONFIGS.map((siteConfig) => {
           const isSelected = selectedSiteKey === siteConfig.siteKey;
           const theme = getMarketTheme(siteConfig.siteKey);

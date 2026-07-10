@@ -20,6 +20,7 @@ import {
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
 import { useSharedEscrowTemporaryReservedAmounts } from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
+import styles from "./AdvertiserPage.module.css";
 
 const subscribeToHydration = () => () => {};
 const getHydratedSnapshot = () => true;
@@ -209,7 +210,9 @@ export default function AdvertiserPage() {
   return (
     <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-5xl">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div
+          className={`${styles.landscapeIntroGrid} flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between`}
+        >
           <div>
             <p className="text-sm font-medium text-white/40">
               Advertiser onboarding
@@ -230,7 +233,7 @@ export default function AdvertiserPage() {
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-5 md:grid-cols-1">
+        <div className={`${styles.landscapeCardGrid} mt-8 grid gap-5`}>
           <ConnectWalletCard
             isWalletConnected={wallet.connected}
             walletStatus={wallet.status}

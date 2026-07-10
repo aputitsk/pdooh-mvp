@@ -20,7 +20,7 @@ const appLinks = [
   },
   {
     label: "Auction",
-    mobileLabel: "Live",
+    mobileLabel: "Auction",
     href: "/screen",
   },
 ];

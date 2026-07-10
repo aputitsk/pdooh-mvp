@@ -1,0 +1,17 @@
+.landscapeIntroGrid,
+.landscapeCardGrid {
+  min-width: 0;
+}
+
+@media (orientation: landscape) and (max-width: 960px) and (max-height: 560px) {
+  .landscapeIntroGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 1rem;
+  }
+
+  .landscapeCardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
