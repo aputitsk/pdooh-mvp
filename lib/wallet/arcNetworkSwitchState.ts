@@ -1,8 +1,19 @@
 "use client";
 
 export type ArcNetworkSwitchState = {
-  status: "idle" | "switching" | "error";
+  status: "idle" | "switching" | "error" | "reconnect_required";
   message: string | null;
+};
+
+export type ArcNetworkSwitchErrorContext = {
+  chainIdBefore?: number | null;
+  connectorId?: string | null;
+  connectorName?: string | null;
+  connectorType?: string | null;
+  connectorUid?: string | null;
+  isWalletConnect?: boolean;
+  sessionChainIds?: number[] | null;
+  sessionIncludesArc?: boolean | null;
 };
 
 type ArcNetworkConnectionAttempt = {
@@ -94,11 +105,18 @@ export function clearArcNetworkSwitchState() {
   setSwitchState(idleSwitchState);
 }
 
-export function formatArcNetworkSwitchError(error: unknown) {
+export function formatArcNetworkSwitchError(
+  error: unknown,
+  context?: ArcNetworkSwitchErrorContext
+) {
   const code = getNestedErrorCode(error);
   const message =
     error instanceof Error ? error.message : typeof error === "string" ? error : "";
   const normalizedMessage = message.toLowerCase();
+
+  if (context?.isWalletConnect && context.sessionIncludesArc === false) {
+    return "Reconnect wallet to enable Arc Testnet";
+  }
 
   if (
     code === 4001 ||
@@ -138,9 +156,15 @@ export function formatArcNetworkSwitchError(error: unknown) {
   return message || "Unable to switch to Arc Testnet. Use the button to try again.";
 }
 
-export function setArcNetworkSwitchError(error: unknown) {
+export function setArcNetworkSwitchError(
+  error: unknown,
+  context?: ArcNetworkSwitchErrorContext
+) {
+  const requiresReconnect =
+    Boolean(context?.isWalletConnect) && context?.sessionIncludesArc === false;
+
   setSwitchState({
-    status: "error",
-    message: formatArcNetworkSwitchError(error),
+    status: requiresReconnect ? "reconnect_required" : "error",
+    message: formatArcNetworkSwitchError(error, context),
   });
 }

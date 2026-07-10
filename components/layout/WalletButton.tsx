@@ -10,6 +10,11 @@ import {
   markArcNetworkConnectionAttempt,
 } from "@/lib/wallet/arcNetworkSwitchState";
 import {
+  clearWalletFlowNotice,
+  getWalletFlowNotice,
+  subscribeToWalletFlowNotice,
+} from "@/lib/wallet/walletFlowNoticeState";
+import {
   formatWalletAddress,
   getWalletState,
   logOutWallet,
@@ -47,6 +52,10 @@ function getWalletSnapshot() {
 
 function getServerWalletSnapshot() {
   return disconnectedWallet;
+}
+
+function getServerWalletFlowNotice() {
+  return null;
 }
 
 function WalletProjectMissingButton() {
@@ -198,9 +207,29 @@ function AppKitWalletButton() {
     getWalletSnapshot,
     getServerWalletSnapshot
   );
+  const walletFlowNotice = useSyncExternalStore(
+    subscribeToWalletFlowNotice,
+    getWalletFlowNotice,
+    getServerWalletFlowNotice
+  );
+
+  useEffect(() => {
+    if (!walletFlowNotice) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      clearWalletFlowNotice();
+    }, 5000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [walletFlowNotice]);
 
   function handleConnectClick() {
     setConnectError(null);
+    clearWalletFlowNotice();
     markArcNetworkConnectionAttempt();
 
     void Promise.resolve()
@@ -243,6 +272,12 @@ function AppKitWalletButton() {
       {connectError ? (
         <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-red-500/30 bg-zinc-950 px-4 py-3 text-sm font-medium text-red-300 shadow-xl shadow-black/40">
           {connectError}
+        </div>
+      ) : null}
+
+      {!connectError && walletFlowNotice ? (
+        <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-yellow-400/25 bg-zinc-950 px-4 py-3 text-sm font-medium text-yellow-200 shadow-xl shadow-black/40">
+          {walletFlowNotice}
         </div>
       ) : null}
     </div>

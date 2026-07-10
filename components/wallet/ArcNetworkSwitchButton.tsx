@@ -1,19 +1,26 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
-import { useSwitchChain } from "wagmi";
+import { useAppKit, useDisconnect } from "@reown/appkit/react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
 
 import { ARC_CHAIN_ID } from "@/lib/arc/arcConstants";
 import { arcAppKitNetwork } from "@/lib/arc/arcAppKitConfig";
 import {
   clearArcNetworkSwitchState,
   getArcNetworkSwitchState,
+  markArcNetworkConnectionAttempt,
   setArcNetworkSwitchError,
   setArcNetworkSwitching,
   subscribeToArcNetworkSwitchState,
 } from "@/lib/wallet/arcNetworkSwitchState";
 import {
+  getArcNetworkSwitchDiagnostics,
+  withArcSwitchTimeout,
+} from "@/lib/wallet/arcNetworkSwitchDiagnostics";
+import {
   getWalletState,
+  logOutWallet,
   subscribeToWalletChanges,
   type WalletState,
 } from "@/lib/wallet";
@@ -46,36 +53,108 @@ export default function ArcNetworkSwitchButton({
     getArcNetworkSwitchState,
     getArcNetworkSwitchState
   );
+  const account = useAccount();
+  const chainId = useChainId();
+  const chainIdRef = useRef(chainId);
+  const { open } = useAppKit();
+  const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
-  const [localError, setLocalError] = useState<string | null>(null);
   const isWrongNetwork =
     wallet.connected &&
     wallet.address &&
     wallet.chainId !== null &&
     wallet.chainId !== ARC_CHAIN_ID;
 
+  useEffect(() => {
+    chainIdRef.current = chainId;
+  }, [chainId]);
+
+  useEffect(() => {
+    if (chainId === ARC_CHAIN_ID) {
+      clearArcNetworkSwitchState();
+    }
+  }, [chainId]);
+
+  const isSwitching = networkSwitch.status === "switching";
+  const requiresReconnect = networkSwitch.status === "reconnect_required";
+  const message =
+    networkSwitch.message ??
+    "External wallet is not on Arc network.";
+
   if (!isWrongNetwork) {
     return null;
   }
 
-  const isSwitching = networkSwitch.status === "switching";
-  const message =
-    localError ??
-    networkSwitch.message ??
-    "External wallet is not on Arc network.";
-
   async function handleSwitchToArc() {
-    setLocalError(null);
     setArcNetworkSwitching();
 
     try {
-      await switchChainAsync({ chainId: arcAppKitNetwork.id });
-      clearArcNetworkSwitchState();
+      const diagnostics = await getArcNetworkSwitchDiagnostics({
+        chainIdBefore: chainId,
+        connector: account.connector,
+      });
+
+      if (!diagnostics.isWalletConnect) {
+        await switchChainAsync({ chainId: arcAppKitNetwork.id });
+        clearArcNetworkSwitchState();
+        return;
+      }
+
+      if (diagnostics.sessionIncludesArc === false) {
+        setArcNetworkSwitchError(
+          new Error("Arc Testnet is not included in this WalletConnect session."),
+          diagnostics
+        );
+        return;
+      }
+
+      await withArcSwitchTimeout(
+        switchChainAsync({ chainId: arcAppKitNetwork.id })
+      );
+
+      if (chainIdRef.current === arcAppKitNetwork.id) {
+        clearArcNetworkSwitchState();
+        return;
+      }
+
+      setArcNetworkSwitchError(
+        new Error("Wallet opened, but Arc Testnet was not activated."),
+        diagnostics
+      );
     } catch (error) {
-      setArcNetworkSwitchError(error);
-      setLocalError(getArcNetworkSwitchState().message);
+      const diagnostics = await getArcNetworkSwitchDiagnostics({
+        chainIdBefore: chainId,
+        connector: account.connector,
+      });
+
+      setArcNetworkSwitchError(error, diagnostics);
     }
   }
+
+  async function handleReconnectWallet() {
+    clearArcNetworkSwitchState();
+
+    try {
+      await disconnect({ namespace: "eip155" });
+    } finally {
+      logOutWallet();
+    }
+
+    markArcNetworkConnectionAttempt();
+    await open({ view: "Connect" });
+  }
+
+  const action = requiresReconnect ? handleReconnectWallet : handleSwitchToArc;
+  const compactLabel = requiresReconnect
+    ? "Reconnect wallet"
+    : isSwitching
+      ? "Switching..."
+      : "Switch to Arc";
+  const cardLabel = requiresReconnect
+    ? "Reconnect wallet"
+    : isSwitching
+      ? "Waiting for wallet..."
+      : "Switch to Arc Testnet";
 
   if (variant === "compact") {
     return (
@@ -83,11 +162,11 @@ export default function ArcNetworkSwitchButton({
         <span className="hidden max-w-48 truncate sm:inline">{message}</span>
         <button
           type="button"
-          onClick={() => void handleSwitchToArc()}
+          onClick={() => void action()}
           disabled={isSwitching}
           className="rounded-full bg-yellow-200 px-3 py-1 text-xs font-bold text-zinc-950 transition hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-70"
         >
-          {isSwitching ? "Switching..." : "Switch to Arc"}
+          {compactLabel}
         </button>
       </div>
     );
@@ -98,11 +177,11 @@ export default function ArcNetworkSwitchButton({
       <p className="font-semibold">{message}</p>
       <button
         type="button"
-        onClick={() => void handleSwitchToArc()}
+        onClick={() => void action()}
         disabled={isSwitching}
         className="mt-3 inline-flex min-h-10 items-center justify-center rounded-full bg-yellow-200 px-4 py-2 text-sm font-bold text-zinc-950 transition hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-70"
       >
-        {isSwitching ? "Waiting for wallet..." : "Switch to Arc Testnet"}
+        {cardLabel}
       </button>
     </div>
   );

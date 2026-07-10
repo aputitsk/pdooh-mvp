@@ -5,6 +5,7 @@ import {
   useAppKitAccount,
   useAppKitNetwork,
   useAppKitProvider,
+  useDisconnect,
 } from "@reown/appkit/react";
 import { type ReactNode, useEffect, useRef } from "react";
 import {
@@ -32,6 +33,11 @@ import {
   setArcNetworkSwitchError,
   setArcNetworkSwitching,
 } from "@/lib/wallet/arcNetworkSwitchState";
+import {
+  getArcNetworkSwitchDiagnostics,
+  withArcSwitchTimeout,
+} from "@/lib/wallet/arcNetworkSwitchDiagnostics";
+import { setWalletFlowNotice } from "@/lib/wallet/walletFlowNoticeState";
 import { arcAppKitModal } from "./arcAppKitClient";
 
 const queryClient = new QueryClient();
@@ -84,10 +90,15 @@ function AppKitNetworkAutoSwitch() {
   const { switchChainAsync } = useSwitchChain();
   const switchChainAsyncRef = useRef(switchChainAsync);
   const attemptedAutoSwitchKeyRef = useRef<string | null>(null);
+  const chainIdRef = useRef(chainId);
 
   useEffect(() => {
     switchChainAsyncRef.current = switchChainAsync;
   }, [switchChainAsync]);
+
+  useEffect(() => {
+    chainIdRef.current = chainId;
+  }, [chainId]);
 
   useEffect(() => {
     if (!account.isConnected || !account.address) {
@@ -131,28 +142,106 @@ function AppKitNetworkAutoSwitch() {
 
     let isCurrentSwitch = true;
 
-    void switchChainAsyncRef.current({ chainId: arcAppKitNetwork.id })
-      .then(() => {
-        if (isCurrentSwitch) {
+    void (async () => {
+      const diagnostics = await getArcNetworkSwitchDiagnostics({
+        chainIdBefore: chainId,
+        connector: account.connector,
+      });
+
+      if (!diagnostics.isWalletConnect) {
+        try {
+          await switchChainAsyncRef.current({ chainId: arcAppKitNetwork.id });
+
+          if (isCurrentSwitch) {
+            clearArcNetworkSwitchState();
+          }
+        } catch (error) {
+          if (isCurrentSwitch) {
+            setArcNetworkSwitchError(error);
+          }
+        }
+
+        return;
+      }
+
+      if (diagnostics.sessionIncludesArc === false) {
+        setArcNetworkSwitchError(
+          new Error("Arc Testnet is not included in this WalletConnect session."),
+          diagnostics
+        );
+        return;
+      }
+
+      try {
+        await withArcSwitchTimeout(
+          switchChainAsyncRef.current({ chainId: arcAppKitNetwork.id })
+        );
+
+        if (isCurrentSwitch && chainIdRef.current === arcAppKitNetwork.id) {
           clearArcNetworkSwitchState();
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         if (isCurrentSwitch) {
-          setArcNetworkSwitchError(error);
+          setArcNetworkSwitchError(error, diagnostics);
         }
-      });
+      }
+    })();
 
     return () => {
       isCurrentSwitch = false;
     };
   }, [
     account.address,
+    account.connector,
     account.connector?.id,
     account.connector?.uid,
     account.isConnected,
     chainId,
   ]);
+
+  return null;
+}
+
+function AppKitAccountChangeDisconnect() {
+  const account = useAccount();
+  const { disconnect } = useDisconnect();
+  const previousAddressRef = useRef<string | null>(null);
+  const isDisconnectingRef = useRef(false);
+
+  useEffect(() => {
+    const nextAddress = account.address?.toLowerCase() ?? null;
+
+    if (!account.isConnected) {
+      if (!isDisconnectingRef.current) {
+        previousAddressRef.current = null;
+      }
+      return;
+    }
+
+    if (!nextAddress) {
+      return;
+    }
+
+    if (!previousAddressRef.current) {
+      previousAddressRef.current = nextAddress;
+      return;
+    }
+
+    if (previousAddressRef.current === nextAddress || isDisconnectingRef.current) {
+      return;
+    }
+
+    isDisconnectingRef.current = true;
+    setWalletFlowNotice("Wallet account changed. Please reconnect.");
+    clearArcNetworkConnectionAttempt();
+    clearArcNetworkSwitchState();
+
+    void disconnect({ namespace: "eip155" }).finally(() => {
+      resetArcWalletFromAppKit();
+      previousAddressRef.current = null;
+      isDisconnectingRef.current = false;
+    });
+  }, [account.address, account.isConnected, disconnect]);
 
   return null;
 }
@@ -170,6 +259,7 @@ export default function AppKitWalletProvider({
     <WagmiProvider config={arcWagmiAdapter.wagmiConfig as Config}>
       <QueryClientProvider client={queryClient}>
         <AppKitNetworkAutoSwitch />
+        <AppKitAccountChangeDisconnect />
         <AppKitWalletBridge />
         {children}
       </QueryClientProvider>
