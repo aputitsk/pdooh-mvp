@@ -39,7 +39,7 @@ export default function TreasuryBalanceWidget() {
       <p className="text-[10px] font-medium uppercase tracking-widest text-white/40">
         Account Revenue
       </p>
-      <p className="mt-0.5 text-sm font-bold text-white">
+      <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-white">
         {formatSettlementRevenue(platformRevenue)} Test USDC
       </p>
       <p
@@ -47,11 +47,18 @@ export default function TreasuryBalanceWidget() {
           lastSuccessfulSettlement ? "text-emerald-400" : "text-white/35"
         }`}
       >
-        {lastSuccessfulSettlement
-          ? `+${formatLastSettlementAmount(
-              lastSuccessfulSettlement.result.amountMinorUnits
-            )} USDC  Last settlement`
-          : "No settlements yet"}
+        {lastSuccessfulSettlement ? (
+          <>
+            <span className="font-mono tabular-nums">
+              +{formatLastSettlementAmount(
+                lastSuccessfulSettlement.result.amountMinorUnits
+              )} USDC
+            </span>{" "}
+            Last settlement
+          </>
+        ) : (
+          "No settlements yet"
+        )}
       </p>
     </div>
   );

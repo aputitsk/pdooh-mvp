@@ -285,7 +285,11 @@ export default function EscrowDepositCard({
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
         <p className="text-sm text-white/50">Escrow Balance</p>
 
-        <p className="mt-1 break-words font-semibold text-white/80">
+        <p
+          className={`mt-1 break-words font-semibold text-white/80 ${
+            escrowBalanceStatus === "ready" ? "font-mono tabular-nums" : ""
+          }`}
+        >
           {escrowBalanceText}
         </p>
 
@@ -305,7 +309,9 @@ export default function EscrowDepositCard({
         {reservedAmount > 0 && (
           <p className="mt-2 text-xs font-medium text-amber-200">
             Reserved for active bids and unresolved settlements:{" "}
-            {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
+            <span className="font-mono tabular-nums">
+              {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
+            </span>
           </p>
         )}
       </div>
@@ -324,7 +330,7 @@ export default function EscrowDepositCard({
         onChange={(event) => setAmount(event.target.value)}
         disabled={isBusy}
         placeholder="1"
-        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-wait disabled:text-white/40"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono tabular-nums text-white outline-none disabled:cursor-wait disabled:text-white/40"
       />
 
       <div

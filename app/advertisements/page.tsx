@@ -344,7 +344,7 @@ export default function AdvertisementsPage() {
             onCreateAdvertisement={handleCreateAdvertisement}
           />
 
-          <div>
+          <div className={styles.landscapeAdvertisementsColumn}>
             {advertisements.length === 0 ? (
               <EmptyAdvertisementsCard />
             ) : (
@@ -379,7 +379,7 @@ export default function AdvertisementsPage() {
                 </div>
 
                 {shouldShowPagination && (
-                  <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
+                  <div className={`${styles.landscapePagination} mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between`}>
                     <button
                       type="button"
                       onClick={handlePreviousPage}

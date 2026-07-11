@@ -121,10 +121,17 @@ export default function AuctionStatusCard({
     <div className="mb-6 rounded-3xl border border-white/10 bg-neutral-900 p-5">
       <div className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <FinancialRowItem label="Wallet" value={walletBalanceText} />
+          <FinancialRowItem
+            label="Wallet"
+            value={walletBalanceText}
+            isValueMonospace={walletBalanceStatus === "ready"}
+          />
           <FinancialRowItem
             label="Escrow: Your auction deposit"
             value={escrowBalanceText}
+            isValueMonospace={
+              escrowBalanceStatus === "ready" && escrowBalance !== null
+            }
           />
           <FinancialRowItem
             label="Available for bids"
@@ -133,10 +140,12 @@ export default function AuctionStatusCard({
                 ? `${formatUSDCFromMinorUnits(availableAuctionCapacity)} Test USDC`
                 : "-"
             }
+            isValueMonospace={escrowBalanceStatus === "ready"}
           />
           <FinancialRowItem
             label="Reserved"
             value={`${formatUSDCFromMinorUnits(reservedAmount)} Test USDC`}
+            isValueMonospace
           />
         </div>
 
@@ -202,16 +211,24 @@ export default function AuctionStatusCard({
 function FinancialRowItem({
   label,
   value,
+  isValueMonospace = false,
 }: {
   label: string;
   value: string | null;
+  isValueMonospace?: boolean;
 }) {
   return (
     <div className="min-w-0">
       <p className="truncate text-sm font-semibold tracking-normal text-white/55">
         {label}
       </p>
-      <p className="mt-1 truncate text-sm font-semibold text-white">{value}</p>
+      <p
+        className={`mt-1 truncate text-sm font-semibold text-white ${
+          isValueMonospace ? "font-mono tabular-nums" : ""
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

@@ -78,7 +78,7 @@ export default function TreasuryTransferCard({
         onChange={(event) => setAmount(event.target.value)}
         disabled={isBusy}
         placeholder="1"
-        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-wait disabled:text-white/40"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono tabular-nums text-white outline-none disabled:cursor-wait disabled:text-white/40"
       />
 
       <button
@@ -109,7 +109,8 @@ export default function TreasuryTransferCard({
 
       {status === "pending" && transactionHash && (
         <p className="mt-4 break-all text-xs text-white/50">
-          Transaction: {transactionHash}
+          Transaction:{" "}
+          <span className="font-mono">{transactionHash}</span>
         </p>
       )}
 

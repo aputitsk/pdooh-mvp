@@ -50,7 +50,11 @@ export default function ReadyForAuctionCard({
             Escrow Balance
           </p>
 
-          <p className="min-w-0 truncate text-right text-xl font-bold">
+          <p
+            className={`min-w-0 truncate text-right text-xl font-bold ${
+              balanceStatus === "ready" ? "font-mono tabular-nums" : ""
+            }`}
+          >
             {balanceText}
           </p>
         </div>

@@ -102,7 +102,8 @@ export default function AuctionSlotCard({
             Slot {slotNumber}
           </h3>
           <p className="mt-2 inline-flex rounded-md border border-white/10 bg-black/25 px-2.5 py-1 text-xs font-semibold text-white/60">
-            {secondsRemaining} sec remaining
+            <span className="font-mono tabular-nums">{secondsRemaining}</span>
+            <span>&nbsp;sec remaining</span>
           </p>
         </div>
 

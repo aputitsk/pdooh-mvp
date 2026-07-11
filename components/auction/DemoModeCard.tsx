@@ -35,7 +35,8 @@ export default function DemoModeCard() {
 
         <p>
           To demonstrate competitive bidding, every auction includes a built-in
-          Demo Bot with a fixed, unchanging bid of 0.02 Test USDC.
+          Demo Bot with a fixed, unchanging bid of{" "}
+          <span className="font-mono tabular-nums">0.02 Test USDC</span>.
         </p>
       </div>
     </div>

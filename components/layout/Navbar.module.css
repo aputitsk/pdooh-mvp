@@ -128,3 +128,31 @@
     display: inline;
   }
 }
+
+@media (orientation: landscape) and (max-width: 960px) and (max-height: 560px) {
+  .navPanel {
+    gap: 0.75rem;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+
+  .brandLink > span {
+    gap: 0.5rem;
+  }
+
+  .brandLink img {
+    height: 2.75rem;
+  }
+
+  .brandLink span span {
+    font-size: 1rem;
+  }
+
+  .actionGroup {
+    flex-wrap: nowrap;
+  }
+
+  .linksRow {
+    flex-wrap: nowrap;
+  }
+}

@@ -58,7 +58,9 @@ export default function Home() {
             To demonstrate competitive bidding, every auction includes a
             built-in <span className="font-semibold text-white">Demo Bot</span>{" "}
             with a fixed bid of{" "}
-            <span className="font-semibold text-white">0.02 Test USDC</span>.
+            <span className="font-mono font-semibold tabular-nums text-white">
+              0.02 Test USDC
+            </span>.
           </p>
         </div>
 

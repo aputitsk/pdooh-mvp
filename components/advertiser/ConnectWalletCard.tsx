@@ -74,7 +74,11 @@ export default function ConnectWalletCard({
           </div>
         </div>
 
-        <p className="mt-1 break-words font-semibold text-white/80">
+        <p
+          className={`mt-1 break-words font-semibold text-white/80 ${
+            usdcBalanceStatus === "ready" ? "font-mono tabular-nums" : ""
+          }`}
+        >
           {balanceText}
         </p>
       </div>

@@ -35,6 +35,16 @@ function getSettlementSiteLabel(record: SettlementRecord) {
   return siteConfig ? `${marketName} / ${siteConfig.name}` : `${marketId} / ${siteId}`;
 }
 
+function isMemoValueMonospace(label: string) {
+  return (
+    label === "Settlement ID" ||
+    label === "Cycle" ||
+    label === "Slot" ||
+    label === "Advertiser" ||
+    label === "Amount"
+  );
+}
+
 export default function LatestSettlementCard({
   settlementRecords,
 }: LatestSettlementCardProps) {
@@ -113,6 +123,7 @@ export default function LatestSettlementCard({
         <div className="mt-3 h-[144px] overflow-y-auto pr-1 text-left">
           {memoRows.map(([label, value]) => {
             const isSettlementId = label === "Settlement ID";
+            const isMonospaceValue = isMemoValueMonospace(label);
 
             return (
               <div
@@ -123,7 +134,11 @@ export default function LatestSettlementCard({
                   {label}
                 </p>
                 <div className="mt-0.5 flex items-center gap-1.5">
-                  <p className="break-words font-mono text-[11px] leading-4 text-white/65">
+                  <p
+                    className={`break-words text-[11px] leading-4 text-white/65 ${
+                      isMonospaceValue ? "font-mono tabular-nums" : ""
+                    }`}
+                  >
                     {value}
                   </p>
                   {isSettlementId ? (
@@ -168,14 +183,14 @@ export default function LatestSettlementCard({
       </p>
 
       <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-        <p className="text-sm font-bold text-white">
+        <p className="font-mono text-sm font-bold tabular-nums text-white">
           {formatSettlementRevenue(platformRevenue)} Test USDC
         </p>
       </div>
 
       {lastSuccessfulSettlement ? (
         <>
-          <p className="mt-2 text-base font-bold text-white">
+          <p className="mt-2 font-mono text-base font-bold tabular-nums text-white">
             +{formatLastSettlementAmount(
               lastSuccessfulSettlement.result.amountMinorUnits
             )}{" "}
@@ -190,8 +205,11 @@ export default function LatestSettlementCard({
           <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-3">
             {lastSuccessfulSettlement.txHash ? (
               <div className="flex items-center justify-center gap-2">
-                <p className="font-mono text-[11px] text-white/50">
-                  Tx: {formatTransactionHash(lastSuccessfulSettlement.txHash)}
+                <p className="text-[11px] text-white/50">
+                  Tx:{" "}
+                  <span className="font-mono">
+                    {formatTransactionHash(lastSuccessfulSettlement.txHash)}
+                  </span>
                 </p>
                 <CopyButton
                   ariaLabel="Copy settlement transaction hash"

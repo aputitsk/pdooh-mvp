@@ -107,7 +107,7 @@ export default function SiteSelectorCards({
                   <h3 className="mt-4 flex min-w-0 items-baseline gap-2 overflow-hidden whitespace-nowrap text-xl font-semibold tracking-normal text-white">
                     <span className="shrink-0">{getMarketName(siteConfig)}</span>
                     <span className="shrink-0 text-white/35">/</span>
-                    <span className="truncate font-mono text-base font-semibold text-white/70">
+                    <span className="truncate text-base font-semibold text-white/70">
                       {siteConfig.name}
                     </span>
                   </h3>
