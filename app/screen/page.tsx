@@ -11,6 +11,7 @@ import LiveScreen from "@/components/auction/LiveScreen";
 import { getMarketTheme } from "@/components/auction/marketTheme";
 import SiteSelectorCards from "@/components/auction/SiteSelectorCards";
 import AppBackground from "@/components/layout/AppBackground";
+import { showSuccess } from "@/components/ui/SuccessToastProvider";
 import {
   getAvailableFromEscrowBalance,
   getTotalReservedAmount,
@@ -233,7 +234,10 @@ export default function ScreenPage() {
             ...currentBidErrors,
             [slotIndex]: result.error,
           }));
+          return;
         }
+
+        showSuccess("Bid submitted");
       } finally {
         setAuthorizingBidSlotIndex((currentSlotIndex) =>
           currentSlotIndex === slotIndex ? null : currentSlotIndex

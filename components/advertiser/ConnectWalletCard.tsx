@@ -6,6 +6,7 @@ type ConnectWalletCardProps = {
   usdcBalance: string;
   usdcBalanceStatus: "idle" | "loading" | "ready" | "error";
   usdcBalanceError: string | null;
+  faucetUrl: string;
 };
 
 export default function ConnectWalletCard({
@@ -14,6 +15,7 @@ export default function ConnectWalletCard({
   usdcBalance,
   usdcBalanceStatus,
   usdcBalanceError,
+  faucetUrl,
 }: ConnectWalletCardProps) {
   const isWalletRestoring = walletStatus === "restoring";
   const balanceText =
@@ -54,7 +56,23 @@ export default function ConnectWalletCard({
       </div>
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-        <p className="text-sm text-white/50">Arc Testnet USDC Balance</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <p className="text-sm text-white/50">Arc Testnet USDC Balance</p>
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/45 sm:justify-end sm:text-right">
+            <span>Need USDC?</span>
+            <a
+              href={faucetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-emerald-300 underline-offset-2 hover:underline"
+            >
+              Get Test USDC
+            </a>
+            <span aria-hidden="true">&middot;</span>
+            <span>Testnet USDC has no real value</span>
+          </div>
+        </div>
 
         <p className="mt-1 break-words font-semibold text-white/80">
           {balanceText}

@@ -240,6 +240,7 @@ export default function AdvertiserPage() {
             usdcBalance={walletUsdcBalance.formattedBalance}
             usdcBalanceStatus={walletUsdcBalance.status}
             usdcBalanceError={walletUsdcBalance.error}
+            faucetUrl={CIRCLE_FAUCET_URL}
           />
 
           {isWalletRestoring && (
@@ -266,20 +267,6 @@ export default function AdvertiserPage() {
                 onSaveBusinessNameEdit={handleSaveBusinessNameEdit}
                 onCancelBusinessNameEdit={handleCancelBusinessNameEdit}
               />
-
-              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-xs text-white/45">
-                <span>Need USDC for escrow?</span>
-                <a
-                  href={CIRCLE_FAUCET_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-emerald-300 underline-offset-2 hover:underline"
-                >
-                  Get Test USDC
-                </a>
-                <span aria-hidden="true">&middot;</span>
-                <span>Testnet USDC has no real value</span>
-              </div>
 
               <EscrowDepositCard
                 escrowBalance={walletEscrowBalance.formattedBalance}

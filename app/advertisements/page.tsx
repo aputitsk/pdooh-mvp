@@ -303,7 +303,9 @@ export default function AdvertisementsPage() {
   return (
     <AppBackground className="px-6 py-10">
       <section className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div
+          className={`${styles.landscapeHeaderGrid} flex flex-col gap-5 md:flex-row md:items-end md:justify-between`}
+        >
           <div>
             <p className="text-sm font-medium text-white/40">
               Advertisement workspace

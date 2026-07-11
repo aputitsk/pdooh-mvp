@@ -3,7 +3,7 @@
 :root {
   --background: #05060A;
   --foreground: #ffffff;
-  --font-family-sans: Arial, Helvetica, sans-serif;
+  --font-family-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   --font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 

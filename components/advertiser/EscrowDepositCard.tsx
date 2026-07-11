@@ -17,6 +17,7 @@ import {
   TransactionReceipt,
   TransactionReceiptRow,
 } from "@/components/advertiser/EscrowReceipt";
+import { showSuccess } from "@/components/ui/SuccessToastProvider";
 
 type EscrowActionStatus =
   | "idle"
@@ -159,6 +160,7 @@ export default function EscrowDepositCard({
       setStatus("success");
       setAmount("");
       onSuccess();
+      showSuccess("Deposit confirmed");
     } catch (depositError) {
       setStatus("error");
       setError(getErrorMessage(depositError));
@@ -210,6 +212,7 @@ export default function EscrowDepositCard({
       setStatus("withdraw_success");
       setAmount("");
       onSuccess();
+      showSuccess("Withdrawal confirmed");
     } catch (withdrawError) {
       setStatus("error");
       setError(getErrorMessage(withdrawError));
@@ -271,13 +274,6 @@ export default function EscrowDepositCard({
   }
 
   const hasReceiptTransactions = receiptTransactions.length > 0;
-  const confirmationMessage =
-    status === "success"
-      ? "Escrow deposit confirmed"
-      : status === "withdraw_success"
-        ? "Escrow withdraw confirmed"
-        : null;
-
   return (
     <div className="rounded-3xl border border-blue-400/30 bg-blue-400/[0.06] p-6">
       <p className="text-sm font-medium text-white/40">Step 3</p>
@@ -359,25 +355,7 @@ export default function EscrowDepositCard({
         )}
       </div>
 
-      {confirmationMessage ? (
-        <div className="mt-4 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm font-semibold">
-          <span className="text-emerald-300">{confirmationMessage}</span>
-          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-0.5 text-[11px] text-emerald-200">
-            Final on Arc Testnet
-          </span>
-          {hasReceiptTransactions ? (
-            <button
-              type="button"
-              aria-expanded={isReceiptOpen}
-              aria-controls="escrow-transaction-receipt"
-              onClick={() => setIsReceiptOpen((isOpen) => !isOpen)}
-              className="text-sm font-semibold text-emerald-300 underline-offset-2 hover:underline"
-            >
-              {isReceiptOpen ? "Hide receipt" : "View receipt"}
-            </button>
-          ) : null}
-        </div>
-      ) : hasReceiptTransactions ? (
+      {hasReceiptTransactions ? (
         <div className="mt-4 flex items-center">
           <button
             type="button"
