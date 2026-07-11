@@ -51,7 +51,7 @@ export default function SiteSelectorCards({
           <p className="text-[10px] font-semibold uppercase tracking-widest text-white/45">
             Market / Site
           </p>
-          <h2 className="mt-1 text-lg font-semibold tracking-normal text-white">
+          <h2 className="mt-1 text-lg font-semibold tracking-normal text-[#CFE8FF]">
             Select operating venue
           </h2>
         </div>
@@ -104,7 +104,7 @@ export default function SiteSelectorCards({
                     )}
                   </div>
 
-                  <h3 className="mt-4 flex min-w-0 items-baseline gap-2 overflow-hidden whitespace-nowrap text-xl font-semibold tracking-normal text-white">
+                  <h3 className="mt-4 flex min-w-0 items-baseline gap-2 overflow-hidden whitespace-nowrap text-xl font-semibold tracking-normal text-[#CFE8FF]">
                     <span className="shrink-0">{getMarketName(siteConfig)}</span>
                     <span className="shrink-0 text-white/35">/</span>
                     <span className="truncate text-base font-semibold text-white/70">

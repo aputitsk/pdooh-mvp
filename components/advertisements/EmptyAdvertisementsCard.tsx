@@ -5,7 +5,7 @@ export default function EmptyAdvertisementsCard() {
         📺
       </div>
 
-      <h2 className="mt-6 text-3xl font-bold text-white">
+      <h2 className="mt-6 text-3xl font-bold text-[#CFE8FF]">
         No advertisements yet
       </h2>
 

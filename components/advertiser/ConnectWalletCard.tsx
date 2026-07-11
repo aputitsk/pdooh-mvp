@@ -32,7 +32,7 @@ export default function ConnectWalletCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-white/40">Step 1</p>
-          <h2 className="mt-1 text-2xl font-bold">External Wallet</h2>
+          <h2 className="mt-1 text-2xl font-bold text-[#CFE8FF]">External Wallet</h2>
           <p className="mt-2 text-sm text-white/50">
             Wallet connection is managed from the top navigation bar.
           </p>

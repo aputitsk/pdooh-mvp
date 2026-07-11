@@ -30,7 +30,7 @@ export default function ReadyForAuctionCard({
         Ready for Auction
       </p>
 
-      <h2 className="mt-2 text-2xl font-bold">
+      <h2 className="mt-2 text-2xl font-bold text-[#CFE8FF]">
         {businessName} is ready to participate.
       </h2>
 

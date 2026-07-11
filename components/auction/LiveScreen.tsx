@@ -73,7 +73,11 @@ export default function LiveScreen({
 
         {isLive && (
           <div className="pointer-events-none absolute right-4 top-4 z-20 rounded-md border border-white/10 bg-black/35 px-2.5 py-1 text-xs font-semibold tracking-normal text-white/55 shadow-[0_0_18px_rgba(255,255,255,0.08)] backdrop-blur-sm">
-            {locationName} · Slot {slotNumber}
+            <span className="text-emerald-300">● NOW PLAYING</span>
+            <span className="mx-1.5 text-white/25">/</span>
+            <span>
+              {locationName} · Slot {slotNumber}
+            </span>
           </div>
         )}
 

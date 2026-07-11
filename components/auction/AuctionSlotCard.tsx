@@ -98,7 +98,7 @@ export default function AuctionSlotCard({
 
       <div className="auction-landscape-slot-header relative mb-5 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold tracking-normal text-white">
+          <h3 className="text-lg font-semibold tracking-normal text-[#CFE8FF]">
             Slot {slotNumber}
           </h3>
           <p className="mt-2 inline-flex rounded-md border border-white/10 bg-black/25 px-2.5 py-1 text-xs font-semibold text-white/60">

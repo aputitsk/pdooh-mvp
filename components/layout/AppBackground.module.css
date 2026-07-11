@@ -14,24 +14,24 @@
 }
 
 .background::before {
-  opacity: 0.045;
+  opacity: 0.16;
   background:
     linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.55) 1px,
+      rgba(125, 190, 225, 0.16) 1px,
       transparent 1px
     ),
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.48) 1px,
+      rgba(125, 190, 225, 0.13) 1px,
       transparent 1px
     ),
     linear-gradient(
       180deg,
-      rgba(90, 141, 255, 0.5) 0,
-      rgba(90, 141, 255, 0.5) 1px,
+      rgba(185, 225, 255, 0.1) 0,
+      rgba(185, 225, 255, 0.1) 1px,
       transparent 1px,
-      transparent 7px
+      transparent 8px
     );
   background-position:
     center,
@@ -40,27 +40,24 @@
   background-size:
     64px 64px,
     64px 64px,
-    100% 8px;
-  mix-blend-mode: screen;
+    100% 9px;
 }
 
 .background::after {
-  opacity: 0;
-  background:
-    radial-gradient(
-      circle at 50% 34%,
-      rgba(79, 140, 255, 0.5),
-      transparent 42%
-    ),
-    linear-gradient(
-      180deg,
-      transparent,
-      rgba(255, 255, 255, 0.18) 50%,
-      transparent
-    );
-  mix-blend-mode: screen;
-  transform: translateY(1.5%);
-  animation: oledBackgroundPulse 13.5s ease-in-out infinite;
+  opacity: 0.2;
+  background: linear-gradient(
+    112deg,
+    transparent 0%,
+    transparent 16%,
+    rgba(125, 190, 225, 0.04) 32%,
+    rgba(215, 240, 255, 0.24) 48%,
+    rgba(90, 145, 230, 0.08) 60%,
+    transparent 80%,
+    transparent 100%
+  );
+  background-size: 210% 100%;
+  filter: blur(30px);
+  animation: screenReflectionSweep 34s linear infinite;
 }
 
 .content {
@@ -68,27 +65,29 @@
   z-index: 1;
 }
 
-@keyframes oledBackgroundPulse {
-  0%,
-  72%,
-  100% {
+@keyframes screenReflectionSweep {
+  0% {
+    background-position: 150% 0;
     opacity: 0;
-    transform: translateY(1.5%) scale(1);
   }
 
-  82% {
-    opacity: 0.04;
-    transform: translateY(0) scale(1.01);
+  12% {
+    opacity: 0.2;
   }
 
-  90% {
-    opacity: 0.018;
-    transform: translateY(-0.6%) scale(1.006);
+  88% {
+    opacity: 0.2;
+  }
+
+  100% {
+    background-position: -75% 0;
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .background::after {
     animation: none;
+    opacity: 0.035;
   }
 }

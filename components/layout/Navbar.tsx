@@ -68,7 +68,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium text-neutral-400 transition hover:bg-white/[0.06] hover:text-white sm:px-4 sm:text-sm`}
+                  className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium text-[#CFE8FF] transition hover:bg-white/[0.06] hover:text-[#CFE8FF] sm:px-4 sm:text-sm`}
                 >
                   <span className={styles.fullLabel}>{link.label}</span>
                   <span className={styles.mobileLabel}>{link.mobileLabel}</span>
@@ -107,8 +107,8 @@ export default function Navbar() {
                   href={link.href}
                   className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium transition sm:px-4 sm:text-sm ${
                     isActive
-                      ? `${styles.navLinkActive} text-white`
-                      : "text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+                      ? `${styles.navLinkActive} text-[#CFE8FF]`
+                      : "text-[#CFE8FF] hover:bg-white/[0.06] hover:text-[#CFE8FF]"
                   }`}
                 >
                   <span className={styles.fullLabel}>{link.label}</span>

@@ -15,7 +15,7 @@ export default function AdvertisementsCard({
       <div>
         <p className="text-sm text-white/40">Step 4</p>
 
-        <h2 className="mt-1 text-2xl font-bold">Advertisements</h2>
+        <h2 className="mt-1 text-2xl font-bold text-[#CFE8FF]">Advertisements</h2>
 
         <p className="mt-2 text-sm text-white/50">
           Create, manage, and delete advertisements in the dedicated

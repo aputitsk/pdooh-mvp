@@ -22,7 +22,7 @@ export default function CreateAdvertisementCard({
       <div>
         <p className="text-sm text-white/40">Create</p>
 
-        <h2 className="mt-1 text-2xl font-bold">
+        <h2 className="mt-1 text-2xl font-bold text-[#CFE8FF]">
           Create New Advertisement
         </h2>
 

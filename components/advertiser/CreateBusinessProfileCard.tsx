@@ -39,7 +39,7 @@ export default function CreateBusinessProfileCard({
         <div className="min-w-0 flex-1">
           <p className="text-sm text-white/40">Step 2</p>
 
-          <h2 className="mt-1 text-2xl font-bold">
+          <h2 className="mt-1 text-2xl font-bold text-[#CFE8FF]">
             Create Business Profile
           </h2>
 

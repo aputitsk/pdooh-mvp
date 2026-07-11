@@ -64,7 +64,7 @@ export default function AdvertisementCard({
               )}
             </>
           ) : (
-            <h2 className="mt-2 break-words text-2xl font-bold text-white">
+            <h2 className="mt-2 break-normal text-2xl font-bold text-[#CFE8FF]">
               {advertisement.name}
             </h2>
           )}

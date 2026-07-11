@@ -60,7 +60,7 @@ export default function TreasuryTransferCard({
 
   return (
     <div className="rounded-3xl border border-amber-400/30 bg-amber-400/[0.06] p-6">
-      <h2 className="text-xl font-bold">Send real USDC to pDOOH Treasury</h2>
+      <h2 className="text-xl font-bold text-[#CFE8FF]">Send real USDC to pDOOH Treasury</h2>
 
       <p className="mt-2 text-sm text-amber-100/70">
         Warning: this submits a real Arc Testnet transaction from your

@@ -7,7 +7,7 @@ export default function DemoModeCard() {
             Demo Mode
           </p>
 
-          <h2 className="mt-1 text-2xl font-bold">
+          <h2 className="mt-1 text-2xl font-bold text-[#CFE8FF]">
             Auction Rules
           </h2>
         </div>

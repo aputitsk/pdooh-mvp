@@ -75,7 +75,7 @@ export default function Home() {
                 key={item.title}
                 className="rounded-2xl border border-[#4F8CFF]/35 bg-[#10284D]/45 p-5 text-left shadow-[0_0_10px_#4F8CFF18]"
               >
-                <h3 className="text-base font-semibold leading-6 text-[#E7F0FF]">
+                <h3 className="text-base font-semibold leading-6 text-[#CFE8FF]">
                   {item.title}
                 </h3>
 

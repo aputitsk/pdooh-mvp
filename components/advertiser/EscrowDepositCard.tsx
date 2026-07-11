@@ -278,7 +278,7 @@ export default function EscrowDepositCard({
     <div className="rounded-3xl border border-blue-400/30 bg-blue-400/[0.06] p-6">
       <p className="text-sm font-medium text-white/40">Step 3</p>
 
-      <h2 className="mt-2 text-xl font-bold">
+      <h2 className="mt-2 text-xl font-bold text-[#CFE8FF]">
         Escrow Deposit Test USDC
       </h2>
 
