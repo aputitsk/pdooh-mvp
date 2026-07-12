@@ -19,43 +19,18 @@ body {
   margin: 0;
   min-height: 100%;
   background:
-    linear-gradient(145deg, #02040b 0%, #050914 48%, #030712 100%);
+    radial-gradient(circle at 20% 0%, rgba(34, 211, 238, 0.12) 0, transparent 32rem),
+    radial-gradient(circle at 82% 12%, rgba(90, 141, 255, 0.1) 0, transparent 30rem),
+    linear-gradient(145deg, #02040b 0%, #050914 52%, #030712 100%);
   color: #ffffff;
 }
 
 body {
-  position: relative;
-  isolation: isolate;
   font-family: var(--font-family-sans);
-}
-
-body::before,
-body::after {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  content: "";
-}
-
-body::before {
-  opacity: 1;
-  background: radial-gradient(
-    ellipse 105rem 68rem at 24% -12%,
-    rgba(34, 211, 238, 0.12),
-    rgba(37, 99, 235, 0.07) 42%,
-    transparent 74%
-  );
-}
-
-body::after {
-  opacity: 0.11;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 0.025'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .app-shell {
   position: relative;
-  z-index: 1;
   min-height: 100vh;
 }
 
