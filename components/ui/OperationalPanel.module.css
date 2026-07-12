@@ -1,0 +1,265 @@
+.panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(125 190 225 / 22%);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgb(7 17 32 / 94%), rgb(3 8 18 / 97%));
+  box-shadow:
+    0 18px 44px rgb(0 0 0 / 28%),
+    inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+
+.panel::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(34 211 238 / 46%),
+    rgb(79 140 255 / 36%),
+    transparent
+  );
+  content: "";
+}
+
+.panelReady {
+  border-color: rgb(74 222 128 / 30%);
+  background:
+    linear-gradient(180deg, rgb(6 28 24 / 92%), rgb(3 10 17 / 97%));
+}
+
+.panelWarning {
+  border-color: rgb(96 165 250 / 32%);
+}
+
+.panelDashed {
+  border-style: dashed;
+  border-color: rgb(125 190 225 / 20%);
+}
+
+.metric {
+  border: 1px solid rgb(125 190 225 / 14%);
+  border-radius: 10px;
+  background: rgb(1 7 16 / 58%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
+}
+
+.eventPanel {
+  border: 1px solid rgb(125 190 225 / 14%);
+  border-radius: 10px;
+  background: rgb(1 7 16 / 48%);
+}
+
+.eyebrow {
+  color: rgb(184 199 232 / 54%);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  color: #d9ecff;
+  letter-spacing: 0;
+}
+
+.mutedText {
+  color: rgb(214 226 255 / 58%);
+}
+
+.valueLabel {
+  color: rgb(184 199 232 / 58%);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.valueText {
+  color: rgb(255 255 255 / 86%);
+  font-weight: 700;
+}
+
+.valuePositive {
+  color: rgb(134 239 172 / 96%);
+}
+
+.statusPill {
+  border: 1px solid rgb(125 190 225 / 16%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 6%);
+  color: rgb(214 226 255 / 62%);
+}
+
+.statusPillSuccess {
+  border-color: rgb(74 222 128 / 18%);
+  background: rgb(34 197 94 / 10%);
+  color: rgb(134 239 172 / 90%);
+}
+
+.statusPillInfo {
+  border-color: rgb(125 190 225 / 18%);
+  background: rgb(125 190 225 / 8%);
+  color: rgb(214 226 255 / 70%);
+}
+
+.statusStrip {
+  border: 1px solid rgb(125 190 225 / 14%);
+  border-radius: 10px;
+  background: rgb(1 7 16 / 50%);
+  color: rgb(214 226 255 / 68%);
+}
+
+.statusStripWarning {
+  border-color: rgb(251 191 36 / 24%);
+  background: rgb(251 191 36 / 8%);
+  color: rgb(254 243 199 / 82%);
+}
+
+.statusStripError {
+  border-color: rgb(248 113 113 / 26%);
+  background: rgb(248 113 113 / 9%);
+  color: rgb(254 202 202 / 90%);
+}
+
+.statusStripSuccess {
+  border-color: rgb(74 222 128 / 22%);
+  background: rgb(34 197 94 / 9%);
+  color: rgb(187 247 208 / 88%);
+}
+
+.field {
+  border: 1px solid rgb(125 190 225 / 16%);
+  border-radius: 10px;
+  background: rgb(1 7 16 / 66%);
+  color: #ffffff;
+  outline: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.field:focus {
+  border-color: rgb(34 211 238 / 46%);
+  background: rgb(2 12 25 / 78%);
+  box-shadow:
+    0 0 0 1px rgb(34 211 238 / 16%),
+    inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+
+.field:disabled {
+  cursor: default;
+  color: rgb(255 255 255 / 40%);
+}
+
+.fieldError {
+  border-color: rgb(248 113 113 / 72%);
+}
+
+.fieldError:focus {
+  border-color: rgb(248 113 113 / 86%);
+  box-shadow: 0 0 0 1px rgb(248 113 113 / 20%);
+}
+
+.primaryAction {
+  border: 1px solid rgb(125 190 225 / 35%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #9bdcff 0%, #5a8dff 100%);
+  color: #020617;
+  box-shadow:
+    0 12px 26px rgb(79 140 255 / 18%),
+    inset 0 1px 0 rgb(255 255 255 / 55%);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.primaryAction:hover:not(:disabled) {
+  border-color: rgb(207 232 255 / 58%);
+  background: linear-gradient(180deg, #b9ecff 0%, #72a2ff 100%);
+  box-shadow:
+    0 14px 30px rgb(79 140 255 / 24%),
+    inset 0 1px 0 rgb(255 255 255 / 64%);
+}
+
+.primaryAction:disabled {
+  cursor: not-allowed;
+  border-color: rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 8%);
+  color: rgb(255 255 255 / 34%);
+  box-shadow: none;
+}
+
+.secondaryAction {
+  border: 1px solid rgb(125 190 225 / 18%);
+  border-radius: 999px;
+  background: rgb(1 7 16 / 58%);
+  color: rgb(214 226 255 / 78%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.secondaryAction:hover:not(:disabled) {
+  border-color: rgb(34 211 238 / 35%);
+  background: rgb(8 24 43 / 82%);
+  color: #ffffff;
+}
+
+.secondaryAction:disabled {
+  cursor: not-allowed;
+  border-color: rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 6%);
+  color: rgb(255 255 255 / 32%);
+}
+
+.successAction {
+  border: 1px solid rgb(74 222 128 / 24%);
+  border-radius: 999px;
+  background: rgb(34 197 94 / 12%);
+  color: rgb(134 239 172 / 94%);
+}
+
+.dangerAction {
+  border: 1px solid rgb(248 113 113 / 22%);
+  border-radius: 999px;
+  background: rgb(127 29 29 / 12%);
+  color: rgb(252 165 165 / 88%);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.dangerAction:hover:not(:disabled) {
+  border-color: rgb(248 113 113 / 48%);
+  background: rgb(127 29 29 / 24%);
+  color: rgb(254 202 202 / 98%);
+}
+
+.dangerAction:disabled {
+  cursor: not-allowed;
+  border-color: rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 6%);
+  color: rgb(255 255 255 / 32%);
+}
+
+.textAction {
+  color: rgb(134 239 172 / 92%);
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.textAction:hover {
+  text-decoration: underline;
+}

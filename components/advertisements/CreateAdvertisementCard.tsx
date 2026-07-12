@@ -1,4 +1,5 @@
 import { ADVERTISEMENT_NAME_MAX_LENGTH } from "@/lib/advertisements/advertisements";
+import styles from "@/components/ui/OperationalPanel.module.css";
 
 type CreateAdvertisementCardProps = {
   adName: string;
@@ -18,15 +19,15 @@ export default function CreateAdvertisementCard({
   onCreateAdvertisement,
 }: CreateAdvertisementCardProps) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+    <div className={`${styles.panel} p-6`}>
       <div>
-        <p className="text-sm text-white/40">Create</p>
+        <p className={styles.eyebrow}>Create</p>
 
-        <h2 className="mt-1 text-2xl font-bold text-[#CFE8FF]">
+        <h2 className={`${styles.title} mt-1 text-2xl font-bold`}>
           Create New Advertisement
         </h2>
 
-        <p className="mt-2 text-sm text-white/50">
+        <p className={`${styles.mutedText} mt-2 text-sm`}>
           Create a simple text advertisement for the MVP.
         </p>
       </div>
@@ -41,7 +42,7 @@ export default function CreateAdvertisementCard({
         disabled={isDisabled}
         maxLength={ADVERTISEMENT_NAME_MAX_LENGTH}
         placeholder="Summer Sale"
-        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none disabled:cursor-not-allowed disabled:text-white/40"
+        className={`${styles.field} mt-2 w-full px-4 py-3 disabled:cursor-not-allowed`}
       />
 
       <p className="mt-2 text-right text-xs text-white/40">
@@ -49,7 +50,7 @@ export default function CreateAdvertisementCard({
       </p>
 
       {errorMessage && (
-        <p className="mt-2 text-sm text-red-400">
+        <p className={`${styles.statusStrip} ${styles.statusStripError} mt-2 px-3 py-2 text-sm font-medium`}>
           {errorMessage}
         </p>
       )}
@@ -58,10 +59,10 @@ export default function CreateAdvertisementCard({
         type="button"
         onClick={onCreateAdvertisement}
         disabled={isDisabled || isCreateSuccessVisible}
-        className={`mt-5 w-full rounded-full px-6 py-3 font-semibold transition disabled:cursor-not-allowed ${
+        className={`mt-5 w-full px-6 py-3 font-semibold disabled:cursor-not-allowed ${
           isCreateSuccessVisible
-            ? "bg-emerald-500/20 text-emerald-300"
-            : "bg-white text-black hover:bg-white/80 disabled:bg-white/20 disabled:text-white/40"
+            ? styles.successAction
+            : styles.primaryAction
         }`}
       >
         {isCreateSuccessVisible ? "✓ Created" : "Create Advertisement"}

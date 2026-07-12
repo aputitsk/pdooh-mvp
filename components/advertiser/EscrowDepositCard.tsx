@@ -18,6 +18,7 @@ import {
   TransactionReceiptRow,
 } from "@/components/advertiser/EscrowReceipt";
 import { showSuccess } from "@/components/ui/SuccessToastProvider";
+import styles from "@/components/ui/OperationalPanel.module.css";
 
 type EscrowActionStatus =
   | "idle"
@@ -275,18 +276,18 @@ export default function EscrowDepositCard({
 
   const hasReceiptTransactions = receiptTransactions.length > 0;
   return (
-    <div className="rounded-3xl border border-blue-400/30 bg-blue-400/[0.06] p-6">
-      <p className="text-sm font-medium text-white/40">Step 3</p>
+    <div className={`${styles.panel} ${styles.panelWarning} p-6`}>
+      <p className={styles.eyebrow}>Step 3</p>
 
-      <h2 className="mt-2 text-xl font-bold text-[#CFE8FF]">
+      <h2 className={`${styles.title} mt-2 text-xl font-bold`}>
         Escrow Deposit Test USDC
       </h2>
 
-      <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-        <p className="text-sm text-white/50">Escrow Balance</p>
+      <div className={`${styles.metric} mt-5 p-4`}>
+        <p className={styles.valueLabel}>Escrow Balance</p>
 
         <p
-          className={`mt-1 break-words font-semibold text-white/80 ${
+          className={`${styles.valueText} mt-2 break-words text-lg ${
             escrowBalanceStatus === "ready" ? "font-mono tabular-nums" : ""
           }`}
         >
@@ -307,7 +308,7 @@ export default function EscrowDepositCard({
         ) : null}
 
         {reservedAmount > 0 && (
-          <p className="mt-2 text-xs font-medium text-amber-200">
+          <p className={`${styles.statusStrip} ${styles.statusStripWarning} mt-3 px-3 py-2 text-xs font-medium`}>
             Reserved for active bids and unresolved settlements:{" "}
             <span className="font-mono tabular-nums">
               {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
@@ -330,7 +331,7 @@ export default function EscrowDepositCard({
         onChange={(event) => setAmount(event.target.value)}
         disabled={isBusy}
         placeholder="1"
-        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono tabular-nums text-white outline-none disabled:cursor-wait disabled:text-white/40"
+        className={`${styles.field} mt-2 w-full px-4 py-3 font-mono tabular-nums disabled:cursor-wait`}
       />
 
       <div
@@ -344,7 +345,7 @@ export default function EscrowDepositCard({
           type="button"
           onClick={handleDeposit}
           disabled={isBusy}
-          className="min-h-12 w-full rounded-full bg-blue-300 px-6 py-3 font-semibold text-black transition hover:bg-blue-200 disabled:cursor-wait disabled:bg-white/10 disabled:text-white/40"
+          className={`${styles.primaryAction} min-h-12 w-full px-6 py-3 font-semibold disabled:cursor-wait`}
         >
           {buttonLabel}
         </button>
@@ -354,7 +355,7 @@ export default function EscrowDepositCard({
             type="button"
             onClick={handleWithdraw}
             disabled={isBusy}
-            className="min-h-12 w-full rounded-full border border-white/10 bg-black/30 px-6 py-3 font-semibold text-white/80 transition hover:border-white/25 hover:bg-white/10 disabled:cursor-wait disabled:border-white/10 disabled:bg-white/10 disabled:text-white/40"
+            className={`${styles.secondaryAction} min-h-12 w-full px-6 py-3 font-semibold disabled:cursor-wait`}
           >
             {withdrawButtonLabel}
           </button>
@@ -368,7 +369,7 @@ export default function EscrowDepositCard({
             aria-expanded={isReceiptOpen}
             aria-controls="escrow-transaction-receipt"
             onClick={() => setIsReceiptOpen((isOpen) => !isOpen)}
-            className="text-sm font-semibold text-emerald-300 underline-offset-2 hover:underline"
+            className={`${styles.textAction} text-sm`}
           >
             {isReceiptOpen ? "Hide receipt" : "View receipt"}
           </button>
@@ -392,7 +393,9 @@ export default function EscrowDepositCard({
       ) : null}
 
       {status === "error" && error && (
-        <p className="mt-4 text-sm text-red-300">{error}</p>
+        <p className={`${styles.statusStrip} ${styles.statusStripError} mt-4 px-3 py-2 text-sm font-medium`}>
+          {error}
+        </p>
       )}
     </div>
   );

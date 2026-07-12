@@ -5,6 +5,7 @@ import AdvertisementCard from "@/components/advertisements/AdvertisementCard";
 import CreateAdvertisementCard from "@/components/advertisements/CreateAdvertisementCard";
 import EmptyAdvertisementsCard from "@/components/advertisements/EmptyAdvertisementsCard";
 import AppBackground from "@/components/layout/AppBackground";
+import operationalStyles from "@/components/ui/OperationalPanel.module.css";
 import styles from "./AdvertisementsPage.module.css";
 import {
   ADVERTISEMENT_NAME_MAX_LENGTH,
@@ -27,7 +28,7 @@ const emptyAdvertisements: Advertisement[] = [];
 const advertisementStoreEventName = "pdooh-advertisements-store-change";
 const ADVERTISEMENTS_PAGE_SIZE = 6;
 const paginationButtonClassName =
-  "rounded-full border border-[#4F8CFF]/35 bg-[#10284D]/45 px-4 py-2 font-semibold text-[#E7F0FF] shadow-[0_0_10px_#4F8CFF18] transition hover:border-[#5A8DFF]/55 hover:bg-[#183B6A]/55 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-white/30 disabled:shadow-none";
+  `${operationalStyles.secondaryAction} px-4 py-2 font-semibold`;
 
 let cachedAdvertisements = emptyAdvertisements;
 let cachedAdvertisementsJson = "";
@@ -321,13 +322,13 @@ export default function AdvertisementsPage() {
             </p>
           </div>
 
-          <div className="rounded-full border border-[#4F8CFF]/35 bg-[#10284D]/45 px-5 py-3 text-sm font-semibold text-[#E7F0FF] shadow-[0_0_10px_#4F8CFF18]">
+          <div className={`${operationalStyles.statusPill} ${operationalStyles.statusPillInfo} px-5 py-3 text-sm font-semibold`}>
             {advertisementCount} {advertisementLabel}
           </div>
         </div>
 
         {!walletConnected && !isWalletRestoring && (
-          <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm font-medium text-yellow-300">
+          <div className={`${operationalStyles.statusStrip} ${operationalStyles.statusStripWarning} mt-6 p-4 text-sm font-medium`}>
             Connect your wallet to create or delete advertisements.
           </div>
         )}
@@ -379,7 +380,7 @@ export default function AdvertisementsPage() {
                 </div>
 
                 {shouldShowPagination && (
-                  <div className={`${styles.landscapePagination} mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between`}>
+                  <div className={`${styles.landscapePagination} ${operationalStyles.panel} mt-5 flex flex-col gap-3 px-4 py-3 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between`}>
                     <button
                       type="button"
                       onClick={handlePreviousPage}

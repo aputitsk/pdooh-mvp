@@ -13,6 +13,7 @@ import {
 import { getArcScanTransactionUrl } from "@/lib/arc/arcScanUrls";
 import { MARKET_CONFIGS, SITE_CONFIGS } from "@/lib/auction/siteConfig";
 import CopyButton from "@/components/ui/CopyButton";
+import styles from "@/components/ui/OperationalPanel.module.css";
 
 type LatestSettlementCardProps = {
   settlementRecords: readonly SettlementRecord[];
@@ -115,8 +116,8 @@ export default function LatestSettlementCard({
     ] as const;
 
     return (
-      <div className="h-[220px] rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-center shadow-sm shadow-black/10">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-white/40">
+      <div className={`${styles.panel} h-[220px] px-4 py-3 text-center`}>
+        <p className={styles.valueLabel}>
           Settlement Memo
         </p>
 
@@ -130,12 +131,12 @@ export default function LatestSettlementCard({
                 key={label}
                 className="border-t border-white/10 py-1.5 first:border-t-0 first:pt-0"
               >
-                <p className="text-[10px] font-medium uppercase tracking-widest text-white/35">
+                <p className={styles.valueLabel}>
                   {label}
                 </p>
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <p
-                    className={`break-words text-[11px] leading-4 text-white/65 ${
+                    className={`break-words text-[11px] leading-4 text-white/70 ${
                       isMonospaceValue ? "font-mono tabular-nums" : ""
                     }`}
                   >
@@ -168,7 +169,7 @@ export default function LatestSettlementCard({
         <button
           type="button"
           onClick={() => setIsViewingMemo(false)}
-          className="mt-2 text-[11px] font-semibold text-emerald-300 underline-offset-2 hover:underline"
+          className={`${styles.textAction} mt-2 text-[11px]`}
         >
           Back
         </button>
@@ -177,32 +178,32 @@ export default function LatestSettlementCard({
   }
 
   return (
-    <div className="h-[220px] rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-center shadow-sm shadow-black/10">
-      <p className="text-[11px] font-medium uppercase tracking-widest text-white/40">
-        [Account Revenue] - [Latest Settlement] - [Memo]
+    <div className={`${styles.panel} h-[220px] px-4 py-3 text-center`}>
+      <p className={styles.valueLabel}>
+        Account Revenue
       </p>
 
-      <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-        <p className="font-mono text-sm font-bold tabular-nums text-white">
+      <div className={`${styles.metric} mt-2 px-3 py-2`}>
+        <p className={`${styles.valueText} font-mono text-sm tabular-nums`}>
           {formatSettlementRevenue(platformRevenue)} Test USDC
         </p>
       </div>
 
       {lastSuccessfulSettlement ? (
         <>
-          <p className="mt-2 font-mono text-base font-bold tabular-nums text-white">
+          <p className={`${styles.valuePositive} mt-2 font-mono text-base font-bold tabular-nums`}>
             +{formatLastSettlementAmount(
               lastSuccessfulSettlement.result.amountMinorUnits
             )}{" "}
             Test USDC
           </p>
           {lastSettlementSiteLabel && (
-            <p className="mt-1 text-xs font-semibold text-emerald-300">
+            <p className="mt-1 text-xs font-semibold text-white">
               {lastSettlementSiteLabel}
             </p>
           )}
 
-          <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className={`${styles.eventPanel} mt-2 p-3`}>
             {lastSuccessfulSettlement.txHash ? (
               <div className="flex items-center justify-center gap-2">
                 <p className="text-[11px] text-white/50">
@@ -242,7 +243,7 @@ export default function LatestSettlementCard({
                   href={getArcScanTransactionUrl(lastSuccessfulSettlement.txHash)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] font-semibold text-emerald-300 underline-offset-2 hover:underline"
+                  className={`${styles.textAction} text-[11px]`}
                 >
                   View on ArcScan
                 </a>
@@ -250,7 +251,7 @@ export default function LatestSettlementCard({
               <button
                 type="button"
                 onClick={() => setIsViewingMemo(true)}
-                className="text-[11px] font-semibold text-emerald-300 underline-offset-2 hover:underline"
+                className={`${styles.textAction} text-[11px]`}
               >
                 View memo
               </button>
@@ -258,7 +259,7 @@ export default function LatestSettlementCard({
           </div>
         </>
       ) : (
-        <p className="mt-3 text-[11px] leading-4 text-white/40">
+        <p className={`${styles.statusStrip} mt-3 px-3 py-2 text-[11px] leading-4`}>
           No settlements yet.
         </p>
       )}

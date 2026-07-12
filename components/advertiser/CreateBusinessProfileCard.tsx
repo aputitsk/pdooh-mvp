@@ -1,3 +1,5 @@
+import styles from "@/components/ui/OperationalPanel.module.css";
+
 type CreateBusinessProfileCardProps = {
   businessName: string;
   editableBusinessName?: string;
@@ -34,12 +36,12 @@ export default function CreateBusinessProfileCard({
     isBusinessProfileCreated && !isEditingBusinessName;
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+    <div className={`${styles.panel} p-6`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-white/40">Step 2</p>
+          <p className={styles.eyebrow}>Step 2</p>
 
-          <h2 className="mt-1 text-2xl font-bold text-[#CFE8FF]">
+          <h2 className={`${styles.title} mt-1 text-2xl font-bold`}>
             Create Business Profile
           </h2>
 
@@ -53,10 +55,9 @@ export default function CreateBusinessProfileCard({
                       onEditableBusinessNameChange?.(event.target.value)
                     }
                     maxLength={20}
-                    className={`mt-3 w-full rounded-xl border bg-black/30 px-4 py-3 text-white outline-none transition ${
-                      showBusinessNameError
-                        ? "border-red-500 focus:border-red-500"
-                        : "border-white/10 focus:border-white/30"
+                    className={`mt-3 w-full px-4 py-3 ${
+                      styles.field
+                    } ${showBusinessNameError ? styles.fieldError : ""
                     }`}
                   />
 
@@ -65,7 +66,7 @@ export default function CreateBusinessProfileCard({
                   </p>
 
                   {showBusinessNameError && (
-                    <p className="mt-2 text-sm text-red-400">
+                    <p className={`${styles.statusStrip} ${styles.statusStripError} mt-2 px-3 py-2 text-sm font-medium`}>
                       Business name is required.
                     </p>
                   )}
@@ -77,17 +78,17 @@ export default function CreateBusinessProfileCard({
               )}
             </>
           ) : (
-            <p className="mt-2 text-sm text-white/50">
+            <p className={`${styles.mutedText} mt-2 text-sm`}>
               One connected wallet can create one business profile.
             </p>
           )}
         </div>
 
         <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+          className={`${styles.statusPill} px-3 py-1 text-xs font-semibold ${
             isBusinessProfileCreated
-              ? "bg-green-500/10 text-green-400"
-              : "bg-white/10 text-white/50"
+              ? styles.statusPillSuccess
+              : ""
           }`}
         >
           {isBusinessProfileCreated ? "Created" : "Required"}
@@ -106,10 +107,9 @@ export default function CreateBusinessProfileCard({
             disabled={isInputDisabled}
             maxLength={20}
             placeholder="Miami Retail Group"
-            className={`mt-2 w-full rounded-xl border bg-black/30 px-4 py-3 text-white outline-none transition disabled:cursor-default disabled:text-white/40 ${
-              showBusinessNameError
-                ? "border-red-500 focus:border-red-500"
-                : "border-white/10 focus:border-white/30"
+            className={`mt-2 w-full px-4 py-3 ${
+              styles.field
+            } ${showBusinessNameError ? styles.fieldError : ""
             }`}
           />
 
@@ -118,7 +118,7 @@ export default function CreateBusinessProfileCard({
           </p>
 
           {showBusinessNameError && (
-            <p className="mt-2 text-sm text-red-400">
+            <p className={`${styles.statusStrip} ${styles.statusStripError} mt-2 px-3 py-2 text-sm font-medium`}>
               Business name is required.
             </p>
           )}
@@ -127,7 +127,7 @@ export default function CreateBusinessProfileCard({
 
       {isBusinessProfileCreated ? (
         <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-white/40">
+          <p className={styles.valueLabel}>
             Business profile
           </p>
 
@@ -138,7 +138,7 @@ export default function CreateBusinessProfileCard({
                   type="button"
                   onClick={onSaveBusinessNameEdit}
                   disabled={isEditDisabled}
-                  className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+                  className={`${styles.primaryAction} px-4 py-2 text-sm font-semibold`}
                 >
                   Save
                 </button>
@@ -147,7 +147,7 @@ export default function CreateBusinessProfileCard({
                   type="button"
                   onClick={onCancelBusinessNameEdit}
                   disabled={isEditDisabled}
-                  className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                  className={`${styles.secondaryAction} px-4 py-2 text-sm font-semibold`}
                 >
                   Cancel
                 </button>
@@ -157,7 +157,7 @@ export default function CreateBusinessProfileCard({
                 type="button"
                 onClick={onStartBusinessNameEdit}
                 disabled={isEditDisabled}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                className={`${styles.secondaryAction} px-4 py-2 text-sm font-semibold`}
               >
                 Edit
               </button>
@@ -169,7 +169,7 @@ export default function CreateBusinessProfileCard({
           type="button"
           onClick={onCreateBusinessProfile}
           disabled={isBusinessProfileCreated}
-          className="mt-5 min-h-12 w-full rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+          className={`${styles.primaryAction} mt-5 min-h-12 w-full px-6 py-3 font-semibold`}
         >
           Create Business Profile
         </button>

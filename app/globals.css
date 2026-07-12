@@ -19,9 +19,10 @@ body {
   margin: 0;
   min-height: 100%;
   background:
-    radial-gradient(circle at 20% 0%, rgba(34, 211, 238, 0.12) 0, transparent 32rem),
-    radial-gradient(circle at 82% 12%, rgba(90, 141, 255, 0.1) 0, transparent 30rem),
-    linear-gradient(145deg, #02040b 0%, #050914 52%, #030712 100%);
+    radial-gradient(ellipse 62rem 38rem at 10% -12%, rgba(34, 211, 238, 0.34) 0, transparent 66%),
+    radial-gradient(ellipse 58rem 38rem at 94% 88%, rgba(79, 140, 255, 0.28) 0, transparent 68%),
+    radial-gradient(ellipse 42rem 28rem at 48% 38%, rgba(16, 185, 129, 0.1) 0, transparent 70%),
+    linear-gradient(145deg, #01030a 0%, #07172a 48%, #02050f 100%);
   color: #ffffff;
 }
 

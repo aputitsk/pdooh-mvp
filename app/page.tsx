@@ -1,4 +1,5 @@
 import AppBackground from "@/components/layout/AppBackground";
+import styles from "@/components/ui/OperationalPanel.module.css";
 
 const blockchainAdvantages = [
   {
@@ -18,46 +19,47 @@ const blockchainAdvantages = [
     text: "The architecture can support on-chain proof-of-play verification for displayed ads.",
   },
 ];
+
 export default function Home() {
   return (
     <AppBackground className="px-6 py-8">
       <section className="relative mx-auto flex min-h-[82vh] max-w-6xl flex-col items-center justify-center">
-        <div className="text-center">
-          <div className="mb-5 rounded-full border border-[#4F8CFF]/35 bg-[#10284D]/45 px-4 py-2 text-sm text-[#E7F0FF] shadow-[0_0_10px_#4F8CFF18]">
-            Built for Arc · Test USDC · Demo Mode
+        <div className="w-full text-center">
+          <div className={`${styles.statusPill} ${styles.statusPillInfo} mx-auto inline-flex px-4 py-2 text-sm font-semibold`}>
+            Built for Arc <span className="mx-2 text-white/25">/</span> Test
+            USDC <span className="mx-2 text-white/25">/</span> Demo Mode
           </div>
-          <h1 className="text-3xl font-bold tracking-tight md:text-5xl">
+
+          <h1 className="mt-5 text-3xl font-bold tracking-tight md:text-5xl">
             pDOOH Auction Demo
           </h1>
 
-          <div className="mx-auto mt-5 max-w-[60rem] rounded-2xl border border-neutral-800 bg-neutral-900/40 px-4 py-4 text-left text-xs leading-5 text-white/70 lg:whitespace-nowrap lg:text-sm lg:leading-6">
-            <span className="font-semibold text-white">
-              Digital Out-of-Home (DOOH)
-            </span>{" "}
-            is digital advertising displayed on public screens such as billboards,
-            shopping malls, airports, and transit stations.
+          <div className={`${styles.panel} mx-auto mt-6 max-w-[60rem] px-5 py-4 text-left`}>
+            <p className={styles.valueLabel}>Digital Out-of-Home</p>
+            <p className={`${styles.mutedText} mt-2 text-sm leading-6`}>
+              <span className={styles.valueText}>
+                Digital Out-of-Home (DOOH)
+              </span>{" "}
+              is digital advertising displayed on public screens such as
+              billboards, shopping malls, airports, and transit stations.
+            </p>
           </div>
         </div>
 
-        <div className="mt-8 w-full max-w-[60rem] space-y-5 text-left text-base leading-8 text-white/65">
-          <p>
+        <div className={`${styles.panel} mt-6 w-full max-w-[60rem] px-5 py-5 text-left`}>
+          <p className={`${styles.mutedText} text-base leading-8`}>
             This application demonstrates a simplified pDOOH advertising auction
-            running on Arc Testnet. It showcases the auction workflow, escrow
-            deposits, automated settlement, and wallet integration rather than
-            a complete production advertising platform.
-          </p>
-
-          <p>
-            The application uses{" "}
-            <span className="font-semibold text-white">Test USDC</span>{" "}
-            as the payment currency for advertising placements and for network
-            transaction fees on Arc Testnet.
-          </p>
-
-          <p>
-            To demonstrate competitive bidding, every auction includes a
-            built-in <span className="font-semibold text-white">Demo Bot</span>{" "}
-            with a fixed bid of{" "}
+            running on{" "}
+            <span className="font-semibold text-white">Arc Testnet</span>. It
+            showcases the auction workflow, escrow deposits, automated
+            settlement, and wallet integration rather than a complete production
+            advertising platform. The application uses{" "}
+            <span className="font-semibold text-white">Test USDC</span> as the
+            payment currency for advertising placements and for network
+            transaction fees. To demonstrate competitive bidding, every auction
+            includes a built-in{" "}
+            <span className="font-semibold text-white">Demo Bot</span> with a
+            fixed bid of{" "}
             <span className="font-mono font-semibold tabular-nums text-white">
               0.02 Test USDC
             </span>.
@@ -65,7 +67,7 @@ export default function Home() {
         </div>
 
         <div className="mt-7 w-full max-w-6xl">
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className={`${styles.valueLabel} text-left`}>
             Why Blockchain?
           </h2>
 
@@ -73,13 +75,13 @@ export default function Home() {
             {blockchainAdvantages.map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-[#4F8CFF]/35 bg-[#10284D]/45 p-5 text-left shadow-[0_0_10px_#4F8CFF18]"
+                className={`${styles.panel} p-5 text-left`}
               >
-                <h3 className="text-base font-semibold leading-6 text-[#CFE8FF]">
+                <h3 className={`${styles.title} text-base font-semibold leading-6`}>
                   {item.title}
                 </h3>
 
-                <p className="mt-3 text-sm leading-6 text-[#B8C7E8]">
+                <p className={`${styles.mutedText} mt-3 text-sm leading-6`}>
                   {item.text}
                 </p>
               </div>

@@ -20,6 +20,7 @@ import {
 import { useDemoAdvertiserStore } from "@/lib/advertiser/demoAdvertiserStore";
 import { useSharedEscrowTemporaryReservedAmounts } from "@/lib/auction";
 import { useWalletEscrowBalance, useWalletUsdcBalance } from "@/lib/wallet";
+import cardStyles from "@/components/ui/OperationalPanel.module.css";
 import styles from "./AdvertiserPage.module.css";
 
 const subscribeToHydration = () => () => {};
@@ -244,7 +245,7 @@ export default function AdvertiserPage() {
           />
 
           {isWalletRestoring && (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+            <div className={`${cardStyles.panel} p-6`}>
               <div className="h-5 w-32 rounded-full bg-white/10" />
               <div className="mt-4 h-8 w-64 rounded-full bg-white/10" />
               <div className="mt-5 h-12 rounded-xl bg-white/5" />

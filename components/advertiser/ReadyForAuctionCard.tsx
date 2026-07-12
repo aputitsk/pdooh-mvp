@@ -1,4 +1,5 @@
 import Link from "next/link";
+import styles from "@/components/ui/OperationalPanel.module.css";
 
 type ReadyForAuctionCardProps = {
   businessName: string;
@@ -25,33 +26,33 @@ export default function ReadyForAuctionCard({
           : "Connect wallet";
 
   return (
-    <div className="rounded-3xl border border-green-500/30 bg-green-500/10 p-6">
-      <p className="text-sm font-semibold text-green-400">
+    <div className={`${styles.panel} ${styles.panelReady} p-6`}>
+      <p className={`${styles.statusPill} ${styles.statusPillSuccess} inline-flex px-3 py-1 text-xs font-semibold`}>
         Ready for Auction
       </p>
 
-      <h2 className="mt-2 text-2xl font-bold text-[#CFE8FF]">
+      <h2 className={`${styles.title} mt-2 text-2xl font-bold`}>
         {businessName} is ready to participate.
       </h2>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-          <p className="shrink-0 text-sm text-white/50">
+        <div className={`${styles.metric} flex items-center justify-between gap-4 p-4`}>
+          <p className={`${styles.valueLabel} shrink-0`}>
             Advertisements
           </p>
 
-          <p className="shrink-0 text-xl font-bold">
+          <p className={`${styles.valueText} shrink-0 text-xl`}>
             {advertisementCount}
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-          <p className="shrink-0 text-sm text-white/50">
+        <div className={`${styles.metric} flex items-center justify-between gap-4 p-4`}>
+          <p className={`${styles.valueLabel} shrink-0`}>
             Escrow Balance
           </p>
 
           <p
-            className={`min-w-0 truncate text-right text-xl font-bold ${
+            className={`${styles.valueText} min-w-0 truncate text-right text-xl ${
               balanceStatus === "ready" ? "font-mono tabular-nums" : ""
             }`}
           >
@@ -60,22 +61,17 @@ export default function ReadyForAuctionCard({
         </div>
       </div>
 
-      <p className="mt-6 text-sm text-white/60">
-        Your business profile meets all requirements to participate in the
-        pDOOH auction.
-      </p>
-
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link
           href="/advertisements"
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+          className={`${styles.secondaryAction} inline-flex min-h-12 w-full items-center justify-center px-6 py-3 font-semibold`}
         >
           Open Advertisements
         </Link>
 
         <Link
           href="/screen"
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:bg-white/80"
+          className={`${styles.primaryAction} inline-flex min-h-12 w-full items-center justify-center px-6 py-3 font-semibold`}
         >
           Go to Auction
         </Link>

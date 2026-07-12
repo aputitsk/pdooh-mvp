@@ -2,6 +2,7 @@ import {
   ADVERTISEMENT_NAME_MAX_LENGTH,
   type Advertisement,
 } from "@/lib/advertisements/advertisements";
+import styles from "@/components/ui/OperationalPanel.module.css";
 
 type AdvertisementCardProps = {
   advertisement: Advertisement;
@@ -31,10 +32,10 @@ export default function AdvertisementCard({
   onDelete,
 }: AdvertisementCardProps) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 transition hover:border-white/20">
+    <div className={`${styles.panel} p-6 transition hover:border-[#7dbee1]/35`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-xs uppercase tracking-widest text-white/40">
+          <p className={styles.eyebrow}>
             Advertisement
           </p>
 
@@ -46,10 +47,9 @@ export default function AdvertisementCard({
                   onEditableNameChange?.(event.target.value)
                 }
                 maxLength={ADVERTISEMENT_NAME_MAX_LENGTH}
-                className={`mt-2 w-full rounded-xl border bg-black/30 px-4 py-3 text-white outline-none transition ${
-                  errorMessage
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-white/10 focus:border-white/30"
+                className={`mt-2 w-full px-4 py-3 ${
+                  styles.field
+                } ${errorMessage ? styles.fieldError : ""
                 }`}
               />
 
@@ -58,32 +58,28 @@ export default function AdvertisementCard({
               </p>
 
               {errorMessage && (
-                <p className="mt-2 text-sm text-red-400">
+                <p className={`${styles.statusStrip} ${styles.statusStripError} mt-2 px-3 py-2 text-sm font-medium`}>
                   {errorMessage}
                 </p>
               )}
             </>
           ) : (
-            <h2 className="mt-2 break-normal text-2xl font-bold text-[#CFE8FF]">
+            <h2 className={`${styles.title} mt-2 break-normal text-2xl font-bold`}>
               {advertisement.name}
             </h2>
           )}
 
-          <p className="mt-2 break-words text-sm text-white/50">
+          <p className={`${styles.mutedText} mt-2 break-words text-sm`}>
             {advertisement.businessName}
           </p>
         </div>
 
-        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+        <span className={`${styles.statusPill} ${styles.statusPillSuccess} px-3 py-1 text-xs font-semibold`}>
           Ready for Auction
         </span>
       </div>
 
       <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-white/40">
-          Available for bidding
-        </p>
-
         <div className="flex flex-wrap gap-3">
           {isEditing ? (
             <>
@@ -91,7 +87,7 @@ export default function AdvertisementCard({
                 type="button"
                 onClick={() => onSaveEdit?.(advertisement.name)}
                 disabled={isEditDisabled}
-                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+                className={`${styles.primaryAction} px-4 py-2 text-sm font-semibold`}
               >
                 Save
               </button>
@@ -100,7 +96,7 @@ export default function AdvertisementCard({
                 type="button"
                 onClick={onCancelEdit}
                 disabled={isEditDisabled}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+                className={`${styles.secondaryAction} px-4 py-2 text-sm font-semibold`}
               >
                 Cancel
               </button>
@@ -110,7 +106,7 @@ export default function AdvertisementCard({
               type="button"
               onClick={() => onStartEdit?.(advertisement.name)}
               disabled={isEditDisabled}
-              className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:text-white/30"
+              className={`${styles.secondaryAction} px-4 py-2 text-sm font-semibold`}
             >
               Edit
             </button>
@@ -120,7 +116,7 @@ export default function AdvertisementCard({
             type="button"
             onClick={() => onDelete(advertisement.name)}
             disabled={isDeleteDisabled}
-            className="rounded-full border border-red-500/20 px-4 py-2 text-sm font-semibold text-red-300 transition hover:border-red-400 hover:text-red-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-white/30"
+            className={`${styles.dangerAction} px-4 py-2 text-sm font-semibold`}
           >
             Delete
           </button>
