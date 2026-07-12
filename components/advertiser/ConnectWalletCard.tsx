@@ -60,8 +60,7 @@ export default function ConnectWalletCard({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <p className={styles.valueLabel}>Arc Testnet USDC Balance</p>
 
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/45 sm:justify-end sm:text-right">
-            <span>Need USDC?</span>
+          <p className="text-xs text-white/45 sm:text-right">
             <a
               href={faucetUrl}
               target="_blank"
@@ -70,9 +69,9 @@ export default function ConnectWalletCard({
             >
               Get Test USDC
             </a>
-            <span aria-hidden="true">&middot;</span>
-            <span>Testnet USDC has no real value</span>
-          </div>
+            {" "}
+            Testnet USDC has no real value.
+          </p>
         </div>
 
         <p
