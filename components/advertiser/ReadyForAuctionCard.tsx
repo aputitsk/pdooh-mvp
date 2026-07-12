@@ -17,9 +17,7 @@ export default function ReadyForAuctionCard({
   balanceError,
 }: ReadyForAuctionCardProps) {
   const balanceText =
-    balanceStatus === "ready"
-      ? `${balance} Test USDC`
-      : balanceStatus === "loading"
+    balanceStatus === "loading"
         ? "Reading balance..."
         : balanceStatus === "error"
           ? balanceError
@@ -56,7 +54,16 @@ export default function ReadyForAuctionCard({
               balanceStatus === "ready" ? "font-mono tabular-nums" : ""
             }`}
           >
-            {balanceText}
+            {balanceStatus === "ready" ? (
+              <span className="inline-flex min-w-0 items-baseline justify-end gap-1 whitespace-nowrap">
+                <span>{balance}</span>
+                <span className="text-[0.55rem] font-semibold text-white/45">
+                  Test USDC
+                </span>
+              </span>
+            ) : (
+              balanceText
+            )}
           </p>
         </div>
       </div>

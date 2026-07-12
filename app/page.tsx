@@ -30,12 +30,11 @@ export default function Home() {
             USDC <span className="mx-2 text-white/25">/</span> Demo Mode
           </div>
 
-          <h1 className="mt-5 text-3xl font-bold tracking-tight md:text-5xl">
+          <h1 className="mt-5 text-2xl font-bold tracking-tight md:text-4xl">
             pDOOH Auction Demo
           </h1>
 
           <div className={`${styles.panel} mx-auto mt-6 max-w-[60rem] px-5 py-4 text-left`}>
-            <p className={styles.valueLabel}>Digital Out-of-Home</p>
             <p className={`${styles.mutedText} mt-2 text-sm leading-6`}>
               <span className={styles.valueText}>
                 Digital Out-of-Home (DOOH)
