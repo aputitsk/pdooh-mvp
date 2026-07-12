@@ -9,13 +9,16 @@ type AdvertisementCardProps = {
   editableName?: string;
   errorMessage?: string;
   isEditing?: boolean;
+  isDeleteConfirming?: boolean;
   isDeleteDisabled?: boolean;
   isEditDisabled?: boolean;
   onEditableNameChange?: (value: string) => void;
   onStartEdit?: (name: string) => void;
   onSaveEdit?: (name: string) => void;
   onCancelEdit?: () => void;
-  onDelete: (name: string) => void;
+  onRequestDelete: (name: string) => void;
+  onConfirmDelete: (name: string) => void;
+  onCancelDelete: () => void;
 };
 
 export default function AdvertisementCard({
@@ -23,13 +26,16 @@ export default function AdvertisementCard({
   editableName = advertisement.name,
   errorMessage = "",
   isEditing = false,
+  isDeleteConfirming = false,
   isDeleteDisabled = false,
   isEditDisabled = false,
   onEditableNameChange,
   onStartEdit,
   onSaveEdit,
   onCancelEdit,
-  onDelete,
+  onRequestDelete,
+  onConfirmDelete,
+  onCancelDelete,
 }: AdvertisementCardProps) {
   return (
     <div className={`${styles.panel} p-6 transition hover:border-[#7dbee1]/35`}>
@@ -81,7 +87,27 @@ export default function AdvertisementCard({
 
       <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-3">
-          {isEditing ? (
+          {isDeleteConfirming ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onConfirmDelete(advertisement.name)}
+                disabled={isDeleteDisabled}
+                className={`${styles.dangerAction} px-4 py-2 text-sm font-semibold`}
+              >
+                Confirm
+              </button>
+
+              <button
+                type="button"
+                onClick={onCancelDelete}
+                disabled={isDeleteDisabled}
+                className={`${styles.secondaryAction} px-4 py-2 text-sm font-semibold`}
+              >
+                Cancel
+              </button>
+            </>
+          ) : isEditing ? (
             <>
               <button
                 type="button"
@@ -100,26 +126,37 @@ export default function AdvertisementCard({
               >
                 Cancel
               </button>
+
+              <button
+                type="button"
+                onClick={() => onRequestDelete(advertisement.name)}
+                disabled={isDeleteDisabled}
+                className={`${styles.dangerAction} px-4 py-2 text-sm font-semibold`}
+              >
+                Delete
+              </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => onStartEdit?.(advertisement.name)}
-              disabled={isEditDisabled}
-              className={`${styles.secondaryAction} px-4 py-2 text-sm font-semibold`}
-            >
-              Edit
-            </button>
-          )}
+            <>
+              <button
+                type="button"
+                onClick={() => onStartEdit?.(advertisement.name)}
+                disabled={isEditDisabled}
+                className={`${styles.secondaryAction} px-4 py-2 text-sm font-semibold`}
+              >
+                Edit
+              </button>
 
-          <button
-            type="button"
-            onClick={() => onDelete(advertisement.name)}
-            disabled={isDeleteDisabled}
-            className={`${styles.dangerAction} px-4 py-2 text-sm font-semibold`}
-          >
-            Delete
-          </button>
+              <button
+                type="button"
+                onClick={() => onRequestDelete(advertisement.name)}
+                disabled={isDeleteDisabled}
+                className={`${styles.dangerAction} px-4 py-2 text-sm font-semibold`}
+              >
+                Delete
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

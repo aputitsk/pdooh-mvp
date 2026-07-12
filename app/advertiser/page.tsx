@@ -210,7 +210,7 @@ export default function AdvertiserPage() {
 
   return (
     <AppBackground className="px-6 py-10">
-      <section className="mx-auto max-w-5xl">
+      <section className="mx-auto max-w-6xl">
         <div
           className={`${styles.landscapeIntroGrid} flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between`}
         >

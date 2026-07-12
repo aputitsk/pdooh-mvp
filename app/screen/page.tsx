@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -11,7 +12,6 @@ import LiveScreen from "@/components/auction/LiveScreen";
 import { getMarketTheme } from "@/components/auction/marketTheme";
 import SiteSelectorCards from "@/components/auction/SiteSelectorCards";
 import AppBackground from "@/components/layout/AppBackground";
-import { showSuccess } from "@/components/ui/SuccessToastProvider";
 import {
   getAvailableFromEscrowBalance,
   getTotalReservedAmount,
@@ -138,8 +138,17 @@ export default function ScreenPage() {
   const [bidErrors, setBidErrors] = useState<Record<number, string | null>>({});
   const [authorizingBidSlotIndex, setAuthorizingBidSlotIndex] =
     useState<number | null>(null);
+  const [recentSubmittedBidSlotIndex, setRecentSubmittedBidSlotIndex] =
+    useState<number | null>(null);
+  const recentSubmittedBidTimeoutRef = useRef<number | null>(null);
   const handleSiteChange = useCallback((siteKey: SiteKey) => {
+    if (recentSubmittedBidTimeoutRef.current) {
+      window.clearTimeout(recentSubmittedBidTimeoutRef.current);
+      recentSubmittedBidTimeoutRef.current = null;
+    }
+
     setBidErrors({});
+    setRecentSubmittedBidSlotIndex(null);
     setStoredSelectedSiteKey(siteKey);
     setSelectedSiteKey(siteKey);
   }, []);
@@ -205,6 +214,20 @@ export default function ScreenPage() {
     }));
   }, []);
 
+  const showInlineBidSubmitted = useCallback((slotIndex: number) => {
+    if (recentSubmittedBidTimeoutRef.current) {
+      window.clearTimeout(recentSubmittedBidTimeoutRef.current);
+    }
+
+    setRecentSubmittedBidSlotIndex(slotIndex);
+    recentSubmittedBidTimeoutRef.current = window.setTimeout(() => {
+      setRecentSubmittedBidSlotIndex((currentSlotIndex) =>
+        currentSlotIndex === slotIndex ? null : currentSlotIndex
+      );
+      recentSubmittedBidTimeoutRef.current = null;
+    }, 2400);
+  }, []);
+
   const handlePlaceBid = useCallback(
     async (slotIndex: number) => {
       if (authorizingBidSlotIndex !== null) {
@@ -237,7 +260,7 @@ export default function ScreenPage() {
           return;
         }
 
-        showSuccess("Bid submitted");
+        showInlineBidSubmitted(slotIndex);
       } finally {
         setAuthorizingBidSlotIndex((currentSlotIndex) =>
           currentSlotIndex === slotIndex ? null : currentSlotIndex
@@ -249,9 +272,18 @@ export default function ScreenPage() {
       authorizingBidSlotIndex,
       availableAuctionCapacity,
       clearBidError,
+      showInlineBidSubmitted,
       wallet.address,
     ]
   );
+
+  useEffect(() => {
+    return () => {
+      if (recentSubmittedBidTimeoutRef.current) {
+        window.clearTimeout(recentSubmittedBidTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     refreshWalletUsdcBalance();
@@ -284,6 +316,7 @@ export default function ScreenPage() {
           isLive={phase === "live"}
           locationName={auction.siteConfig.name}
           slotNumber={currentSlotIndex + 1}
+          slotSecondsRemaining={auction.clock.secondsRemaining}
         />
 
         <SiteSelectorCards
@@ -313,6 +346,7 @@ export default function ScreenPage() {
           winners={auction.winners}
           bidErrors={bidErrors}
           authorizingBidSlotIndex={authorizingBidSlotIndex}
+          recentSubmittedBidSlotIndex={recentSubmittedBidSlotIndex}
           isWalletConnected={wallet.connected}
           isWalletRestoring={wallet.status === "restoring"}
           marketTheme={marketTheme}

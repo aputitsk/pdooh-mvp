@@ -18,6 +18,7 @@ type AuctionSlotCardProps = {
   availableAuctionCapacity?: UsdcMinorUnits;
   isAggregateExposureTooHigh?: boolean;
   isBidSubmitted?: boolean;
+  isBidJustSubmitted?: boolean;
   isBidAuthorizing?: boolean;
   isDisabled?: boolean;
   disabledMessage?: string;
@@ -37,6 +38,7 @@ export default function AuctionSlotCard({
   availableAuctionCapacity = 0,
   isAggregateExposureTooHigh = false,
   isBidSubmitted = false,
+  isBidJustSubmitted = false,
   isBidAuthorizing = false,
   isDisabled = false,
   disabledMessage,
@@ -154,6 +156,12 @@ export default function AuctionSlotCard({
         {bidError && !isBidSubmitted && (
           <p className="rounded-lg border border-red-300/20 bg-red-400/[0.08] px-3 py-2.5 text-sm font-medium text-red-200">
             {bidError}
+          </p>
+        )}
+
+        {isBidJustSubmitted && (
+          <p className="rounded-lg border border-cyan-200/20 bg-cyan-200/[0.07] px-3 py-2.5 text-sm font-semibold text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,0.08)]">
+            Bid submitted
           </p>
         )}
 

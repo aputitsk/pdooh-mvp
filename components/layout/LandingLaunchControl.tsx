@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import WalletButton from "@/components/layout/WalletButton";
+import operationalStyles from "@/components/ui/OperationalPanel.module.css";
 import { useWalletStore } from "@/lib/wallet";
 
 export default function LandingLaunchControl() {
@@ -20,7 +21,7 @@ export default function LandingLaunchControl() {
   return (
     <Link
       href="/advertiser"
-      className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-neutral-200"
+      className={`${operationalStyles.navPrimaryAction} inline-flex min-h-10 items-center justify-center px-5 py-2 text-sm font-semibold`}
     >
       Launch App
     </Link>

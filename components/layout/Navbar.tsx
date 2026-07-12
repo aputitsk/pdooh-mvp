@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -27,15 +28,17 @@ const appLinks = [
 
 function BrandLogo() {
   return (
-    <span className="flex items-center gap-3">
-      <img
+    <span className="flex items-center gap-0">
+      <Image
         src="/logo27.png"
         alt="pDOOH"
+        width={384}
+        height={256}
         className="h-17 w-auto shrink-1"
         draggable={false}
       />
 
-      <span className="text-xl font-bold tracking-tight text-white">
+      <span className="-ml-2 text-xl font-semibold tracking-tight text-white sm:-ml-3">
         pDOOH
       </span>
     </span>
@@ -45,45 +48,15 @@ function BrandLogo() {
 export default function Navbar() {
   const pathname = usePathname();
   const isLandingPage = pathname === "/";
+  const navActionElement = isLandingPage ? (
+    <LandingLaunchControl />
+  ) : (
+    <WalletButton />
+  );
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [pathname]);
-
-  if (isLandingPage) {
-    return (
-      <nav className={styles.navShell}>
-        <div
-          className={`${styles.glassPanel} ${styles.navPanel} mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 py-4 text-white sm:flex-row sm:justify-between sm:px-6 sm:py-5`}
-        >
-          <div className={styles.primaryRow}>
-            <Link href="/" aria-label="pDOOH Home" className={styles.brandLink}>
-              <BrandLogo />
-            </Link>
-          </div>
-
-          <div className={styles.actionGroup}>
-            <div className={`${styles.linksRow} flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2`}>
-              {appLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`${styles.navLink} rounded-full px-3 py-2 text-xs font-medium text-[#CFE8FF] transition hover:bg-white/[0.06] hover:text-[#CFE8FF] sm:px-4 sm:text-sm`}
-                >
-                  <span className={styles.fullLabel}>{link.label}</span>
-                  <span className={styles.mobileLabel}>{link.mobileLabel}</span>
-                </Link>
-              ))}
-            </div>
-
-            <div className={styles.navAction}>
-              <LandingLaunchControl />
-            </div>
-          </div>
-        </div>
-      </nav>
-    );
-  }
 
   return (
     <nav className={styles.navShell}>
@@ -99,7 +72,7 @@ export default function Navbar() {
         <div className={styles.actionGroup}>
           <div className={`${styles.linksRow} flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2`}>
             {appLinks.map((link) => {
-              const isActive = pathname === link.href;
+              const isActive = !isLandingPage && pathname === link.href;
 
               return (
                 <Link
@@ -119,7 +92,7 @@ export default function Navbar() {
           </div>
 
           <div className={styles.navAction}>
-            <WalletButton />
+            {navActionElement}
           </div>
         </div>
       </div>

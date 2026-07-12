@@ -17,7 +17,6 @@ import {
   TransactionReceipt,
   TransactionReceiptRow,
 } from "@/components/advertiser/EscrowReceipt";
-import { showSuccess } from "@/components/ui/SuccessToastProvider";
 import styles from "@/components/ui/OperationalPanel.module.css";
 
 type EscrowActionStatus =
@@ -88,6 +87,9 @@ export default function EscrowDepositCard({
   const copyNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const successNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const isBusy =
     status === "validating" ||
@@ -110,8 +112,26 @@ export default function EscrowDepositCard({
       if (copyNoticeTimeoutRef.current) {
         clearTimeout(copyNoticeTimeoutRef.current);
       }
+
+      if (successNoticeTimeoutRef.current) {
+        clearTimeout(successNoticeTimeoutRef.current);
+      }
     };
   }, []);
+
+  function showButtonSuccess(nextStatus: "success" | "withdraw_success") {
+    if (successNoticeTimeoutRef.current) {
+      clearTimeout(successNoticeTimeoutRef.current);
+    }
+
+    setStatus(nextStatus);
+    successNoticeTimeoutRef.current = setTimeout(() => {
+      setStatus((currentStatus) =>
+        currentStatus === nextStatus ? "idle" : currentStatus
+      );
+      successNoticeTimeoutRef.current = null;
+    }, 2200);
+  }
 
   async function handleCopyOnchainReference(value: string) {
     await navigator.clipboard.writeText(value);
@@ -127,6 +147,11 @@ export default function EscrowDepositCard({
   }
 
   async function handleDeposit() {
+    if (successNoticeTimeoutRef.current) {
+      clearTimeout(successNoticeTimeoutRef.current);
+      successNoticeTimeoutRef.current = null;
+    }
+
     setStatus("validating");
     setApprovalTransactionHash(null);
     setDepositTransactionHash(null);
@@ -158,10 +183,9 @@ export default function EscrowDepositCard({
 
       setApprovalTransactionHash(result.approvalTransactionHash);
       setDepositTransactionHash(result.depositTransactionHash);
-      setStatus("success");
+      showButtonSuccess("success");
       setAmount("");
       onSuccess();
-      showSuccess("Deposit confirmed");
     } catch (depositError) {
       setStatus("error");
       setError(getErrorMessage(depositError));
@@ -169,6 +193,11 @@ export default function EscrowDepositCard({
   }
 
   async function handleWithdraw() {
+    if (successNoticeTimeoutRef.current) {
+      clearTimeout(successNoticeTimeoutRef.current);
+      successNoticeTimeoutRef.current = null;
+    }
+
     setStatus("validating");
     setApprovalTransactionHash(null);
     setDepositTransactionHash(null);
@@ -210,10 +239,9 @@ export default function EscrowDepositCard({
       });
 
       setWithdrawTransactionHash(result.withdrawTransactionHash);
-      setStatus("withdraw_success");
+      showButtonSuccess("withdraw_success");
       setAmount("");
       onSuccess();
-      showSuccess("Withdrawal confirmed");
     } catch (withdrawError) {
       setStatus("error");
       setError(getErrorMessage(withdrawError));
@@ -221,7 +249,9 @@ export default function EscrowDepositCard({
   }
 
   const buttonLabel =
-    status === "validating"
+    status === "success"
+      ? "Deposit confirmed"
+      : status === "validating"
       ? "Validating escrow..."
       : status === "approval_waiting"
         ? "Confirm approval in wallet..."
@@ -234,7 +264,9 @@ export default function EscrowDepositCard({
               ? "Waiting for deposit..."
               : "Deposit to Escrow";
   const withdrawButtonLabel =
-    status === "withdraw_waiting"
+    status === "withdraw_success"
+      ? "Withdrawal confirmed"
+      : status === "withdraw_waiting"
       ? "Confirm withdraw in wallet..."
       : status === "withdraw_pending"
         ? "Waiting for withdraw..."
@@ -308,12 +340,18 @@ export default function EscrowDepositCard({
         ) : null}
 
         {reservedAmount > 0 && (
-          <p className={`${styles.statusStrip} ${styles.statusStripWarning} mt-3 px-3 py-2 text-xs font-medium`}>
-            Reserved for active bids and unresolved settlements:{" "}
-            <span className="font-mono tabular-nums">
-              {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
-            </span>
-          </p>
+          <div className={`${styles.statusStrip} ${styles.statusStripWarning} mt-3 px-3 py-2 text-xs font-medium`}>
+            <p>
+              Reserved for active bids and unresolved settlements:{" "}
+              <span className="font-mono tabular-nums">
+                {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
+              </span>
+            </p>
+
+            <p className="mt-1 text-white/55">
+              Withdraw is unavailable until active bids and settlements clear.
+            </p>
+          </div>
         )}
       </div>
 
@@ -344,8 +382,14 @@ export default function EscrowDepositCard({
         <button
           type="button"
           onClick={handleDeposit}
-          disabled={isBusy}
-          className={`${styles.primaryAction} min-h-12 w-full px-6 py-3 font-semibold disabled:cursor-wait`}
+          disabled={isBusy || status === "success"}
+          className={`min-h-12 w-full px-6 py-3 font-semibold ${
+            status === "success" ? styles.successAction : styles.primaryAction
+          } ${
+            status === "success"
+              ? "disabled:cursor-not-allowed"
+              : "disabled:cursor-wait"
+          }`}
         >
           {buttonLabel}
         </button>
@@ -354,8 +398,16 @@ export default function EscrowDepositCard({
           <button
             type="button"
             onClick={handleWithdraw}
-            disabled={isBusy}
-            className={`${styles.secondaryAction} min-h-12 w-full px-6 py-3 font-semibold disabled:cursor-wait`}
+            disabled={isBusy || status === "withdraw_success"}
+            className={`min-h-12 w-full px-6 py-3 font-semibold ${
+              status === "withdraw_success"
+                ? styles.successAction
+                : styles.secondaryAction
+            } ${
+              status === "withdraw_success"
+                ? "disabled:cursor-not-allowed"
+                : "disabled:cursor-wait"
+            }`}
           >
             {withdrawButtonLabel}
           </button>

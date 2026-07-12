@@ -101,6 +101,8 @@ export default function AdvertisementsPage() {
     useState(false);
   const [editingAdvertisementName, setEditingAdvertisementName] =
     useState("");
+  const [confirmingDeleteAdvertisementName, setConfirmingDeleteAdvertisementName] =
+    useState("");
   const [editableAdvertisementName, setEditableAdvertisementName] =
     useState("");
   const [editErrorMessage, setEditErrorMessage] = useState("");
@@ -187,7 +189,21 @@ export default function AdvertisementsPage() {
     setIsCreateSuccessVisible(true);
   }
 
-  function handleDeleteAdvertisement(name: string) {
+  function handleRequestAdvertisementDelete(name: string) {
+    if (isWalletRestoring) {
+      return;
+    }
+
+    if (!walletConnected) {
+      setErrorMessage("Connect your wallet before deleting advertisements.");
+      return;
+    }
+
+    setConfirmingDeleteAdvertisementName(name);
+    setErrorMessage("");
+  }
+
+  function handleConfirmAdvertisementDelete(name: string) {
     if (isWalletRestoring) {
       return;
     }
@@ -205,6 +221,11 @@ export default function AdvertisementsPage() {
     cachedAdvertisements = nextAdvertisements;
     cachedAdvertisementsJson = JSON.stringify(nextAdvertisements);
     notifyAdvertisementChanges();
+    setConfirmingDeleteAdvertisementName("");
+  }
+
+  function handleCancelAdvertisementDelete() {
+    setConfirmingDeleteAdvertisementName("");
   }
 
   function handleStartAdvertisementEdit(name: string) {
@@ -218,6 +239,7 @@ export default function AdvertisementsPage() {
     }
 
     setEditingAdvertisementName(name);
+    setConfirmingDeleteAdvertisementName("");
     setEditableAdvertisementName(name);
     setEditErrorMessage("");
     setErrorMessage("");
@@ -366,6 +388,9 @@ export default function AdvertisementsPage() {
                       isEditing={
                         editingAdvertisementName === advertisement.name
                       }
+                      isDeleteConfirming={
+                        confirmingDeleteAdvertisementName === advertisement.name
+                      }
                       isDeleteDisabled={isWalletRestoring}
                       isEditDisabled={isWalletRestoring}
                       onEditableNameChange={
@@ -374,7 +399,9 @@ export default function AdvertisementsPage() {
                       onStartEdit={handleStartAdvertisementEdit}
                       onSaveEdit={handleSaveAdvertisementEdit}
                       onCancelEdit={handleCancelAdvertisementEdit}
-                      onDelete={handleDeleteAdvertisement}
+                      onRequestDelete={handleRequestAdvertisementDelete}
+                      onConfirmDelete={handleConfirmAdvertisementDelete}
+                      onCancelDelete={handleCancelAdvertisementDelete}
                     />
                   ))}
                 </div>

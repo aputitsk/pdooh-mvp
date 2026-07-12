@@ -28,6 +28,7 @@ type AuctionAreaProps = {
   winners: Advertisement[];
   bidErrors?: Record<number, string | null>;
   authorizingBidSlotIndex?: number | null;
+  recentSubmittedBidSlotIndex?: number | null;
   isWalletConnected: boolean;
   isWalletRestoring?: boolean;
   marketTheme: MarketTheme;
@@ -57,6 +58,7 @@ export default function AuctionArea({
   winners,
   bidErrors = {},
   authorizingBidSlotIndex = null,
+  recentSubmittedBidSlotIndex = null,
   isWalletConnected,
   isWalletRestoring = false,
   marketTheme,
@@ -114,6 +116,7 @@ export default function AuctionArea({
                     availableAuctionCapacity
                 }
                 isBidSubmitted={submittedBids[index]}
+                isBidJustSubmitted={recentSubmittedBidSlotIndex === index}
                 isBidAuthorizing={authorizingBidSlotIndex === index}
                 isDisabled={isAuctionDisabled}
                 disabledMessage={disabledMessage}

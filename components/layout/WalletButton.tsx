@@ -3,7 +3,6 @@
 import { useAppKit, useDisconnect } from "@reown/appkit/react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { getArcScanAddressUrl } from "@/lib/arc/arcScanUrls";
 import { isArcAppKitConfigured } from "@/lib/arc/arcAppKitConfig";
 import {
   clearArcNetworkConnectionAttempt,
@@ -22,7 +21,7 @@ import {
   type WalletState,
 } from "@/lib/wallet";
 import CopyButton from "@/components/ui/CopyButton";
-import ExternalLinkButton from "@/components/ui/ExternalLinkButton";
+import operationalStyles from "@/components/ui/OperationalPanel.module.css";
 import ArcNetworkSwitchButton from "@/components/wallet/ArcNetworkSwitchButton";
 
 const disconnectedWallet: WalletState = {
@@ -33,6 +32,53 @@ const disconnectedWallet: WalletState = {
 };
 
 let cachedWallet = disconnectedWallet;
+
+type WalletMenuIconProps = {
+  className?: string;
+};
+
+function ChevronDownIcon({ className }: WalletMenuIconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+    >
+      <path
+        d="m5.5 7.5 4.5 4.5 4.5-4.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function DisconnectIcon({ className }: WalletMenuIconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+    >
+      <path
+        d="M10 3.75v6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6.25 6.45a5.25 5.25 0 1 0 7.5 0"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 function getWalletSnapshot() {
   const nextWallet = getWalletState();
@@ -64,7 +110,7 @@ function WalletProjectMissingButton() {
       type="button"
       disabled
       title="Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to enable wallet connection."
-      className="rounded-full bg-zinc-400 px-4 py-2 text-sm font-semibold text-black"
+      className={`${operationalStyles.navPrimaryAction} inline-flex min-h-10 items-center justify-center px-4 py-2 text-sm font-semibold`}
     >
       Connect wallet
     </button>
@@ -134,20 +180,24 @@ function ConnectedWalletMenu({
   }
 
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={menuRef} className="relative max-w-full">
       <button
         type="button"
         onClick={() => setIsMenuOpen((current) => !current)}
-        className="flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-900"
+        className={`${operationalStyles.navSecondaryAction} flex max-w-full items-center gap-2 px-4 py-2 text-sm font-medium`}
       >
-        <span className="font-mono">{formatWalletAddress(wallet.address)}</span>
-        <span className="text-xs text-zinc-400">
-          {isMenuOpen ? "^" : "v"}
+        <span className="min-w-0 truncate font-mono">
+          {formatWalletAddress(wallet.address)}
         </span>
+        <ChevronDownIcon
+          className={`h-4 w-4 text-[#CFE8FF]/55 transition-transform ${
+            isMenuOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {isMenuOpen ? (
-        <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
+        <div className="absolute right-0 z-50 mt-2 w-56 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-xl shadow-black/40">
           <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
             <span className="font-mono text-sm font-semibold text-zinc-100">
               {formatWalletAddress(wallet.address)}
@@ -155,15 +205,10 @@ function ConnectedWalletMenu({
             <div className="flex items-center gap-1">
               <CopyButton
                 ariaLabel="Copy wallet address"
+                title="Copy"
                 onClick={() =>
                   void (wallet.address && handleCopyAddress(wallet.address))
                 }
-                className="rounded-full p-1.5 text-zinc-300 transition hover:bg-zinc-900 hover:text-white"
-                iconClassName="h-4 w-4"
-              />
-              <ExternalLinkButton
-                href={getArcScanAddressUrl(wallet.address)}
-                ariaLabel="View wallet address on ArcScan"
                 className="rounded-full p-1.5 text-zinc-300 transition hover:bg-zinc-900 hover:text-white"
                 iconClassName="h-4 w-4"
               />
@@ -178,7 +223,7 @@ function ConnectedWalletMenu({
             }}
             className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-400 transition hover:bg-zinc-900"
           >
-            <span className="text-base leading-none">x</span>
+            <DisconnectIcon className="h-4 w-4" />
             <span>Disconnect</span>
           </button>
         </div>
@@ -252,7 +297,7 @@ function AppKitWalletButton() {
 
   if (wallet.connected && wallet.address) {
     return (
-      <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+      <div className="flex max-w-[52vw] flex-col items-end gap-2 sm:max-w-none sm:flex-row sm:items-center">
         <ArcNetworkSwitchButton variant="compact" />
         <ConnectedWalletMenu wallet={wallet} onDisconnect={handleDisconnect} />
       </div>
@@ -264,7 +309,7 @@ function AppKitWalletButton() {
       <button
         type="button"
         onClick={handleConnectClick}
-        className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-zinc-200"
+        className={`${operationalStyles.navPrimaryAction} inline-flex min-h-10 items-center justify-center px-4 py-2 text-sm font-semibold`}
       >
         Connect wallet
       </button>

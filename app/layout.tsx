@@ -1,7 +1,6 @@
 import AuctionSettlementHeartbeat from "@/components/auction/AuctionSettlementHeartbeat";
 import Footer from "@/components/layout/Footer";
 import Navbar from "@/components/layout/Navbar";
-import SuccessToastProvider from "@/components/ui/SuccessToastProvider";
 import AppKitWalletProvider from "@/components/wallet/AppKitWalletProvider";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -45,7 +44,6 @@ export default function RootLayout({
             <AuctionSettlementHeartbeat />
             {children}
             <Footer />
-            <SuccessToastProvider />
           </div>
         </AppKitWalletProvider>
       </body>

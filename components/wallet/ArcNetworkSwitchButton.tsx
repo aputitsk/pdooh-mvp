@@ -168,13 +168,13 @@ export default function ArcNetworkSwitchButton({
 
   if (variant === "compact") {
     return (
-      <div className="flex items-center gap-2 rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1.5 text-xs font-semibold text-yellow-100">
+      <div className="flex max-w-full flex-wrap items-center justify-end gap-2 rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1.5 text-xs font-semibold text-yellow-100">
         <span className="hidden max-w-48 truncate sm:inline">{message}</span>
         <button
           type="button"
           onClick={() => void action()}
           disabled={isSwitching}
-          className="rounded-full bg-yellow-200 px-3 py-1 text-xs font-bold text-zinc-950 transition hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-70"
+          className="whitespace-nowrap rounded-full bg-yellow-200 px-3 py-1 text-xs font-bold text-zinc-950 transition hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-70"
         >
           {compactLabel}
         </button>
@@ -182,7 +182,7 @@ export default function ArcNetworkSwitchButton({
           <button
             type="button"
             onClick={() => void handleDisconnectWallet()}
-            className="rounded-full border border-yellow-100/25 px-3 py-1 text-xs font-bold text-yellow-100 transition hover:bg-yellow-100/10"
+            className="whitespace-nowrap rounded-full border border-yellow-100/25 px-3 py-1 text-xs font-bold text-yellow-100 transition hover:bg-yellow-100/10"
           >
             Disconnect
           </button>
