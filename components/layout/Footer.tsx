@@ -27,7 +27,7 @@ export default function Footer() {
               href={link.href}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-8 items-center rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-neutral-400 transition hover:border-[#4F8CFF]/35 hover:bg-[#10284D]/35 hover:text-white"
+              className="inline-flex min-h-8 items-center rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-[#9bdcff] transition hover:border-[#4F8CFF]/35 hover:bg-[#10284D]/35 hover:text-[#cfe8ff]"
             >
               {link.label}
             </a>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/accounting/settlementSummary";
 import { getArcScanTransactionUrl } from "@/lib/arc/arcScanUrls";
 import { MARKET_CONFIGS, SITE_CONFIGS } from "@/lib/auction/siteConfig";
+import MoneyAmount from "@/components/ui/MoneyAmount";
 import CopyButton from "@/components/ui/CopyButton";
 import styles from "@/components/ui/OperationalPanel.module.css";
 
@@ -140,7 +141,16 @@ export default function LatestSettlementCard({
                       isMonospaceValue ? "font-mono tabular-nums" : ""
                     }`}
                   >
-                    {value}
+                    {label === "Amount" ? (
+                      <MoneyAmount
+                        amount={formatLastSettlementAmount(
+                          lastSuccessfulSettlement.result.amountMinorUnits
+                        )}
+                        unit="Test USDC"
+                      />
+                    ) : (
+                      value
+                    )}
                   </p>
                   {isSettlementId ? (
                     <>
@@ -185,17 +195,25 @@ export default function LatestSettlementCard({
 
       <div className={`${styles.metric} mt-2 px-3 py-2`}>
         <p className={`${styles.valueText} font-mono text-sm tabular-nums`}>
-          {formatSettlementRevenue(platformRevenue)} Test USDC
+          <span className="mr-2 align-baseline text-[10px] font-semibold uppercase tracking-widest text-white/35">
+            Total
+          </span>
+          <MoneyAmount
+            amount={formatSettlementRevenue(platformRevenue)}
+            unit="Test USDC"
+          />
         </p>
       </div>
 
       {lastSuccessfulSettlement ? (
         <>
           <p className={`${styles.valuePositive} mt-2 font-mono text-base font-bold tabular-nums`}>
-            +{formatLastSettlementAmount(
-              lastSuccessfulSettlement.result.amountMinorUnits
-            )}{" "}
-            Test USDC
+            <MoneyAmount
+              amount={`+${formatLastSettlementAmount(
+                lastSuccessfulSettlement.result.amountMinorUnits
+              )}`}
+              unit="Test USDC"
+            />
           </p>
           {lastSettlementSiteLabel && (
             <p className="mt-1 text-xs font-semibold text-white">

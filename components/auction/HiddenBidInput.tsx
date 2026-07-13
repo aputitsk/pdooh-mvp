@@ -1,3 +1,5 @@
+import styles from "@/components/ui/OperationalPanel.module.css";
+
 type HiddenBidInputProps = {
   value: string;
   onChange: (value: string) => void;
@@ -25,7 +27,7 @@ export default function HiddenBidInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="0.00"
-          className="w-full bg-transparent px-4 py-3 font-mono text-sm tabular-nums outline-none placeholder:text-neutral-600"
+          className={`${styles.moneyField} w-full bg-transparent px-4 py-3 font-mono text-sm tabular-nums outline-none placeholder:text-neutral-600`}
         />
 
         <div className="border-l border-neutral-700 px-4 py-3 text-sm text-neutral-400">

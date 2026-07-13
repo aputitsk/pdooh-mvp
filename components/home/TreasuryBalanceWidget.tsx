@@ -12,6 +12,7 @@ import {
   getLastSuccessfulSettlement,
   getPlatformRevenue,
 } from "@/lib/accounting/settlementSummary";
+import MoneyAmount from "@/components/ui/MoneyAmount";
 
 const subscribeToHydration = () => () => {};
 const getHydratedSnapshot = () => true;
@@ -40,7 +41,13 @@ export default function TreasuryBalanceWidget() {
         Account Revenue
       </p>
       <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-white">
-        {formatSettlementRevenue(platformRevenue)} Test USDC
+        <span className="mr-1.5 align-baseline text-[9px] font-semibold uppercase tracking-widest text-white/35">
+          Total
+        </span>
+        <MoneyAmount
+          amount={formatSettlementRevenue(platformRevenue)}
+          unit="Test USDC"
+        />
       </p>
       <p
         className={`mt-0.5 text-[10px] leading-4 ${
@@ -50,9 +57,12 @@ export default function TreasuryBalanceWidget() {
         {lastSuccessfulSettlement ? (
           <>
             <span className="font-mono tabular-nums">
-              +{formatLastSettlementAmount(
-                lastSuccessfulSettlement.result.amountMinorUnits
-              )} USDC
+              <MoneyAmount
+                amount={`+${formatLastSettlementAmount(
+                  lastSuccessfulSettlement.result.amountMinorUnits
+                )}`}
+                unit="USDC"
+              />
             </span>{" "}
             Last settlement
           </>

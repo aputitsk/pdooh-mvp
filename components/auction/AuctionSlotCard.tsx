@@ -7,6 +7,7 @@ import {
 import AdvertisementSelect from "./AdvertisementSelect";
 import HiddenBidInput from "./HiddenBidInput";
 import type { MarketTheme } from "./marketTheme";
+import styles from "./AuctionSlotCard.module.css";
 
 type AuctionSlotCardProps = {
   slotNumber: number;
@@ -53,6 +54,7 @@ export default function AuctionSlotCard({
   const hasBidAmount = bid.trim().length > 0 && bidAmount > 0;
   const isBidTooHigh = hasBidAmount && bidAmount > availableAuctionCapacity;
   const isLocked = isBidSubmitted || isDisabled || isBidAuthorizing;
+  const isOpen = !isBidSubmitted && !isDisabled && !isBidAuthorizing;
 
   const canPlaceBid =
     hasSelectedAdvertisement &&
@@ -110,7 +112,9 @@ export default function AuctionSlotCard({
         </div>
 
         <span
-          className={`shrink-0 rounded-md border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest ${statusClassName}`}
+          className={`shrink-0 rounded-md border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest ${statusClassName} ${
+            isOpen ? styles.openStatus : ""
+          }`}
         >
           {statusLabel}
         </span>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MoneyAmount from "@/components/ui/MoneyAmount";
 import styles from "@/components/ui/OperationalPanel.module.css";
 
 type ReadyForAuctionCardProps = {
@@ -56,10 +57,11 @@ export default function ReadyForAuctionCard({
           >
             {balanceStatus === "ready" ? (
               <span className="inline-flex min-w-0 items-baseline justify-end gap-1 whitespace-nowrap">
-                <span>{balance}</span>
-                <span className="text-[0.55rem] font-semibold text-white/45">
-                  Test USDC
-                </span>
+                <MoneyAmount
+                  amount={balance}
+                  unit="Test USDC"
+                  unitClassName="text-[0.55rem] font-semibold text-white/45"
+                />
               </span>
             ) : (
               balanceText

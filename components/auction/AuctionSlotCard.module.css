@@ -1,0 +1,37 @@
+.openStatus {
+  border-color: rgb(134 239 172 / 46%);
+  background: rgb(34 197 94 / 16%);
+  color: rgb(187 247 208 / 96%);
+  box-shadow:
+    0 0 0 1px rgb(74 222 128 / 10%),
+    0 0 18px rgb(34 197 94 / 20%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
+  animation: openStatusPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes openStatusPulse {
+  0%,
+  100% {
+    border-color: rgb(134 239 172 / 38%);
+    background: rgb(34 197 94 / 13%);
+    box-shadow:
+      0 0 0 1px rgb(74 222 128 / 8%),
+      0 0 12px rgb(34 197 94 / 14%),
+      inset 0 1px 0 rgb(255 255 255 / 7%);
+  }
+
+  50% {
+    border-color: rgb(134 239 172 / 72%);
+    background: rgb(34 197 94 / 24%);
+    box-shadow:
+      0 0 0 1px rgb(74 222 128 / 18%),
+      0 0 24px rgb(34 197 94 / 32%),
+      inset 0 1px 0 rgb(255 255 255 / 12%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .openStatus {
+    animation: none;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Advertisement, AuctionPhase } from "@/lib/auction";
 import {
   AUCTION_PLAYBACK_SECONDS_PER_SLOT,
@@ -10,6 +10,7 @@ import {
   formatUSDCFromMinorUnits,
   type UsdcMinorUnits,
 } from "@/lib/money/usdc";
+import MoneyAmount from "@/components/ui/MoneyAmount";
 
 const PLAYBACK_SLOT_DURATION_MS = AUCTION_PLAYBACK_SECONDS_PER_SLOT * 1000;
 
@@ -48,17 +49,13 @@ export default function AuctionStatusCard({
 }: AuctionStatusCardProps) {
   const [playbackNowMs, setPlaybackNowMs] = useState(0);
   const walletBalanceText =
-    walletBalanceStatus === "ready"
-      ? `${walletBalance} Test USDC`
-      : walletBalanceStatus === "loading"
+    walletBalanceStatus === "loading"
         ? "Reading balance..."
         : walletBalanceStatus === "error"
           ? walletBalanceError
           : "Connect wallet";
   const escrowBalanceText =
-    escrowBalanceStatus === "ready" && escrowBalance !== null
-      ? `${formatUSDCFromMinorUnits(escrowBalance)} Test USDC`
-      : escrowBalanceStatus === "loading"
+    escrowBalanceStatus === "loading"
         ? "Reading balance..."
         : escrowBalanceStatus === "error"
           ? escrowBalanceError
@@ -123,12 +120,27 @@ export default function AuctionStatusCard({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FinancialRowItem
             label="Wallet"
-            value={walletBalanceText}
+            value={
+              walletBalanceStatus === "ready" ? (
+                <MoneyAmount amount={walletBalance} unit="Test USDC" />
+              ) : (
+                walletBalanceText
+              )
+            }
             isValueMonospace={walletBalanceStatus === "ready"}
           />
           <FinancialRowItem
             label="Escrow: Your auction deposit"
-            value={escrowBalanceText}
+            value={
+              escrowBalanceStatus === "ready" && escrowBalance !== null ? (
+                <MoneyAmount
+                  amount={formatUSDCFromMinorUnits(escrowBalance)}
+                  unit="Test USDC"
+                />
+              ) : (
+                escrowBalanceText
+              )
+            }
             isValueMonospace={
               escrowBalanceStatus === "ready" && escrowBalance !== null
             }
@@ -137,14 +149,26 @@ export default function AuctionStatusCard({
             label="Available for bids"
             value={
               escrowBalanceStatus === "ready"
-                ? `${formatUSDCFromMinorUnits(availableAuctionCapacity)} Test USDC`
+                ? (
+                    <MoneyAmount
+                      amount={formatUSDCFromMinorUnits(
+                        availableAuctionCapacity
+                      )}
+                      unit="Test USDC"
+                    />
+                  )
                 : "-"
             }
             isValueMonospace={escrowBalanceStatus === "ready"}
           />
           <FinancialRowItem
             label="Reserved"
-            value={`${formatUSDCFromMinorUnits(reservedAmount)} Test USDC`}
+            value={
+              <MoneyAmount
+                amount={formatUSDCFromMinorUnits(reservedAmount)}
+                unit="Test USDC"
+              />
+            }
             isValueMonospace
           />
         </div>
@@ -214,7 +238,7 @@ function FinancialRowItem({
   isValueMonospace = false,
 }: {
   label: string;
-  value: string | null;
+  value: ReactNode;
   isValueMonospace?: boolean;
 }) {
   return (

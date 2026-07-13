@@ -6,7 +6,7 @@
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.25rem;
-  color: rgb(255 255 255 / 62%);
+  color: #9bdcff;
   text-align: center;
 }
 
@@ -19,11 +19,11 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgb(52 211 153 / 82%),
+    rgb(90 141 255 / 82%),
     transparent
   );
   border-radius: 999px;
-  box-shadow: 0 0 10px rgb(16 185 129 / 42%);
+  box-shadow: 0 0 10px rgb(90 141 255 / 42%);
   opacity: 0;
   transform: translateX(-50%) scaleX(0.02);
   animation: feeSignalSweep 6.8s ease-in-out infinite;

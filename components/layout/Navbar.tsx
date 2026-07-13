@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -29,14 +28,7 @@ const appLinks = [
 function BrandLogo() {
   return (
     <span className="flex items-center gap-0">
-      <Image
-        src="/logo27.png"
-        alt="pDOOH"
-        width={384}
-        height={256}
-        className="h-17 w-auto shrink-1"
-        draggable={false}
-      />
+      <span className={styles.brandMark} aria-hidden="true" />
 
       <span className="-ml-2 text-xl font-semibold tracking-tight text-white sm:-ml-3">
         pDOOH

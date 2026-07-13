@@ -330,11 +330,7 @@ export default function AdvertisementsPage() {
           className={`${styles.landscapeHeaderGrid} flex flex-col gap-5 md:flex-row md:items-end md:justify-between`}
         >
           <div>
-            <p className="text-sm font-medium text-white/40">
-              Advertisement workspace
-            </p>
-
-            <h1 className="mt-2 text-4xl font-bold tracking-tight">
+            <h1 className="text-4xl font-bold tracking-tight">
               Advertisements
             </h1>
 

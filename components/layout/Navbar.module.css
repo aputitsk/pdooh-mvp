@@ -19,6 +19,16 @@
   align-items: center;
 }
 
+.brandMark {
+  display: inline-block;
+  width: 6.375rem;
+  height: 4.25rem;
+  flex: 0 1 auto;
+  background: linear-gradient(180deg, #9bdcff 0%, #5a8dff 100%);
+  mask: url("/logo27.png?v=mark") center / contain no-repeat;
+  -webkit-mask: url("/logo27.png?v=mark") center / contain no-repeat;
+}
+
 .linksRow {
   min-width: 0;
 }
@@ -102,8 +112,9 @@
     min-width: 0;
   }
 
-  .brandLink img {
+  .brandMark {
     height: 3.2rem;
+    width: 4.8rem;
   }
 
   .brandLink span span {
@@ -147,8 +158,9 @@
     gap: 0.5rem;
   }
 
-  .brandLink img {
+  .brandMark {
     height: 2.75rem;
+    width: 4.125rem;
   }
 
   .brandLink span span {

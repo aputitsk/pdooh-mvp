@@ -17,6 +17,7 @@ import {
   TransactionReceipt,
   TransactionReceiptRow,
 } from "@/components/advertiser/EscrowReceipt";
+import MoneyAmount from "@/components/ui/MoneyAmount";
 import styles from "@/components/ui/OperationalPanel.module.css";
 
 type EscrowActionStatus =
@@ -273,9 +274,7 @@ export default function EscrowDepositCard({
         : "Withdraw";
 
   const escrowBalanceText =
-    escrowBalanceStatus === "ready"
-      ? `${escrowBalance} Test USDC`
-      : escrowBalanceStatus === "loading"
+    escrowBalanceStatus === "loading"
         ? "Reading escrow balance..."
         : escrowBalanceStatus === "error"
           ? escrowBalanceError
@@ -323,7 +322,11 @@ export default function EscrowDepositCard({
             escrowBalanceStatus === "ready" ? "font-mono tabular-nums" : ""
           }`}
         >
-          {escrowBalanceText}
+          {escrowBalanceStatus === "ready" ? (
+            <MoneyAmount amount={escrowBalance} unit="Test USDC" />
+          ) : (
+            escrowBalanceText
+          )}
         </p>
 
         <p className="mt-2 text-xs text-white/40">
@@ -344,7 +347,10 @@ export default function EscrowDepositCard({
             <p>
               Reserved for active bids and unresolved settlements:{" "}
               <span className="font-mono tabular-nums">
-                {formatUSDCFromMinorUnits(reservedAmount)} Test USDC
+                <MoneyAmount
+                  amount={formatUSDCFromMinorUnits(reservedAmount)}
+                  unit="Test USDC"
+                />
               </span>
             </p>
 
@@ -369,7 +375,7 @@ export default function EscrowDepositCard({
         onChange={(event) => setAmount(event.target.value)}
         disabled={isBusy}
         placeholder="1"
-        className={`${styles.field} mt-2 w-full px-4 py-3 font-mono tabular-nums disabled:cursor-wait`}
+        className={`${styles.field} ${styles.moneyField} mt-2 w-full px-4 py-3 font-mono tabular-nums disabled:cursor-wait`}
       />
 
       <div

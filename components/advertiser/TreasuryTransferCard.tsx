@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { sendTreasuryPayment } from "@/lib/payments/paymentService";
+import styles from "@/components/ui/OperationalPanel.module.css";
 
 type TransferStatus =
   | "idle"
@@ -78,7 +79,7 @@ export default function TreasuryTransferCard({
         onChange={(event) => setAmount(event.target.value)}
         disabled={isBusy}
         placeholder="1"
-        className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono tabular-nums text-white outline-none disabled:cursor-wait disabled:text-white/40"
+        className={`${styles.moneyField} mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono tabular-nums outline-none disabled:cursor-wait disabled:text-white/40`}
       />
 
       <button

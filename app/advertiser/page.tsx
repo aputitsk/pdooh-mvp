@@ -215,11 +215,7 @@ export default function AdvertiserPage() {
           className={`${styles.landscapeIntroGrid} flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between`}
         >
           <div>
-            <p className="text-sm font-medium text-white/40">
-              Advertiser onboarding
-            </p>
-
-            <h1 className="mt-2 text-4xl font-bold lg:whitespace-nowrap">
+            <h1 className="text-4xl font-bold lg:whitespace-nowrap">
               Advertiser Dashboard
             </h1>
 

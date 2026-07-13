@@ -1,4 +1,5 @@
 import ArcNetworkSwitchButton from "@/components/wallet/ArcNetworkSwitchButton";
+import MoneyAmount from "@/components/ui/MoneyAmount";
 import styles from "@/components/ui/OperationalPanel.module.css";
 
 type ConnectWalletCardProps = {
@@ -20,9 +21,7 @@ export default function ConnectWalletCard({
 }: ConnectWalletCardProps) {
   const isWalletRestoring = walletStatus === "restoring";
   const balanceText =
-    usdcBalanceStatus === "ready"
-      ? `${usdcBalance} Test USDC`
-      : usdcBalanceStatus === "loading"
+    usdcBalanceStatus === "loading"
         ? "Reading balance..."
         : usdcBalanceStatus === "error"
           ? usdcBalanceError
@@ -79,7 +78,11 @@ export default function ConnectWalletCard({
             usdcBalanceStatus === "ready" ? "font-mono tabular-nums" : ""
           }`}
         >
-          {balanceText}
+          {usdcBalanceStatus === "ready" ? (
+            <MoneyAmount amount={usdcBalance} unit="Test USDC" />
+          ) : (
+            balanceText
+          )}
         </p>
       </div>
 
