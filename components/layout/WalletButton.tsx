@@ -328,16 +328,21 @@ function WalletLoginOption({
     onError("");
     clearWalletFlowNotice();
     markArcNetworkConnectionAttempt();
-    onStarted();
 
-    void Promise.resolve()
-      .then(() => open({ view: "Connect" }))
-      .catch((error: unknown) => {
+    try {
+      const openPromise = open({ view: "Connect" });
+      onStarted();
+
+      void Promise.resolve(openPromise).catch((error: unknown) => {
         clearArcNetworkConnectionAttempt();
         onError(
           error instanceof Error ? error.message : "Login failed"
         );
       });
+    } catch (error: unknown) {
+      clearArcNetworkConnectionAttempt();
+      onError(error instanceof Error ? error.message : "Login failed");
+    }
   }
 
   return (
