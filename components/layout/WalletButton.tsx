@@ -37,6 +37,7 @@ import {
   subscribeToWalletChanges,
   type WalletState,
 } from "@/lib/wallet";
+import { arcAppKitModal } from "@/components/wallet/arcAppKitClient";
 
 const disconnectedWallet: WalletState = {
   status: "disconnected",
@@ -328,6 +329,8 @@ function WalletLoginOption({
     onError("");
     clearWalletFlowNotice();
     markArcNetworkConnectionAttempt();
+    arcAppKitModal?.resetConnectingWallet();
+    arcAppKitModal?.resetWalletConnectUri();
 
     try {
       const openPromise = open({ view: "Connect" });

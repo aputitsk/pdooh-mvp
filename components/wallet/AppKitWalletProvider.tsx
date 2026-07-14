@@ -5,6 +5,7 @@ import {
   useAppKitAccount,
   useAppKitNetwork,
   useAppKitProvider,
+  useAppKitState,
   useDisconnect,
 } from "@reown/appkit/react";
 import { type ReactNode, useEffect, useRef } from "react";
@@ -42,6 +43,7 @@ import { arcAppKitModal } from "./arcAppKitClient";
 
 const queryClient = new QueryClient();
 const AUTO_SWITCH_CONNECTION_WINDOW_MS = 5 * 60 * 1000;
+const MOBILE_HANDOFF_RESET_DELAY_MS = 1500;
 
 function AppKitWalletBridge() {
   const { address, isConnected, status } = useAppKitAccount({
@@ -246,6 +248,56 @@ function AppKitAccountChangeDisconnect() {
   return null;
 }
 
+function AppKitMobileHandoffReset() {
+  const { address, isConnected } = useAppKitAccount({
+    namespace: "eip155",
+  });
+  const appKitState = useAppKitState();
+
+  useEffect(() => {
+    if (isConnected || address || !appKitState.connectingWallet) {
+      return;
+    }
+
+    let resetTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    function resetStaleMobileHandoff() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      if (resetTimeoutId) {
+        clearTimeout(resetTimeoutId);
+      }
+
+      resetTimeoutId = setTimeout(() => {
+        if (!isConnected && !address) {
+          arcAppKitModal?.resetConnectingWallet();
+          arcAppKitModal?.resetWalletConnectUri();
+          clearArcNetworkConnectionAttempt();
+        }
+      }, MOBILE_HANDOFF_RESET_DELAY_MS);
+    }
+
+    window.addEventListener("focus", resetStaleMobileHandoff);
+    window.addEventListener("pageshow", resetStaleMobileHandoff);
+    document.addEventListener("visibilitychange", resetStaleMobileHandoff);
+    resetStaleMobileHandoff();
+
+    return () => {
+      if (resetTimeoutId) {
+        clearTimeout(resetTimeoutId);
+      }
+
+      window.removeEventListener("focus", resetStaleMobileHandoff);
+      window.removeEventListener("pageshow", resetStaleMobileHandoff);
+      document.removeEventListener("visibilitychange", resetStaleMobileHandoff);
+    };
+  }, [address, appKitState.connectingWallet, isConnected]);
+
+  return null;
+}
+
 export default function AppKitWalletProvider({
   children,
 }: {
@@ -260,6 +312,7 @@ export default function AppKitWalletProvider({
       <QueryClientProvider client={queryClient}>
         <AppKitNetworkAutoSwitch />
         <AppKitAccountChangeDisconnect />
+        <AppKitMobileHandoffReset />
         <AppKitWalletBridge />
         {children}
       </QueryClientProvider>
