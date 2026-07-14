@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import AuctionArea from "@/components/auction/AuctionArea";
+import BidConfirmationDialog from "@/components/auction/BidConfirmationDialog";
 import LiveScreen from "@/components/auction/LiveScreen";
 import { getMarketTheme } from "@/components/auction/marketTheme";
 import SiteSelectorCards from "@/components/auction/SiteSelectorCards";
@@ -40,6 +41,15 @@ import {
 let lastSelectedSiteKey: SiteKey = DEFAULT_SITE_KEY;
 const SELECTED_SITE_STORAGE_KEY = "pdooh-auction-selected-site";
 const SETTLED_BALANCE_REFRESH_GRACE_MS = 6_000;
+
+type PendingBidConfirmation = {
+  advertisementName: string;
+  bidAmount: string;
+  businessName: string;
+  locationName: string;
+  slotIndex: number;
+  slotNumber: number;
+};
 
 function isSiteKey(value: string | null): value is SiteKey {
   return SITE_CONFIGS.some((siteConfig) => siteConfig.siteKey === value);
@@ -140,6 +150,8 @@ export default function ScreenPage() {
     useState<number | null>(null);
   const [recentSubmittedBidSlotIndex, setRecentSubmittedBidSlotIndex] =
     useState<number | null>(null);
+  const [pendingBidConfirmation, setPendingBidConfirmation] =
+    useState<PendingBidConfirmation | null>(null);
   const recentSubmittedBidTimeoutRef = useRef<number | null>(null);
   const handleSiteChange = useCallback((siteKey: SiteKey) => {
     if (recentSubmittedBidTimeoutRef.current) {
@@ -149,6 +161,7 @@ export default function ScreenPage() {
 
     setBidErrors({});
     setRecentSubmittedBidSlotIndex(null);
+    setPendingBidConfirmation(null);
     setStoredSelectedSiteKey(siteKey);
     setSelectedSiteKey(siteKey);
   }, []);
@@ -228,7 +241,7 @@ export default function ScreenPage() {
     }, 2400);
   }, []);
 
-  const handlePlaceBid = useCallback(
+  const submitBid = useCallback(
     async (slotIndex: number) => {
       if (authorizingBidSlotIndex !== null) {
         return;
@@ -274,6 +287,60 @@ export default function ScreenPage() {
       clearBidError,
       showInlineBidSubmitted,
       wallet.address,
+    ]
+  );
+
+  const handlePlaceBid = useCallback(
+    (slotIndex: number) => {
+      if (authorizingBidSlotIndex !== null) {
+        return;
+      }
+
+      if (!wallet.address) {
+        setBidErrors((currentBidErrors) => ({
+          ...currentBidErrors,
+          [slotIndex]: "Log in before placing a bid.",
+        }));
+        return;
+      }
+
+      if (wallet.source !== "privy") {
+        void submitBid(slotIndex);
+        return;
+      }
+
+      const slot = auction.slotStates[slotIndex];
+      const selectedAdvertisement = auction.advertisements.find(
+        (advertisement) => advertisement.name === slot?.selectedAdvertisement
+      );
+
+      if (!slot || !selectedAdvertisement) {
+        setBidErrors((currentBidErrors) => ({
+          ...currentBidErrors,
+          [slotIndex]: "Select one of your advertisements before placing a bid.",
+        }));
+        return;
+      }
+
+      clearBidError(slotIndex);
+      setPendingBidConfirmation({
+        advertisementName: selectedAdvertisement.name,
+        bidAmount: slot.bid,
+        businessName: selectedAdvertisement.businessName,
+        locationName: auction.siteConfig.name,
+        slotIndex,
+        slotNumber: slotIndex + 1,
+      });
+    },
+    [
+      auction.advertisements,
+      auction.siteConfig.name,
+      auction.slotStates,
+      authorizingBidSlotIndex,
+      clearBidError,
+      submitBid,
+      wallet.address,
+      wallet.source,
     ]
   );
 
@@ -364,6 +431,26 @@ export default function ScreenPage() {
           }}
           onPlaceBid={handlePlaceBid}
         />
+
+        {pendingBidConfirmation ? (
+          <BidConfirmationDialog
+            advertisementName={pendingBidConfirmation.advertisementName}
+            bidAmount={pendingBidConfirmation.bidAmount}
+            businessName={pendingBidConfirmation.businessName}
+            isSubmitting={
+              authorizingBidSlotIndex === pendingBidConfirmation.slotIndex
+            }
+            locationName={pendingBidConfirmation.locationName}
+            slotNumber={pendingBidConfirmation.slotNumber}
+            onCancel={() => setPendingBidConfirmation(null)}
+            onConfirm={() => {
+              const slotIndex = pendingBidConfirmation.slotIndex;
+
+              setPendingBidConfirmation(null);
+              return submitBid(slotIndex);
+            }}
+          />
+        ) : null}
       </section>
     </AppBackground>
   );
