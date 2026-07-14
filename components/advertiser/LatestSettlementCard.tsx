@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { SettlementRecord } from "@/lib/accounting/settlementRecords";
+import type { AccountRevenueSnapshot } from "@/lib/accounting/accountRevenueTypes";
 import {
   formatLastSettlementAmount,
   formatSettlementRevenue,
@@ -11,6 +12,7 @@ import {
   getLastSuccessfulSettlement,
   getPlatformRevenue,
 } from "@/lib/accounting/settlementSummary";
+import { useAccountRevenueSnapshot } from "@/lib/accounting/useAccountRevenueSnapshot";
 import { getArcScanTransactionUrl } from "@/lib/arc/arcScanUrls";
 import { MARKET_CONFIGS, SITE_CONFIGS } from "@/lib/auction/siteConfig";
 import MoneyAmount from "@/components/ui/MoneyAmount";
@@ -22,9 +24,7 @@ type LatestSettlementCardProps = {
   settlementRecords: readonly SettlementRecord[];
 };
 
-function getSettlementSiteLabel(record: SettlementRecord) {
-  const { marketId, siteId } = record.result;
-
+function getSiteLabel(marketId: string, siteId: string) {
   if (!marketId || !siteId) {
     return "Legacy settlement";
   }
@@ -37,6 +37,24 @@ function getSettlementSiteLabel(record: SettlementRecord) {
     MARKET_CONFIGS.find((market) => market.id === marketId)?.name ?? marketId;
 
   return siteConfig ? `${marketName} / ${siteConfig.name}` : `${marketId} / ${siteId}`;
+}
+
+function getSettlementSiteLabel(record: SettlementRecord) {
+  return getSiteLabel(record.result.marketId, record.result.siteId);
+}
+
+function getSnapshotSiteLabel(snapshot: AccountRevenueSnapshot) {
+  const payment = snapshot.lastPayment;
+
+  return payment ? getSiteLabel(payment.marketId, payment.siteId) : null;
+}
+
+function toSafeMinorUnits(value: string) {
+  const amount = BigInt(value);
+
+  return amount > BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number.MAX_SAFE_INTEGER
+    : Number(amount);
 }
 
 function isMemoValueMonospace(label: string) {
@@ -53,6 +71,7 @@ export default function LatestSettlementCard({
   accountAddress,
   settlementRecords,
 }: LatestSettlementCardProps) {
+  const accountRevenue = useAccountRevenueSnapshot(accountAddress);
   const [isViewingMemo, setIsViewingMemo] = useState(false);
   const [isTransactionHashCopied, setIsTransactionHashCopied] =
     useState(false);
@@ -66,11 +85,25 @@ export default function LatestSettlementCard({
   );
   const lastSuccessfulSettlement =
     getLastSuccessfulSettlement(accountSettlementRecords);
-  const displayedTransactionHash = lastSuccessfulSettlement?.txHash ?? null;
-  const platformRevenue = getPlatformRevenue(accountSettlementRecords);
-  const lastSettlementSiteLabel = lastSuccessfulSettlement
-    ? getSettlementSiteLabel(lastSuccessfulSettlement)
-    : null;
+  const revenueSnapshot = accountRevenue.snapshot;
+  const displayedTransactionHash =
+    revenueSnapshot?.lastPayment?.transactionHash ??
+    lastSuccessfulSettlement?.txHash ??
+    null;
+  const platformRevenue = revenueSnapshot
+    ? toSafeMinorUnits(revenueSnapshot.totalAmountMinorUnits)
+    : getPlatformRevenue(accountSettlementRecords);
+  const lastSettlementSiteLabel = revenueSnapshot
+    ? getSnapshotSiteLabel(revenueSnapshot)
+    : lastSuccessfulSettlement
+      ? getSettlementSiteLabel(lastSuccessfulSettlement)
+      : null;
+  const lastSettlementAmount = revenueSnapshot?.lastPayment
+    ? BigInt(revenueSnapshot.lastPayment.amountMinorUnits)
+    : lastSuccessfulSettlement?.result.amountMinorUnits ?? null;
+  const canViewMemo = Boolean(
+    revenueSnapshot?.lastMemo || lastSuccessfulSettlement
+  );
   const hasAccount = accountAddress !== null;
 
   useEffect(() => {
@@ -107,23 +140,43 @@ export default function LatestSettlementCard({
     }, 1600);
   }
 
-  if (isViewingMemo && lastSuccessfulSettlement) {
-    const memoRows = [
-      ["Type", "pdooh.settlement"],
-      ["Site", lastSettlementSiteLabel ?? "Unknown"],
-      ["Settlement ID", lastSuccessfulSettlement.settlementId],
-      ["Cycle", lastSuccessfulSettlement.result.cycleId],
-      ["Slot", lastSuccessfulSettlement.result.slotId],
-      ["Advertiser", lastSuccessfulSettlement.result.advertiserAddress],
-      ["Company", lastSuccessfulSettlement.result.businessName],
-      ["Ad", lastSuccessfulSettlement.result.advertisementName],
-      [
-        "Amount",
-        `${formatLastSettlementAmount(
-          lastSuccessfulSettlement.result.amountMinorUnits
-        )} Test USDC`,
-      ],
-    ] as const;
+  if (isViewingMemo && canViewMemo) {
+    const memoRows = revenueSnapshot?.lastMemo
+      ? ([
+          ["Type", revenueSnapshot.lastMemo.type],
+          ["Site", lastSettlementSiteLabel ?? "Unknown"],
+          ["Settlement ID", revenueSnapshot.lastMemo.settlementId],
+          ["Cycle", revenueSnapshot.lastMemo.cycleId],
+          ["Slot", revenueSnapshot.lastMemo.slotId],
+          ["Advertiser", revenueSnapshot.lastMemo.advertiser],
+          ["Company", revenueSnapshot.lastMemo.company],
+          ["Ad", revenueSnapshot.lastMemo.ad],
+          [
+            "Amount",
+            formatLastSettlementAmount(
+              BigInt(revenueSnapshot.lastMemo.amountMinor)
+            ),
+          ],
+        ] as const)
+      : ([
+          ["Type", "pdooh.settlement"],
+          ["Site", lastSettlementSiteLabel ?? "Unknown"],
+          ["Settlement ID", lastSuccessfulSettlement?.settlementId ?? ""],
+          ["Cycle", lastSuccessfulSettlement?.result.cycleId ?? ""],
+          ["Slot", lastSuccessfulSettlement?.result.slotId ?? ""],
+          [
+            "Advertiser",
+            lastSuccessfulSettlement?.result.advertiserAddress ?? "",
+          ],
+          ["Company", lastSuccessfulSettlement?.result.businessName ?? ""],
+          ["Ad", lastSuccessfulSettlement?.result.advertisementName ?? ""],
+          [
+            "Amount",
+            formatLastSettlementAmount(
+              lastSuccessfulSettlement?.result.amountMinorUnits ?? BigInt(0)
+            ),
+          ],
+        ] as const);
 
     return (
       <div className={`${styles.panel} h-[220px] px-4 py-3 text-center`}>
@@ -152,9 +205,7 @@ export default function LatestSettlementCard({
                   >
                     {label === "Amount" ? (
                       <MoneyAmount
-                        amount={formatLastSettlementAmount(
-                          lastSuccessfulSettlement.result.amountMinorUnits
-                        )}
+                        amount={value}
                         unit="Test USDC"
                       />
                     ) : (
@@ -218,13 +269,11 @@ export default function LatestSettlementCard({
         <p className={`${styles.statusStrip} mt-3 px-3 py-2 text-[11px] leading-4`}>
           Login to view account revenue.
         </p>
-      ) : lastSuccessfulSettlement ? (
+      ) : lastSettlementAmount !== null ? (
         <>
           <p className={`${styles.valuePositive} mt-2 font-mono text-base font-bold tabular-nums`}>
             <MoneyAmount
-              amount={`+${formatLastSettlementAmount(
-                lastSuccessfulSettlement.result.amountMinorUnits
-              )}`}
+              amount={`+${formatLastSettlementAmount(lastSettlementAmount)}`}
               unit="Test USDC"
             />
           </p>
@@ -268,18 +317,20 @@ export default function LatestSettlementCard({
                   href={getArcScanTransactionUrl(displayedTransactionHash)}
                   target="_blank"
                   rel="noreferrer"
-                  className={`${styles.textAction} text-[11px]`}
-                >
-                  View on ArcScan
-                </a>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setIsViewingMemo(true)}
                 className={`${styles.textAction} text-[11px]`}
               >
-                View memo
-              </button>
+                View on ArcScan
+              </a>
+            ) : null}
+              {canViewMemo ? (
+                <button
+                  type="button"
+                  onClick={() => setIsViewingMemo(true)}
+                  className={`${styles.textAction} text-[11px]`}
+                >
+                  View memo
+                </button>
+              ) : null}
             </div>
           </div>
         </>

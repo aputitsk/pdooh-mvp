@@ -16,6 +16,7 @@ import {
   createSettlementId,
   SETTLEMENT_IDENTITY_VERSION_V2,
 } from "@/lib/accounting/settlementRecords";
+import { applySettledAccountRevenue } from "@/lib/accounting/accountRevenueStore";
 import {
   getStoredSettlementTransactionHash,
   saveSettlementTransactionHash,
@@ -666,6 +667,13 @@ export async function POST(request: Request) {
     if (receipt.status !== "success") {
       throw new Error("Settlement transaction reverted.");
     }
+
+    await applySettledAccountRevenue({
+      result: candidate,
+      settledAt: new Date().toISOString(),
+      settlementId: input.settlementId,
+      transactionHash,
+    });
 
     return Response.json({
       ok: true,

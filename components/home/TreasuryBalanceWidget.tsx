@@ -13,6 +13,7 @@ import {
   getLastSuccessfulSettlement,
   getPlatformRevenue,
 } from "@/lib/accounting/settlementSummary";
+import { useAccountRevenueSnapshot } from "@/lib/accounting/useAccountRevenueSnapshot";
 import { useWalletStore } from "@/lib/wallet";
 import MoneyAmount from "@/components/ui/MoneyAmount";
 
@@ -20,8 +21,17 @@ const subscribeToHydration = () => () => {};
 const getHydratedSnapshot = () => true;
 const getServerHydrationSnapshot = () => false;
 
+function toSafeMinorUnits(value: string) {
+  const amount = BigInt(value);
+
+  return amount > BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number.MAX_SAFE_INTEGER
+    : Number(amount);
+}
+
 export default function TreasuryBalanceWidget() {
   const wallet = useWalletStore();
+  const accountRevenueSnapshot = useAccountRevenueSnapshot(wallet.address);
   const isHydrated = useSyncExternalStore(
     subscribeToHydration,
     getHydratedSnapshot,
@@ -38,9 +48,14 @@ export default function TreasuryBalanceWidget() {
     settlementRecords,
     wallet.address
   );
-  const accountRevenue = getPlatformRevenue(accountSettlementRecords);
+  const accountRevenue = accountRevenueSnapshot.snapshot
+    ? toSafeMinorUnits(accountRevenueSnapshot.snapshot.totalAmountMinorUnits)
+    : getPlatformRevenue(accountSettlementRecords);
   const lastSuccessfulSettlement =
     getLastSuccessfulSettlement(accountSettlementRecords);
+  const lastSettlementAmount = accountRevenueSnapshot.snapshot?.lastPayment
+    ? BigInt(accountRevenueSnapshot.snapshot.lastPayment.amountMinorUnits)
+    : lastSuccessfulSettlement?.result.amountMinorUnits ?? null;
   const hasAccount = wallet.connected && wallet.address !== null;
 
   return (
@@ -59,18 +74,16 @@ export default function TreasuryBalanceWidget() {
       </p>
       <p
         className={`mt-0.5 text-[10px] leading-4 ${
-          lastSuccessfulSettlement ? "text-emerald-400" : "text-white/35"
+          lastSettlementAmount !== null ? "text-emerald-400" : "text-white/35"
         }`}
       >
         {!hasAccount ? (
           "Login to view revenue"
-        ) : lastSuccessfulSettlement ? (
+        ) : lastSettlementAmount !== null ? (
           <>
             <span className="font-mono tabular-nums">
               <MoneyAmount
-                amount={`+${formatLastSettlementAmount(
-                  lastSuccessfulSettlement.result.amountMinorUnits
-                )}`}
+                amount={`+${formatLastSettlementAmount(lastSettlementAmount)}`}
                 unit="USDC"
               />
             </span>{" "}

@@ -1,6 +1,9 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { getVercelKvRedisRestConfig, runRedisCommand, type RedisRestConfig } from "./redisRestStore.ts";
+
 type HexHash = `0x${string}`;
 
 type SettlementTransactionHashStoreFile = {
@@ -8,6 +11,7 @@ type SettlementTransactionHashStoreFile = {
   transactions: Record<string, HexHash>;
 };
 
+const REDIS_KEY_PREFIX = "pdooh:settlement-transaction-hash:";
 const STORE_DIRECTORY =
   process.env.PDOOH_SETTLEMENT_HASH_STORE_DIR ?? join(process.cwd(), "cache");
 const STORE_FILE = join(
@@ -22,6 +26,38 @@ function normalizeHash(value: HexHash) {
 
 function isBytes32Hex(value: string): value is HexHash {
   return /^0x[0-9a-fA-F]{64}$/.test(value);
+}
+
+function getRedisKey(settlementId: HexHash) {
+  return `${REDIS_KEY_PREFIX}${settlementId}`;
+}
+
+async function getRedisSettlementTransactionHash(
+  config: RedisRestConfig,
+  settlementId: HexHash
+) {
+  const result = await runRedisCommand(config, [
+    "GET",
+    getRedisKey(settlementId),
+  ]);
+
+  if (typeof result !== "string" || !isBytes32Hex(result)) {
+    return null;
+  }
+
+  return normalizeHash(result as HexHash);
+}
+
+async function saveRedisSettlementTransactionHash(
+  config: RedisRestConfig,
+  settlementId: HexHash,
+  transactionHash: HexHash
+) {
+  await runRedisCommand(config, [
+    "SET",
+    getRedisKey(settlementId),
+    transactionHash,
+  ]);
 }
 
 async function readStore(): Promise<SettlementTransactionHashStoreFile> {
@@ -84,6 +120,12 @@ export async function getStoredSettlementTransactionHash(
   settlementId: HexHash
 ) {
   const normalizedSettlementId = normalizeHash(settlementId);
+  const redisConfig = getVercelKvRedisRestConfig();
+
+  if (redisConfig) {
+    return getRedisSettlementTransactionHash(redisConfig, normalizedSettlementId);
+  }
+
   const store = await readStore();
 
   return store.transactions[normalizedSettlementId] ?? null;
@@ -95,6 +137,16 @@ export async function saveSettlementTransactionHash(
 ) {
   const normalizedSettlementId = normalizeHash(settlementId);
   const normalizedTransactionHash = normalizeHash(transactionHash);
+  const redisConfig = getVercelKvRedisRestConfig();
+
+  if (redisConfig) {
+    await saveRedisSettlementTransactionHash(
+      redisConfig,
+      normalizedSettlementId,
+      normalizedTransactionHash
+    );
+    return;
+  }
 
   writeQueue = writeQueue.catch(() => undefined).then(async () => {
     const store = await readStore();
