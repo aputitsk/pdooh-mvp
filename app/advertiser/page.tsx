@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import ConnectWalletCard from "@/components/advertiser/ConnectWalletCard";
 import CreateBusinessProfileCard from "@/components/advertiser/CreateBusinessProfileCard";
 import EscrowDepositCard from "@/components/advertiser/EscrowDepositCard";
@@ -28,6 +28,56 @@ const getHydratedSnapshot = () => true;
 const getServerHydrationSnapshot = () => false;
 const CIRCLE_FAUCET_URL = "https://faucet.circle.com";
 
+type BusinessProfileResponse = {
+  ok?: boolean;
+  profile?: {
+    businessName?: unknown;
+    isBusinessProfileCreated?: unknown;
+  } | null;
+};
+
+function getRemoteBusinessName(profile: BusinessProfileResponse["profile"]) {
+  if (
+    !profile ||
+    profile.isBusinessProfileCreated !== true ||
+    typeof profile.businessName !== "string"
+  ) {
+    return null;
+  }
+
+  const businessName = profile.businessName.trim();
+
+  return businessName.length > 0 ? businessName : null;
+}
+
+async function fetchAccountBusinessProfile(walletAddress: string) {
+  const response = await fetch(
+    `/api/account/business-profile?walletAddress=${encodeURIComponent(
+      walletAddress
+    )}`,
+    { cache: "no-store" }
+  );
+  const payload = (await response.json()) as BusinessProfileResponse;
+
+  return response.ok && payload.ok
+    ? getRemoteBusinessName(payload.profile)
+    : null;
+}
+
+async function saveAccountBusinessProfile(
+  walletAddress: string,
+  businessName: string
+) {
+  await fetch("/api/account/business-profile", {
+    body: JSON.stringify({
+      businessName,
+      walletAddress,
+    }),
+    headers: { "Content-Type": "application/json" },
+    method: "PUT",
+  });
+}
+
 export default function AdvertiserPage() {
   const {
     wallet,
@@ -37,6 +87,7 @@ export default function AdvertiserPage() {
     setBusinessName,
     createBusinessProfile,
     updateBusinessProfileName,
+    syncBusinessProfileFromRemote,
   } = useDemoAdvertiserStore();
 
   const walletUsdcBalance = useWalletUsdcBalance();
@@ -130,6 +181,7 @@ export default function AdvertiserPage() {
   const [showBusinessNameError, setShowBusinessNameError] = useState(false);
   const [isEditingBusinessName, setIsEditingBusinessName] = useState(false);
   const [editableBusinessName, setEditableBusinessName] = useState("");
+  const businessProfileSyncKeyRef = useRef<string | null>(null);
 
   const isWalletRestoring = wallet.status === "restoring";
   const canShowBusinessProfile = wallet.connected;
@@ -144,6 +196,69 @@ export default function AdvertiserPage() {
     businessName.trim().length > 0 &&
     advertisements.length > 0 &&
     hasAvailableAuctionCapacity;
+
+  useEffect(() => {
+    if (!wallet.connected || !wallet.address) {
+      businessProfileSyncKeyRef.current = null;
+      return;
+    }
+
+    const walletAddress = wallet.address;
+    const localBusinessName = businessName.trim();
+    const syncKey = `${walletAddress.toLowerCase()}:${localBusinessName}:${String(
+      isBusinessProfileCreated
+    )}`;
+
+    if (businessProfileSyncKeyRef.current === syncKey) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function syncAccountBusinessProfile() {
+      try {
+        const remoteBusinessName = await fetchAccountBusinessProfile(
+          walletAddress
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        if (remoteBusinessName) {
+          if (
+            !isBusinessProfileCreated ||
+            remoteBusinessName !== localBusinessName
+          ) {
+            syncBusinessProfileFromRemote(remoteBusinessName);
+          }
+
+          businessProfileSyncKeyRef.current = syncKey;
+          return;
+        }
+
+        if (isBusinessProfileCreated && localBusinessName) {
+          await saveAccountBusinessProfile(walletAddress, localBusinessName);
+        }
+
+        businessProfileSyncKeyRef.current = syncKey;
+      } catch {
+        businessProfileSyncKeyRef.current = null;
+      }
+    }
+
+    void syncAccountBusinessProfile();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    businessName,
+    isBusinessProfileCreated,
+    syncBusinessProfileFromRemote,
+    wallet.address,
+    wallet.connected,
+  ]);
 
   function handleBusinessNameChange(value: string) {
     setBusinessName(value);
@@ -162,6 +277,10 @@ export default function AdvertiserPage() {
     setShowBusinessNameError(false);
 
     createBusinessProfile(businessName);
+
+    if (wallet.address) {
+      void saveAccountBusinessProfile(wallet.address, businessName.trim());
+    }
   }
 
   function handleStartBusinessNameEdit() {
@@ -200,6 +319,10 @@ export default function AdvertiserPage() {
 
     setShowBusinessNameError(false);
     setIsEditingBusinessName(false);
+
+    if (wallet.address) {
+      void saveAccountBusinessProfile(wallet.address, editableBusinessName.trim());
+    }
   }
 
   function handleCancelBusinessNameEdit() {

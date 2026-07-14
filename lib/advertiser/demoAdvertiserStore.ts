@@ -184,6 +184,26 @@ function updateBusinessProfileName(businessName: string) {
   return true;
 }
 
+function syncBusinessProfileFromRemote(businessName: string) {
+  const walletAddress = getCurrentWalletAddress();
+  const trimmedBusinessName = businessName.trim();
+
+  if (!walletAddress || !trimmedBusinessName) {
+    return false;
+  }
+
+  setStoredBusinessName(trimmedBusinessName, walletAddress);
+  setStoredBusinessProfileCreated(true, walletAddress);
+  createDefaultAdvertisement(
+    getAdvertisements(walletAddress),
+    trimmedBusinessName,
+    walletAddress
+  );
+  notifyDemoStorageChange();
+
+  return true;
+}
+
 function depositTestUSDC(amount: string) {
   const walletAddress = getCurrentWalletAddress();
   let deposit: UsdcMinorUnits;
@@ -252,6 +272,7 @@ export function useDemoAdvertiserStore() {
     setBusinessName,
     createBusinessProfile,
     updateBusinessProfileName,
+    syncBusinessProfileFromRemote,
     depositTestUSDC,
   };
 }
