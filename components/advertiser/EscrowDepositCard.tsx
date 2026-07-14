@@ -36,6 +36,9 @@ type EscrowActionStatus =
 
 type EscrowDepositCardProps = {
   onSuccess: () => void;
+  walletBalanceMinorUnits: UsdcMinorUnits | null;
+  walletBalanceStatus: "idle" | "loading" | "ready" | "error";
+  walletBalanceError: string | null;
   escrowBalance: string;
   escrowBalanceMinorUnits: UsdcMinorUnits | null;
   escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
@@ -61,8 +64,15 @@ function getConfiguredEscrowAddress() {
   }
 }
 
+function formatAvailableBalance(balance: UsdcMinorUnits) {
+  return `${formatUSDCFromMinorUnits(balance)} Test USDC`;
+}
+
 export default function EscrowDepositCard({
   onSuccess,
+  walletBalanceMinorUnits,
+  walletBalanceStatus,
+  walletBalanceError,
   escrowBalance,
   escrowBalanceMinorUnits,
   escrowBalanceStatus,
@@ -81,6 +91,12 @@ export default function EscrowDepositCard({
     string | null
   >(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [pendingDepositAmount, setPendingDepositAmount] = useState<
+    string | null
+  >(null);
+  const [pendingWithdrawAmount, setPendingWithdrawAmount] = useState<
+    string | null
+  >(null);
   const [copiedOnchainReference, setCopiedOnchainReference] = useState<
     string | null
   >(null);
@@ -120,6 +136,19 @@ export default function EscrowDepositCard({
     };
   }, []);
 
+  function clearTransactionState() {
+    if (successNoticeTimeoutRef.current) {
+      clearTimeout(successNoticeTimeoutRef.current);
+      successNoticeTimeoutRef.current = null;
+    }
+
+    setApprovalTransactionHash(null);
+    setDepositTransactionHash(null);
+    setWithdrawTransactionHash(null);
+    setIsReceiptOpen(false);
+    setError(null);
+  }
+
   function showButtonSuccess(nextStatus: "success" | "withdraw_success") {
     if (successNoticeTimeoutRef.current) {
       clearTimeout(successNoticeTimeoutRef.current);
@@ -147,21 +176,56 @@ export default function EscrowDepositCard({
     }, 1600);
   }
 
-  async function handleDeposit() {
-    if (successNoticeTimeoutRef.current) {
-      clearTimeout(successNoticeTimeoutRef.current);
-      successNoticeTimeoutRef.current = null;
-    }
-
-    setStatus("validating");
-    setApprovalTransactionHash(null);
-    setDepositTransactionHash(null);
-    setWithdrawTransactionHash(null);
-    setIsReceiptOpen(false);
-    setError(null);
+  function handleRequestDepositConfirmation() {
+    clearTransactionState();
 
     try {
-      const result = await depositEscrowFunds(amount, {
+      const depositAmount = parseUSDCToMinorUnits(amount);
+
+      if (depositAmount <= 0) {
+        throw new Error("Enter an escrow deposit amount greater than zero.");
+      }
+
+      if (walletBalanceStatus === "loading" || walletBalanceStatus === "idle") {
+        throw new Error("Wallet balance is still loading. Try again in a moment.");
+      }
+
+      if (walletBalanceStatus === "error") {
+        throw new Error(walletBalanceError ?? "Unable to read wallet balance.");
+      }
+
+      if (walletBalanceMinorUnits === null) {
+        throw new Error("Wallet balance is not available.");
+      }
+
+      if (depositAmount > walletBalanceMinorUnits) {
+        throw new Error(
+          `Deposit amount exceeds your wallet balance. Available: ${formatAvailableBalance(
+            walletBalanceMinorUnits
+          )}.`
+        );
+      }
+
+      setPendingDepositAmount(amount.trim());
+    } catch (depositError) {
+      setStatus("error");
+      setError(getErrorMessage(depositError));
+    }
+  }
+
+  async function handleConfirmDeposit() {
+    if (!pendingDepositAmount) {
+      return;
+    }
+
+    const confirmedAmount = pendingDepositAmount;
+
+    setPendingDepositAmount(null);
+    setStatus("validating");
+    clearTransactionState();
+
+    try {
+      const result = await depositEscrowFunds(confirmedAmount, {
         onApprovalWalletRequest() {
           setStatus("approval_waiting");
         },
@@ -193,18 +257,8 @@ export default function EscrowDepositCard({
     }
   }
 
-  async function handleWithdraw() {
-    if (successNoticeTimeoutRef.current) {
-      clearTimeout(successNoticeTimeoutRef.current);
-      successNoticeTimeoutRef.current = null;
-    }
-
-    setStatus("validating");
-    setApprovalTransactionHash(null);
-    setDepositTransactionHash(null);
-    setWithdrawTransactionHash(null);
-    setIsReceiptOpen(false);
-    setError(null);
+  function handleRequestWithdrawConfirmation() {
+    clearTransactionState();
 
     try {
       const withdrawAmount = parseUSDCToMinorUnits(amount);
@@ -226,10 +280,33 @@ export default function EscrowDepositCard({
       }
 
       if (withdrawAmount > escrowBalanceMinorUnits) {
-        throw new Error("Withdraw amount exceeds your escrow balance.");
+        throw new Error(
+          `Withdraw amount exceeds your escrow balance. Available: ${formatAvailableBalance(
+            escrowBalanceMinorUnits
+          )}.`
+        );
       }
 
-      const result = await withdrawEscrowFunds(amount, {
+      setPendingWithdrawAmount(amount.trim());
+    } catch (withdrawError) {
+      setStatus("error");
+      setError(getErrorMessage(withdrawError));
+    }
+  }
+
+  async function handleConfirmWithdraw() {
+    if (!pendingWithdrawAmount) {
+      return;
+    }
+
+    const confirmedAmount = pendingWithdrawAmount;
+
+    setPendingWithdrawAmount(null);
+    setStatus("validating");
+    clearTransactionState();
+
+    try {
+      const result = await withdrawEscrowFunds(confirmedAmount, {
         onWithdrawWalletRequest() {
           setStatus("withdraw_waiting");
         },
@@ -255,12 +332,12 @@ export default function EscrowDepositCard({
       : status === "validating"
       ? "Validating escrow..."
       : status === "approval_waiting"
-        ? "Confirm approval in wallet..."
+        ? "Submitting approval..."
         : status === "approval_pending"
           ? "Waiting for approval..."
           : status === "approval_confirmed" ||
               status === "deposit_waiting"
-            ? "Confirm deposit in wallet..."
+            ? "Submitting deposit..."
             : status === "deposit_pending"
               ? "Waiting for deposit..."
               : "Deposit to Escrow";
@@ -268,7 +345,7 @@ export default function EscrowDepositCard({
     status === "withdraw_success"
       ? "Withdrawal confirmed"
       : status === "withdraw_waiting"
-      ? "Confirm withdraw in wallet..."
+      ? "Submitting withdraw..."
       : status === "withdraw_pending"
         ? "Waiting for withdraw..."
         : "Withdraw";
@@ -278,7 +355,7 @@ export default function EscrowDepositCard({
         ? "Reading escrow balance..."
         : escrowBalanceStatus === "error"
           ? escrowBalanceError
-          : "Connect wallet to read escrow balance";
+          : "-";
   const receiptTransactions: ReceiptTransaction[] = [];
 
   if (approvalTransactionHash) {
@@ -387,7 +464,7 @@ export default function EscrowDepositCard({
       >
         <button
           type="button"
-          onClick={handleDeposit}
+          onClick={handleRequestDepositConfirmation}
           disabled={isBusy || status === "success"}
           className={`min-h-12 w-full px-6 py-3 font-semibold ${
             status === "success" ? styles.successAction : styles.primaryAction
@@ -403,7 +480,7 @@ export default function EscrowDepositCard({
         {canWithdraw && (
           <button
             type="button"
-            onClick={handleWithdraw}
+            onClick={handleRequestWithdrawConfirmation}
             disabled={isBusy || status === "withdraw_success"}
             className={`min-h-12 w-full px-6 py-3 font-semibold ${
               status === "withdraw_success"
@@ -455,6 +532,120 @@ export default function EscrowDepositCard({
           {error}
         </p>
       )}
+
+      {pendingDepositAmount ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="escrow-deposit-confirm-title"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-6"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl shadow-black/50">
+            <p className={styles.eyebrow}>Confirm deposit</p>
+            <h3
+              id="escrow-deposit-confirm-title"
+              className={`${styles.title} mt-2 text-xl font-bold`}
+            >
+              Deposit to Escrow
+            </h3>
+
+            <div className={`${styles.metric} mt-4 p-4`}>
+              <p className={styles.valueLabel}>Amount</p>
+              <p className={`${styles.valueText} mt-2 font-mono text-lg tabular-nums`}>
+                <MoneyAmount amount={pendingDepositAmount} unit="Test USDC" />
+              </p>
+            </div>
+
+            {escrowContractAddress ? (
+              <div className={`${styles.metric} mt-3 p-4`}>
+                <p className={styles.valueLabel}>Escrow contract</p>
+                <p className="mt-2 break-all font-mono text-xs text-white/70">
+                  {escrowContractAddress}
+                </p>
+              </div>
+            ) : null}
+
+            <p className="mt-4 text-sm text-white/55">
+              This will approve Test USDC if needed and then deposit the amount
+              into AuctionEscrow.
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setPendingDepositAmount(null)}
+                className={`${styles.secondaryAction} inline-flex min-h-11 flex-1 items-center justify-center px-4 py-2 text-sm font-semibold`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDeposit()}
+                className={`${styles.primaryAction} inline-flex min-h-11 flex-1 items-center justify-center px-4 py-2 text-sm font-semibold`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingWithdrawAmount ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="escrow-withdraw-confirm-title"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-6"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl shadow-black/50">
+            <p className={styles.eyebrow}>Confirm withdraw</p>
+            <h3
+              id="escrow-withdraw-confirm-title"
+              className={`${styles.title} mt-2 text-xl font-bold`}
+            >
+              Withdraw from Escrow
+            </h3>
+
+            <div className={`${styles.metric} mt-4 p-4`}>
+              <p className={styles.valueLabel}>Amount</p>
+              <p className={`${styles.valueText} mt-2 font-mono text-lg tabular-nums`}>
+                <MoneyAmount amount={pendingWithdrawAmount} unit="Test USDC" />
+              </p>
+            </div>
+
+            {escrowContractAddress ? (
+              <div className={`${styles.metric} mt-3 p-4`}>
+                <p className={styles.valueLabel}>Escrow contract</p>
+                <p className="mt-2 break-all font-mono text-xs text-white/70">
+                  {escrowContractAddress}
+                </p>
+              </div>
+            ) : null}
+
+            <p className="mt-4 text-sm text-white/55">
+              This will withdraw available Test USDC from AuctionEscrow back to
+              your active login address.
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setPendingWithdrawAmount(null)}
+                className={`${styles.secondaryAction} inline-flex min-h-11 flex-1 items-center justify-center px-4 py-2 text-sm font-semibold`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmWithdraw()}
+                className={`${styles.primaryAction} inline-flex min-h-11 flex-1 items-center justify-center px-4 py-2 text-sm font-semibold`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

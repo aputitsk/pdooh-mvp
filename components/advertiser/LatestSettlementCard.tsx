@@ -7,6 +7,7 @@ import {
   formatLastSettlementAmount,
   formatSettlementRevenue,
   formatTransactionHash,
+  getAccountSettlementRecords,
   getLastSuccessfulSettlement,
   getPlatformRevenue,
 } from "@/lib/accounting/settlementSummary";
@@ -17,6 +18,7 @@ import CopyButton from "@/components/ui/CopyButton";
 import styles from "@/components/ui/OperationalPanel.module.css";
 
 type LatestSettlementCardProps = {
+  accountAddress: string | null;
   settlementRecords: readonly SettlementRecord[];
 };
 
@@ -48,6 +50,7 @@ function isMemoValueMonospace(label: string) {
 }
 
 export default function LatestSettlementCard({
+  accountAddress,
   settlementRecords,
 }: LatestSettlementCardProps) {
   const [isViewingMemo, setIsViewingMemo] = useState(false);
@@ -57,12 +60,18 @@ export default function LatestSettlementCard({
   const copyNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const accountSettlementRecords = getAccountSettlementRecords(
+    settlementRecords,
+    accountAddress
+  );
   const lastSuccessfulSettlement =
-    getLastSuccessfulSettlement(settlementRecords);
-  const platformRevenue = getPlatformRevenue(settlementRecords);
+    getLastSuccessfulSettlement(accountSettlementRecords);
+  const displayedTransactionHash = lastSuccessfulSettlement?.txHash ?? null;
+  const platformRevenue = getPlatformRevenue(accountSettlementRecords);
   const lastSettlementSiteLabel = lastSuccessfulSettlement
     ? getSettlementSiteLabel(lastSuccessfulSettlement)
     : null;
+  const hasAccount = accountAddress !== null;
 
   useEffect(() => {
     return () => {
@@ -199,13 +208,17 @@ export default function LatestSettlementCard({
             Total
           </span>
           <MoneyAmount
-            amount={formatSettlementRevenue(platformRevenue)}
+            amount={hasAccount ? formatSettlementRevenue(platformRevenue) : "-"}
             unit="Test USDC"
           />
         </p>
       </div>
 
-      {lastSuccessfulSettlement ? (
+      {!hasAccount ? (
+        <p className={`${styles.statusStrip} mt-3 px-3 py-2 text-[11px] leading-4`}>
+          Login to view account revenue.
+        </p>
+      ) : lastSuccessfulSettlement ? (
         <>
           <p className={`${styles.valuePositive} mt-2 font-mono text-base font-bold tabular-nums`}>
             <MoneyAmount
@@ -222,20 +235,18 @@ export default function LatestSettlementCard({
           )}
 
           <div className={`${styles.eventPanel} mt-2 p-3`}>
-            {lastSuccessfulSettlement.txHash ? (
+            {displayedTransactionHash ? (
               <div className="flex items-center justify-center gap-2">
                 <p className="text-[11px] text-white/50">
                   Tx:{" "}
                   <span className="font-mono">
-                    {formatTransactionHash(lastSuccessfulSettlement.txHash)}
+                    {formatTransactionHash(displayedTransactionHash)}
                   </span>
                 </p>
                 <CopyButton
                   ariaLabel="Copy settlement transaction hash"
                   onClick={() =>
-                    void handleCopyTransactionHash(
-                      lastSuccessfulSettlement.txHash ?? ""
-                    )
+                    void handleCopyTransactionHash(displayedTransactionHash)
                   }
                   className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
                 />
@@ -249,16 +260,12 @@ export default function LatestSettlementCard({
                   </span>
                 ) : null}
               </div>
-            ) : (
-              <p className="text-[11px] leading-4 text-white/40">
-                No settlement transaction hash is available.
-              </p>
-            )}
+            ) : null}
 
             <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-              {lastSuccessfulSettlement.txHash ? (
+              {displayedTransactionHash ? (
                 <a
-                  href={getArcScanTransactionUrl(lastSuccessfulSettlement.txHash)}
+                  href={getArcScanTransactionUrl(displayedTransactionHash)}
                   target="_blank"
                   rel="noreferrer"
                   className={`${styles.textAction} text-[11px]`}

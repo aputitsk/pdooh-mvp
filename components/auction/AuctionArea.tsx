@@ -73,7 +73,7 @@ export default function AuctionArea({
   const disabledMessage = isWalletRestoring
     ? undefined
     : !isWalletConnected
-      ? "Connect your wallet to select advertisements and place bids."
+      ? "Log in to select advertisements and place bids."
       : escrowBalanceStatus === "loading"
         ? "Reading escrow capacity..."
         : escrowBalanceStatus === "error"

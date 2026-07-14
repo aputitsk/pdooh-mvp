@@ -5,6 +5,7 @@ type WalletSnapshotValue = {
   connected: boolean;
   address: string | null;
   chainId: number | null;
+  source: WalletState["source"];
 };
 
 const emptyWalletSnapshotValue: WalletSnapshotValue = {
@@ -12,6 +13,7 @@ const emptyWalletSnapshotValue: WalletSnapshotValue = {
   connected: false,
   address: null,
   chainId: null,
+  source: null,
 };
 
 export const emptyWalletSnapshot = JSON.stringify(emptyWalletSnapshotValue);
@@ -22,6 +24,10 @@ function isWalletStatus(value: unknown): value is WalletState["status"] {
     value === "disconnected" ||
     value === "restoring"
   );
+}
+
+function isWalletSource(value: unknown): value is WalletState["source"] {
+  return value === "appkit" || value === "privy" || value === null;
 }
 
 function toWalletSnapshotValue(value: unknown): WalletSnapshotValue {
@@ -46,6 +52,7 @@ function toWalletSnapshotValue(value: unknown): WalletSnapshotValue {
       Number.isFinite(candidate.chainId)
         ? candidate.chainId
         : null,
+    source: isWalletSource(candidate.source) ? candidate.source : null,
   };
 }
 
@@ -55,6 +62,7 @@ export function createWalletSnapshot(wallet: WalletState) {
     connected: wallet.connected,
     address: wallet.address ?? null,
     chainId: wallet.chainId ?? null,
+    source: wallet.source ?? null,
   } satisfies WalletSnapshotValue);
 }
 

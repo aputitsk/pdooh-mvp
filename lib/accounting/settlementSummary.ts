@@ -53,6 +53,24 @@ export function getPlatformRevenue(records: readonly SettlementRecord[]) {
   );
 }
 
+export function getAccountSettlementRecords(
+  records: readonly SettlementRecord[],
+  accountAddress: string | null | undefined
+) {
+  if (!accountAddress) {
+    return [];
+  }
+
+  const normalizedAccountAddress = accountAddress.toLowerCase();
+
+  return records.filter((record) => {
+    return (
+      record.result.advertiserAddress.toLowerCase() ===
+      normalizedAccountAddress
+    );
+  });
+}
+
 export function getLastSuccessfulSettlement(
   records: readonly SettlementRecord[]
 ) {

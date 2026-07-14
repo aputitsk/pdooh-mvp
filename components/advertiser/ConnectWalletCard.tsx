@@ -25,16 +25,16 @@ export default function ConnectWalletCard({
         ? "Reading balance..."
         : usdcBalanceStatus === "error"
           ? usdcBalanceError
-          : "Connect wallet in the navbar";
+          : "-";
 
   return (
     <div className={`${styles.panel} p-6`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className={styles.eyebrow}>Step 1</p>
-          <h2 className={`${styles.title} mt-1 text-2xl font-bold`}>External Wallet</h2>
+          <h2 className={`${styles.title} mt-1 text-2xl font-bold`}>Wallet</h2>
           <p className={`${styles.mutedText} mt-2 text-sm`}>
-            Wallet connection is managed from the top navigation bar.
+            Login is managed from the top navigation bar.
           </p>
         </div>
 
@@ -48,10 +48,10 @@ export default function ConnectWalletCard({
           }`}
         >
           {isWalletConnected
-            ? "Connected"
+            ? "Logged in"
             : isWalletRestoring
-              ? "Checking"
-              : "Not Connected"}
+              ? "Checking login"
+              : "Login required"}
         </span>
       </div>
 

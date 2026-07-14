@@ -25,7 +25,10 @@ import {
   getActiveArcWalletProvider,
   getArcWalletState,
 } from "./arcWalletAdapter";
-import type { UsdcMinorUnits } from "@/lib/money/usdc";
+import {
+  formatUSDCFromMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
 const auctionEscrowAbi = [
   {
@@ -154,14 +157,63 @@ function assertValidWithdrawAmount(amount: UsdcMinorUnits) {
 
 function toSafeUsdcMinorUnits(balance: bigint): UsdcMinorUnits {
   if (balance < BigInt(0)) {
-    throw new RangeError("Escrow balance cannot be negative.");
+    throw new RangeError("USDC balance cannot be negative.");
   }
 
   if (balance > BigInt(Number.MAX_SAFE_INTEGER)) {
-    throw new RangeError("Escrow balance exceeds safe integer range.");
+    throw new RangeError("USDC balance exceeds safe integer range.");
   }
 
   return Number(balance);
+}
+
+function formatAvailableBalance(balance: UsdcMinorUnits) {
+  return `${formatUSDCFromMinorUnits(balance)} Test USDC`;
+}
+
+async function getArcUsdcTokenBalance(owner: Address) {
+  const balance = await arcPublicClient.readContract({
+    address: ARC_USDC_CONTRACT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [owner],
+  });
+
+  return toSafeUsdcMinorUnits(balance);
+}
+
+async function assertWalletCanDeposit(account: Address, amount: UsdcMinorUnits) {
+  const balance = await getArcUsdcTokenBalance(account);
+
+  if (amount > balance) {
+    throw new Error(
+      `Deposit amount exceeds your wallet balance. Available: ${formatAvailableBalance(
+        balance
+      )}.`
+    );
+  }
+}
+
+async function assertEscrowCanWithdraw(
+  escrowAddress: Address,
+  account: Address,
+  amount: UsdcMinorUnits
+) {
+  const balance = await arcPublicClient.readContract({
+    address: escrowAddress,
+    abi: auctionEscrowAbi,
+    functionName: "balanceOf",
+    args: [account],
+  });
+  const escrowBalance = toSafeUsdcMinorUnits(balance);
+
+  if (amount > escrowBalance) {
+    throw new Error(
+      `Withdraw amount exceeds your escrow balance. Available: ${formatAvailableBalance(
+        escrowBalance
+      )}.`
+    );
+  }
 }
 
 async function getEscrowTransactionContext() {
@@ -169,7 +221,7 @@ async function getEscrowTransactionContext() {
   const provider = getActiveArcWalletProvider();
 
   if (!wallet.connected || !wallet.address || !provider) {
-    throw new Error("Connect the external wallet before depositing USDC.");
+    throw new Error("Log in with an external wallet before depositing USDC.");
   }
 
   if (wallet.chainId !== ARC_CHAIN_ID) {
@@ -284,6 +336,9 @@ export async function depositArcUsdcToEscrow(
   await validateArcEscrowContract(escrowAddress);
 
   const approvalContext = await getEscrowTransactionContext();
+
+  await assertWalletCanDeposit(approvalContext.account, amount);
+
   const { request: approvalRequest } = await arcPublicClient.simulateContract({
     account: approvalContext.account,
     address: ARC_USDC_CONTRACT_ADDRESS,
@@ -311,6 +366,8 @@ export async function depositArcUsdcToEscrow(
       "The active wallet account changed after approval. Deposit was not submitted."
     );
   }
+
+  await assertWalletCanDeposit(depositContext.account, amount);
 
   const { request: depositRequest } = await arcPublicClient.simulateContract({
     account: depositContext.account,
@@ -345,6 +402,9 @@ export async function withdrawArcUsdcFromEscrow(
   await validateArcEscrowContract(escrowAddress);
 
   const withdrawContext = await getEscrowTransactionContext();
+
+  await assertEscrowCanWithdraw(escrowAddress, withdrawContext.account, amount);
+
   const { request: withdrawRequest } = await arcPublicClient.simulateContract({
     account: withdrawContext.account,
     address: escrowAddress,

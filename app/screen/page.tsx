@@ -237,7 +237,7 @@ export default function ScreenPage() {
       if (!wallet.address) {
         setBidErrors((currentBidErrors) => ({
           ...currentBidErrors,
-          [slotIndex]: "Connect your wallet before placing a bid.",
+          [slotIndex]: "Log in before placing a bid.",
         }));
         return;
       }

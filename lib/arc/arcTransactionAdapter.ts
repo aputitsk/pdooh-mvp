@@ -24,7 +24,10 @@ import {
   getActiveArcWalletProvider,
   getArcWalletState,
 } from "./arcWalletAdapter";
-import type { UsdcMinorUnits } from "@/lib/money/usdc";
+import {
+  formatUSDCFromMinorUnits,
+  type UsdcMinorUnits,
+} from "@/lib/money/usdc";
 
 const arcTestnetChain = {
   id: ARC_CHAIN_ID,
@@ -81,12 +84,46 @@ function assertValidTransferAmount(amount: UsdcMinorUnits) {
   }
 }
 
+function toSafeUsdcMinorUnits(balance: bigint): UsdcMinorUnits {
+  if (balance < BigInt(0)) {
+    throw new RangeError("USDC balance cannot be negative.");
+  }
+
+  if (balance > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new RangeError("USDC balance exceeds safe integer range.");
+  }
+
+  return Number(balance);
+}
+
+function formatAvailableBalance(balance: UsdcMinorUnits) {
+  return `${formatUSDCFromMinorUnits(balance)} Test USDC`;
+}
+
+async function assertWalletCanTransfer(account: Address, amount: UsdcMinorUnits) {
+  const balance = await arcPublicClient.readContract({
+    address: ARC_USDC_CONTRACT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [account],
+  });
+  const walletBalance = toSafeUsdcMinorUnits(balance);
+
+  if (amount > walletBalance) {
+    throw new Error(
+      `Transfer amount exceeds your wallet balance. Available: ${formatAvailableBalance(
+        walletBalance
+      )}.`
+    );
+  }
+}
+
 async function getTransactionContext() {
   const wallet = getArcWalletState();
   const provider = getActiveArcWalletProvider();
 
   if (!wallet.connected || !wallet.address || !provider) {
-    throw new Error("Connect the external wallet before sending USDC.");
+    throw new Error("Log in with an external wallet before sending USDC.");
   }
 
   if (wallet.chainId !== ARC_CHAIN_ID) {
@@ -127,6 +164,9 @@ export async function transferArcUsdcToTreasury(
   assertValidTransferAmount(amount);
 
   const { account, walletClient } = await getTransactionContext();
+
+  await assertWalletCanTransfer(account, amount);
+
   const { request } = await arcPublicClient.simulateContract({
     account,
     address: ARC_USDC_CONTRACT_ADDRESS,

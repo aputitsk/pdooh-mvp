@@ -6,7 +6,14 @@ export function parseChainId(value: unknown) {
   }
 
   if (typeof value === "string") {
-    return Number.parseInt(value, value.startsWith("0x") ? 16 : 10);
+    const normalizedValue = value.includes(":")
+      ? value.split(":").at(-1) ?? value
+      : value;
+
+    return Number.parseInt(
+      normalizedValue,
+      normalizedValue.startsWith("0x") ? 16 : 10
+    );
   }
 
   return null;

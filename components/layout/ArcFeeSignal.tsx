@@ -38,12 +38,13 @@ export default function ArcFeeSignal() {
     arcFeeSignal.status === "ready" && arcFeeSignal.display
       ? (
           <>
-            Arc Testnet {"\u00b7"} Gas {renderFeeDisplay(arcFeeSignal.display)}
+            Arc Testnet {"\u00b7"} Simple tx{" "}
+            {renderFeeDisplay(arcFeeSignal.display)}
           </>
         )
       : arcFeeSignal.status === "error"
-        ? "Arc Testnet \u00b7 Gas unavailable"
-        : "Arc Testnet \u00b7 Fees in USDC";
+        ? "Arc Testnet \u00b7 Simple tx fee unavailable"
+        : "Arc Testnet \u00b7 Simple tx fee in USDC";
 
   useEffect(() => {
     void refreshArcFeeSignal();

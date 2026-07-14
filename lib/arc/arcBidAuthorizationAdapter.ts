@@ -90,7 +90,7 @@ async function getBidAuthorizationContext(payload: BidAuthorizationPayload) {
   const provider = getActiveArcWalletProvider();
 
   if (!wallet.connected || !wallet.address || !provider) {
-    throw new Error("Connect the external wallet before authorizing a bid.");
+    throw new Error("Log in with an external wallet before authorizing a bid.");
   }
 
   if (wallet.chainId !== ARC_CHAIN_ID) {
@@ -116,7 +116,7 @@ async function getBidAuthorizationContext(payload: BidAuthorizationPayload) {
 
   if (activeAddress.toLowerCase() !== payload.advertiserAddress.toLowerCase()) {
     throw new Error(
-      "The connected wallet does not match the bid advertiser address."
+      "The active login address does not match the bid advertiser address."
     );
   }
 

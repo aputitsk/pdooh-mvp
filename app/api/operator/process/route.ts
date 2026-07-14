@@ -16,6 +16,10 @@ import {
   createSettlementId,
   SETTLEMENT_IDENTITY_VERSION_V2,
 } from "@/lib/accounting/settlementRecords";
+import {
+  getStoredSettlementTransactionHash,
+  saveSettlementTransactionHash,
+} from "@/lib/accounting/settlementTransactionHashStore";
 import { ARC_TREASURY_ADDRESS } from "@/lib/arc/arcConfig";
 import { createBidAuthorizationTypedData } from "@/lib/arc/arcBidAuthorizationTypedData";
 import {
@@ -531,9 +535,14 @@ export async function POST(request: Request) {
     });
 
     if (alreadyProcessed) {
+      const transactionHash = await getStoredSettlementTransactionHash(
+        input.settlementId
+      );
+
       return Response.json({
         ok: true,
         settlementId: input.settlementId,
+        ...(transactionHash ? { transactionHash } : {}),
         status: "settled",
       });
     }
@@ -648,6 +657,8 @@ export async function POST(request: Request) {
           memoData,
         ],
       });
+    await saveSettlementTransactionHash(input.settlementId, transactionHash);
+
     const receipt = await publicClient.waitForTransactionReceipt({
       hash: transactionHash,
     });

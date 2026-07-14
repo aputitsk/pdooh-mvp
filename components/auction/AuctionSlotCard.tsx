@@ -94,7 +94,9 @@ export default function AuctionSlotCard({
 
   return (
     <div
-      className={`auction-landscape-slot-card relative overflow-hidden rounded-lg border p-5 transition duration-200 ${marketTheme.slot.cardBackgroundClassName} ${cardStateClassName}`}
+      className={`auction-landscape-slot-card relative overflow-hidden rounded-lg border p-5 transition duration-200 ${marketTheme.slot.cardBackgroundClassName} ${cardStateClassName} ${
+        isBidSubmitted ? styles.submittedCard : ""
+      }`}
     >
       <div
         className={`absolute left-0 top-0 h-px w-full bg-gradient-to-r ${accentClassName}`}
@@ -114,6 +116,8 @@ export default function AuctionSlotCard({
         <span
           className={`shrink-0 rounded-md border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest ${statusClassName} ${
             isOpen ? styles.openStatus : ""
+          } ${
+            isBidSubmitted ? styles.submittedStatus : ""
           }`}
         >
           {statusLabel}
@@ -164,8 +168,8 @@ export default function AuctionSlotCard({
         )}
 
         {isBidJustSubmitted && (
-          <p className="rounded-lg border border-cyan-200/20 bg-cyan-200/[0.07] px-3 py-2.5 text-sm font-semibold text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,0.08)]">
-            Bid submitted
+          <p className={styles.bidSubmittedNotice}>
+            Bid confirmed for this slot
           </p>
         )}
 

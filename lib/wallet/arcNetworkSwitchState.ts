@@ -71,7 +71,7 @@ function isUserRejectedError(code: number | string | null, message: string) {
 }
 
 const walletConnectReconnectMessage =
-  "Arc Testnet is not enabled for this wallet connection.\n\nReconnect your wallet to enable Arc Testnet.";
+  "Arc Testnet is not enabled for this login session.\n\nLog in again to enable Arc Testnet.";
 
 export function markArcNetworkConnectionAttempt() {
   connectionAttemptId += 1;
@@ -142,7 +142,7 @@ export function formatArcNetworkSwitchError(
   }
 
   if (isUserRejectedError(code, message)) {
-    return "Network switch was rejected. You are still connected; switch to Arc Testnet when ready.";
+    return "Network switch was rejected. You are still logged in; switch to Arc Testnet when ready.";
   }
 
   if (
@@ -160,7 +160,7 @@ export function formatArcNetworkSwitchError(
       normalizedMessage.includes("chain") ||
       normalizedMessage.includes("unsupported"))
   ) {
-    return "This WalletConnect session does not allow Arc Testnet. Reconnect the mobile wallet and include Arc Testnet.";
+    return "This WalletConnect session does not allow Arc Testnet. Log in again with the mobile wallet and include Arc Testnet.";
   }
 
   if (

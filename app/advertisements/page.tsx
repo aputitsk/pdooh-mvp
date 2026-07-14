@@ -144,7 +144,7 @@ export default function AdvertisementsPage() {
     }
 
     if (!walletConnected) {
-      setErrorMessage("Connect your wallet before creating advertisements.");
+      setErrorMessage("Log in before creating advertisements.");
       return;
     }
 
@@ -195,7 +195,7 @@ export default function AdvertisementsPage() {
     }
 
     if (!walletConnected) {
-      setErrorMessage("Connect your wallet before deleting advertisements.");
+      setErrorMessage("Log in before deleting advertisements.");
       return;
     }
 
@@ -209,7 +209,7 @@ export default function AdvertisementsPage() {
     }
 
     if (!walletConnected) {
-      setErrorMessage("Connect your wallet before deleting advertisements.");
+      setErrorMessage("Log in before deleting advertisements.");
       return;
     }
 
@@ -234,7 +234,7 @@ export default function AdvertisementsPage() {
     }
 
     if (!walletConnected) {
-      setErrorMessage("Connect your wallet before editing advertisements.");
+      setErrorMessage("Log in before editing advertisements.");
       return;
     }
 
@@ -259,7 +259,7 @@ export default function AdvertisementsPage() {
     }
 
     if (!walletConnected) {
-      setErrorMessage("Connect your wallet before editing advertisements.");
+      setErrorMessage("Log in before editing advertisements.");
       return;
     }
 
@@ -347,7 +347,7 @@ export default function AdvertisementsPage() {
 
         {!walletConnected && !isWalletRestoring && (
           <div className={`${operationalStyles.statusStrip} ${operationalStyles.statusStripWarning} mt-6 p-4 text-sm font-medium`}>
-            Connect your wallet to create or delete advertisements.
+            Log in to create or delete advertisements.
           </div>
         )}
 

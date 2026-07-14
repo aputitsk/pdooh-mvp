@@ -119,6 +119,18 @@ export default function LiveScreen({
         <div
           className={`pointer-events-none absolute inset-x-8 bottom-0 h-20 ${marketTheme.liveScreen.reflectionClassName} ${reflectionStateClassName}`}
         />
+        {isLive && isPersonalAdvertisement && (
+          <div
+            aria-hidden="true"
+            className={`${styles.winnerCelebration} pointer-events-none absolute inset-0`}
+          >
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        )}
 
         {isLive && (
           <div className="pointer-events-none absolute right-4 top-4 z-40 flex items-center gap-2 rounded-md border border-white/10 bg-black/35 px-2.5 py-1 text-xs font-semibold tracking-normal text-white/55 shadow-[0_0_18px_rgba(255,255,255,0.08)] backdrop-blur-sm">
@@ -134,14 +146,18 @@ export default function LiveScreen({
         <div className={`relative z-20 px-6 py-12 text-center ${contentStateClassName}`}>
           {winner ? (
             <>
-              <h2 className="text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl">
+              <h2
+                className={`text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl ${
+                  isPersonalAdvertisement ? styles.personalWinnerBusiness : ""
+                }`}
+              >
                 {winner.businessName}
               </h2>
 
               {isPersonalAdvertisement ? (
                 <p
                   key={`${winner.businessName}-${winner.name}`}
-                  className={`${styles.adName} ${styles.adNameMotion} mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-normal text-white md:text-6xl`}
+                  className={`${styles.adName} ${styles.adNameMotion} ${styles.personalWinnerAdName} mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-normal text-white md:text-6xl`}
                 >
                   {renderAdvertisementText(winner.name)}
                 </p>

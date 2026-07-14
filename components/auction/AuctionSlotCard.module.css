@@ -9,6 +9,45 @@
   animation: openStatusPulse 1.8s ease-in-out infinite;
 }
 
+.submittedCard {
+  border-color: rgb(74 222 128 / 56%);
+  box-shadow:
+    0 0 0 1px rgb(34 197 94 / 18%),
+    0 22px 58px rgb(34 197 94 / 14%),
+    0 18px 54px rgb(0 0 0 / 34%);
+}
+
+.submittedStatus {
+  border-color: rgb(134 239 172 / 74%);
+  background: linear-gradient(
+    135deg,
+    rgb(34 197 94 / 34%),
+    rgb(16 185 129 / 18%)
+  );
+  color: rgb(220 252 231);
+  box-shadow:
+    0 0 0 1px rgb(187 247 208 / 16%),
+    0 0 24px rgb(34 197 94 / 28%),
+    inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+
+.bidSubmittedNotice {
+  border: 1px solid rgb(134 239 172 / 64%);
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(135deg, rgb(34 197 94 / 24%), rgb(20 83 45 / 30%)),
+    rgb(5 46 22 / 38%);
+  box-shadow:
+    0 0 0 1px rgb(187 247 208 / 10%),
+    0 0 30px rgb(34 197 94 / 24%),
+    inset 0 1px 0 rgb(255 255 255 / 12%);
+  color: rgb(236 253 245);
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 0.75rem 0.875rem;
+}
+
 @keyframes openStatusPulse {
   0%,
   100% {

@@ -9,6 +9,7 @@ import {
   setArcWalletChangeListener,
   type ArcWalletCatalogOption,
   type ArcWalletConnectResult,
+  type WalletSource,
 } from "@/lib/arc/arcWalletAdapter";
 import { notifyWalletChanged, subscribeToWalletChanges } from "./walletEvents";
 import {
@@ -84,12 +85,12 @@ export function connectWallet(
     error:
       error instanceof Error
         ? error
-        : new Error("Wallet connection failed", { cause: error }),
+        : new Error("Login failed", { cause: error }),
   }));
 }
 
-export function logOutWallet() {
-  disconnectArcWallet();
+export function logOutWallet(source?: WalletSource) {
+  disconnectArcWallet(source);
 }
 
 export function formatWalletAddress(address: string) {

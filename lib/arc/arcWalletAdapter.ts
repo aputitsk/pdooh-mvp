@@ -2,8 +2,10 @@ import {
   getCurrentChainId,
   parseChainId,
 } from "./arcWalletNetwork";
-import type { ArcWalletState } from "./arcWalletTypes";
+import type { ArcWalletState, WalletSource } from "./arcWalletTypes";
 import type { BrowserWalletProvider } from "./arcWalletDiscovery";
+
+export type { WalletSource } from "./arcWalletTypes";
 
 export {
   getArcWalletProviders,
@@ -28,15 +30,21 @@ type AppKitWalletSyncInput = {
   provider: BrowserWalletProvider;
 };
 
+type ArcWalletSyncInput = AppKitWalletSyncInput & {
+  source: WalletSource;
+};
+
 const disconnectedWalletState: ArcWalletState = {
   status: "disconnected",
   connected: false,
   address: null,
   chainId: null,
+  source: null,
 };
 
 let currentWalletState = disconnectedWalletState;
 let activeProvider: BrowserWalletProvider | null = null;
+let activeProviderSource: WalletSource | null = null;
 let activeAccountsChangedListener: ((accounts: unknown) => void) | null = null;
 let activeChainChangedListener: ((chainId: unknown) => void) | null = null;
 let walletChangeListener: (() => void) | null = null;
@@ -80,13 +88,15 @@ function unbindProviderEvents() {
   }
 
   activeProvider = null;
+  activeProviderSource = null;
   activeAccountsChangedListener = null;
   activeChainChangedListener = null;
 }
 
-function bindProviderEvents(provider: BrowserWalletProvider) {
+function bindProviderEvents(source: WalletSource, provider: BrowserWalletProvider) {
   if (
     activeProvider === provider &&
+    activeProviderSource === source &&
     activeAccountsChangedListener &&
     activeChainChangedListener
   ) {
@@ -96,15 +106,16 @@ function bindProviderEvents(provider: BrowserWalletProvider) {
   unbindProviderEvents();
 
   activeProvider = provider;
+  activeProviderSource = source;
   activeAccountsChangedListener = (accounts: unknown) => {
-    if (activeProvider !== provider) {
+    if (activeProvider !== provider || activeProviderSource !== source) {
       return;
     }
 
     const nextAddress = firstAddress(accounts);
 
     if (!nextAddress) {
-      resetArcWalletFromAppKit();
+      resetArcWallet(source);
       return;
     }
 
@@ -116,7 +127,7 @@ function bindProviderEvents(provider: BrowserWalletProvider) {
     });
   };
   activeChainChangedListener = (chainId: unknown) => {
-    if (activeProvider !== provider) {
+    if (activeProvider !== provider || activeProviderSource !== source) {
       return;
     }
 
@@ -150,33 +161,64 @@ export function getActiveArcWalletProvider() {
   return activeProvider;
 }
 
-export async function syncArcWalletFromAppKit({
+export function getActiveArcWalletSource() {
+  return activeProviderSource;
+}
+
+export async function syncArcWallet({
+  source,
   address,
   chainId,
   provider,
-}: AppKitWalletSyncInput) {
+}: ArcWalletSyncInput) {
+  if (currentWalletState.source && currentWalletState.source !== source) {
+    return;
+  }
+
   const syncToken = ++activeSyncToken;
   let nextChainId = parseChainId(chainId);
 
   nextChainId = (await readProviderChainId(provider)) ?? nextChainId;
 
-  if (syncToken !== activeSyncToken) {
+  if (
+    syncToken !== activeSyncToken ||
+    (currentWalletState.source && currentWalletState.source !== source)
+  ) {
     return;
   }
 
-  bindProviderEvents(provider);
+  bindProviderEvents(source, provider);
   setWalletState({
     connected: true,
     status: "connected",
     address,
     chainId: nextChainId,
+    source,
   });
 }
 
-export function resetArcWalletFromAppKit() {
+export function syncArcWalletFromAppKit(input: AppKitWalletSyncInput) {
+  return syncArcWallet({
+    ...input,
+    source: "appkit",
+  });
+}
+
+export function resetArcWallet(source: WalletSource) {
+  if (
+    currentWalletState.source !== source &&
+    activeProviderSource !== source
+  ) {
+    return;
+  }
+
   activeSyncToken += 1;
   unbindProviderEvents();
   setDisconnectedWalletState();
+}
+
+export function resetArcWalletFromAppKit() {
+  resetArcWallet("appkit");
 }
 
 export function connectArcWallet(
@@ -186,12 +228,19 @@ export function connectArcWallet(
 
   return Promise.resolve({
     ok: false,
-    error: new Error("Open the Reown AppKit wallet modal to connect."),
+    error: new Error("Open the Reown AppKit login modal."),
   });
 }
 
-export function disconnectArcWallet() {
-  resetArcWalletFromAppKit();
+export function disconnectArcWallet(source?: WalletSource) {
+  if (source) {
+    resetArcWallet(source);
+    return;
+  }
+
+  if (currentWalletState.source) {
+    resetArcWallet(currentWalletState.source);
+  }
 }
 
 export function formatArcWalletAddress(address: string) {

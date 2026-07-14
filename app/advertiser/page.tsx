@@ -41,6 +41,7 @@ export default function AdvertiserPage() {
 
   const walletUsdcBalance = useWalletUsdcBalance();
   const walletEscrowBalance = useWalletEscrowBalance();
+  const refreshWalletUsdcBalance = walletUsdcBalance.refresh;
   const refreshWalletEscrowBalance = walletEscrowBalance.refresh;
   const temporaryReservedAmounts =
     useSharedEscrowTemporaryReservedAmounts(wallet.address);
@@ -73,30 +74,34 @@ export default function AdvertiserPage() {
       return;
     }
 
-    const refreshEscrowBalanceOnFocus = () => {
+    const refreshBalancesAfterReturn = () => {
+      refreshWalletUsdcBalance();
       refreshWalletEscrowBalance();
     };
-    const refreshEscrowBalanceOnVisibilityChange = () => {
+    const refreshBalancesOnVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        refreshWalletEscrowBalance();
+        refreshBalancesAfterReturn();
       }
     };
 
-    window.addEventListener("focus", refreshEscrowBalanceOnFocus);
+    window.addEventListener("focus", refreshBalancesAfterReturn);
+    window.addEventListener("pageshow", refreshBalancesAfterReturn);
     document.addEventListener(
       "visibilitychange",
-      refreshEscrowBalanceOnVisibilityChange
+      refreshBalancesOnVisibilityChange
     );
 
     return () => {
-      window.removeEventListener("focus", refreshEscrowBalanceOnFocus);
+      window.removeEventListener("focus", refreshBalancesAfterReturn);
+      window.removeEventListener("pageshow", refreshBalancesAfterReturn);
       document.removeEventListener(
         "visibilitychange",
-        refreshEscrowBalanceOnVisibilityChange
+        refreshBalancesOnVisibilityChange
       );
     };
   }, [
     refreshWalletEscrowBalance,
+    refreshWalletUsdcBalance,
     wallet.address,
     wallet.connected,
   ]);
@@ -204,8 +209,8 @@ export default function AdvertiserPage() {
   }
 
   function handleEscrowSuccess() {
-    walletUsdcBalance.refresh();
-    walletEscrowBalance.refresh();
+    refreshWalletUsdcBalance();
+    refreshWalletEscrowBalance();
   }
 
   return (
@@ -220,13 +225,16 @@ export default function AdvertiserPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-white/60">
-              Connect your wallet, fund escrow, create your business profile,
-              manage advertisements, and join the pDOOH auction.
+              Log in, fund escrow, create your business profile, manage
+              advertisements, and join the pDOOH auction.
             </p>
           </div>
 
           <div className="w-full lg:w-[483px] lg:shrink-0">
-            <LatestSettlementCard settlementRecords={settlementRecords} />
+            <LatestSettlementCard
+              accountAddress={wallet.address}
+              settlementRecords={settlementRecords}
+            />
           </div>
         </div>
 
@@ -266,6 +274,9 @@ export default function AdvertiserPage() {
               />
 
               <EscrowDepositCard
+                walletBalanceMinorUnits={walletUsdcBalance.balance}
+                walletBalanceStatus={walletUsdcBalance.status}
+                walletBalanceError={walletUsdcBalance.error}
                 escrowBalance={walletEscrowBalance.formattedBalance}
                 escrowBalanceMinorUnits={walletEscrowBalance.balance}
                 escrowBalanceStatus={walletEscrowBalance.status}

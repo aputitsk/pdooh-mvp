@@ -79,7 +79,7 @@ export default function CreateBusinessProfileCard({
             </>
           ) : (
             <p className={`${styles.mutedText} mt-2 text-sm`}>
-              One connected wallet can create one business profile.
+              One login address can create one business profile.
             </p>
           )}
         </div>

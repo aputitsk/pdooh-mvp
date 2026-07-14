@@ -18,7 +18,7 @@ export function normalizeWalletError(error: unknown): Error {
         ? walletError.message
         : typeof walletError.shortMessage === "string"
           ? walletError.shortMessage
-          : "Wallet connection failed";
+          : "Login failed";
 
     const normalizedError = new Error(
       walletError.code === undefined
@@ -30,7 +30,7 @@ export function normalizeWalletError(error: unknown): Error {
     return normalizedError;
   }
 
-  return new Error("Wallet connection failed", { cause: error });
+  return new Error("Login failed", { cause: error });
 }
 
 export function isUnknownChainError(error: unknown) {

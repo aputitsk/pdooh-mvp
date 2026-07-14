@@ -53,13 +53,13 @@ export default function AuctionStatusCard({
         ? "Reading balance..."
         : walletBalanceStatus === "error"
           ? walletBalanceError
-          : "Connect wallet";
+          : "-";
   const escrowBalanceText =
     escrowBalanceStatus === "loading"
         ? "Reading balance..."
         : escrowBalanceStatus === "error"
           ? escrowBalanceError
-          : "Connect wallet";
+          : "-";
   const shouldShowWinners = phase !== "open";
   const isLive = phase === "live";
 

@@ -34,6 +34,8 @@ const emptyWalletState: WalletState = {
   status: "restoring",
   connected: false,
   address: null,
+  chainId: null,
+  source: null,
 };
 
 const emptyAdvertisements: Advertisement[] = [];
@@ -74,7 +76,9 @@ function getWalletSnapshot() {
   if (
     cachedWalletState.connected === nextWalletState.connected &&
     cachedWalletState.address === nextWalletState.address &&
-    cachedWalletState.status === nextWalletState.status
+    cachedWalletState.status === nextWalletState.status &&
+    cachedWalletState.chainId === nextWalletState.chainId &&
+    cachedWalletState.source === nextWalletState.source
   ) {
     return cachedWalletState;
   }

@@ -22,7 +22,7 @@ export default function ReadyForAuctionCard({
         ? "Reading balance..."
         : balanceStatus === "error"
           ? balanceError
-          : "Connect wallet";
+          : "-";
 
   return (
     <div className={`${styles.panel} ${styles.panelReady} p-6`}>
