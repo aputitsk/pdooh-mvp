@@ -26,7 +26,7 @@ export default function Home() {
       <section className="relative mx-auto flex min-h-[82vh] max-w-6xl flex-col items-center justify-center">
         <div className="w-full text-center">
           <div className={`${styles.statusPill} ${styles.statusPillInfo} mx-auto inline-flex px-4 py-2 text-sm font-semibold`}>
-            Built for Arc <span className="mx-2 text-white/25">/</span> Test
+            Arc Testnet <span className="mx-2 text-white/25">/</span> Test
             USDC <span className="mx-2 text-white/25">/</span> Demo Mode
           </div>
 
@@ -36,6 +36,29 @@ export default function Home() {
 
           <div className={`${styles.panel} mx-auto mt-6 max-w-[60rem] px-5 py-4 text-left`}>
             <p className={`${styles.mutedText} mt-2 text-sm leading-6`}>
+              While this demo focuses on Digital Out-of-Home (DOOH)
+              advertising, the same core model - competitive bidding,
+              escrow-backed payments, and verifiable settlement - can also be
+              adapted to other auction-based allocation scenarios.
+            </p>
+
+            <p className={`${styles.mutedText} mt-3 text-sm leading-6`}>
+              This application demonstrates a simplified pDOOH advertising
+              auction running on{" "}
+              <span className="font-semibold text-white">Arc Testnet</span>. It
+              showcases the auction workflow, escrow deposits, automated
+              settlement, and wallet integration rather than a complete
+              production advertising platform. The application uses{" "}
+              <span className="font-semibold text-white">Test USDC</span> as
+              the payment currency for advertising placements and for network
+              transaction fees. To demonstrate competitive bidding, every
+              auction includes a built-in Demo Bot with a fixed bid of{" "}
+              <span className="font-mono font-semibold tabular-nums text-white">
+                0.02 Test USDC
+              </span>.
+            </p>
+
+            <p className={`${styles.mutedText} mt-3 text-sm leading-6`}>
               <span className={styles.valueText}>
                 Digital Out-of-Home (DOOH)
               </span>{" "}
@@ -43,26 +66,6 @@ export default function Home() {
               billboards, shopping malls, airports, and transit stations.
             </p>
           </div>
-        </div>
-
-        <div className={`${styles.panel} mt-6 w-full max-w-[60rem] px-5 py-5 text-left`}>
-          <p className={`${styles.mutedText} text-base leading-8`}>
-            This application demonstrates a simplified pDOOH advertising auction
-            running on{" "}
-            <span className="font-semibold text-white">Arc Testnet</span>. It
-            showcases the auction workflow, escrow deposits, automated
-            settlement, and wallet integration rather than a complete production
-            advertising platform. The application uses{" "}
-            <span className="font-semibold text-white">Test USDC</span> as the
-            payment currency for advertising placements and for network
-            transaction fees. To demonstrate competitive bidding, every auction
-            includes a built-in{" "}
-            <span>Demo Bot</span> with a
-            fixed bid of{" "}
-            <span className="font-mono font-semibold tabular-nums text-white">
-              0.02 Test USDC
-            </span>.
-          </p>
         </div>
 
         <div className="mt-7 w-full max-w-6xl">

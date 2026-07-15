@@ -24,6 +24,8 @@ type LatestSettlementCardProps = {
   settlementRecords: readonly SettlementRecord[];
 };
 
+type MemoRow = readonly [label: string, value: string];
+
 function getSiteLabel(marketId: string, siteId: string) {
   if (!marketId || !siteId) {
     return "Legacy settlement";
@@ -105,43 +107,8 @@ export default function LatestSettlementCard({
     revenueSnapshot?.lastMemo || lastSuccessfulSettlement
   );
   const hasAccount = accountAddress !== null;
-
-  useEffect(() => {
-    return () => {
-      if (copyNoticeTimeoutRef.current) {
-        clearTimeout(copyNoticeTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  async function handleCopyTransactionHash(transactionHash: string) {
-    await navigator.clipboard.writeText(transactionHash);
-    setIsTransactionHashCopied(true);
-
-    if (copyNoticeTimeoutRef.current) {
-      clearTimeout(copyNoticeTimeoutRef.current);
-    }
-
-    copyNoticeTimeoutRef.current = setTimeout(() => {
-      setIsTransactionHashCopied(false);
-    }, 1600);
-  }
-
-  async function handleCopySettlementId(settlementId: string) {
-    await navigator.clipboard.writeText(settlementId);
-    setIsSettlementIdCopied(true);
-
-    if (copyNoticeTimeoutRef.current) {
-      clearTimeout(copyNoticeTimeoutRef.current);
-    }
-
-    copyNoticeTimeoutRef.current = setTimeout(() => {
-      setIsSettlementIdCopied(false);
-    }, 1600);
-  }
-
-  if (isViewingMemo && canViewMemo) {
-    const memoRows = revenueSnapshot?.lastMemo
+  const memoRows: readonly MemoRow[] | null = canViewMemo
+    ? revenueSnapshot?.lastMemo
       ? ([
           ["Type", revenueSnapshot.lastMemo.type],
           ["Site", lastSettlementSiteLabel ?? "Unknown"],
@@ -176,82 +143,67 @@ export default function LatestSettlementCard({
               lastSuccessfulSettlement?.result.amountMinorUnits ?? BigInt(0)
             ),
           ],
-        ] as const);
+        ] as const)
+    : null;
 
-    return (
-      <div className={`${styles.panel} h-[220px] px-4 py-3 text-center`}>
-        <p className={styles.valueLabel}>
-          Settlement Memo
-        </p>
+  useEffect(() => {
+    return () => {
+      if (copyNoticeTimeoutRef.current) {
+        clearTimeout(copyNoticeTimeoutRef.current);
+      }
+    };
+  }, []);
 
-        <div className="mt-3 h-[144px] overflow-y-auto pr-1 text-left">
-          {memoRows.map(([label, value]) => {
-            const isSettlementId = label === "Settlement ID";
-            const isMonospaceValue = isMemoValueMonospace(label);
+  useEffect(() => {
+    if (!isViewingMemo) {
+      return;
+    }
 
-            return (
-              <div
-                key={label}
-                className="border-t border-white/10 py-1.5 first:border-t-0 first:pt-0"
-              >
-                <p className={styles.valueLabel}>
-                  {label}
-                </p>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <p
-                    className={`break-words text-[11px] leading-4 text-white/70 ${
-                      isMonospaceValue ? "font-mono tabular-nums" : ""
-                    }`}
-                  >
-                    {label === "Amount" ? (
-                      <MoneyAmount
-                        amount={value}
-                        unit="Test USDC"
-                      />
-                    ) : (
-                      value
-                    )}
-                  </p>
-                  {isSettlementId ? (
-                    <>
-                      <CopyButton
-                        ariaLabel="Copy settlement ID"
-                        onClick={() => void handleCopySettlementId(value)}
-                        className="shrink-0 rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
-                      />
-                      {isSettlementIdCopied ? (
-                        <span
-                          role="status"
-                          aria-live="polite"
-                          className="shrink-0 text-[10px] font-semibold text-emerald-300"
-                        >
-                          Copied
-                        </span>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsViewingMemo(false);
+      }
+    }
 
-        <button
-          type="button"
-          onClick={() => setIsViewingMemo(false)}
-          className={`${styles.textAction} mt-2 text-[11px]`}
-        >
-          Back
-        </button>
-      </div>
-    );
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isViewingMemo]);
+
+  async function handleCopyTransactionHash(transactionHash: string) {
+    await navigator.clipboard.writeText(transactionHash);
+    setIsTransactionHashCopied(true);
+
+    if (copyNoticeTimeoutRef.current) {
+      clearTimeout(copyNoticeTimeoutRef.current);
+    }
+
+    copyNoticeTimeoutRef.current = setTimeout(() => {
+      setIsTransactionHashCopied(false);
+    }, 1600);
+  }
+
+  async function handleCopySettlementId(settlementId: string) {
+    await navigator.clipboard.writeText(settlementId);
+    setIsSettlementIdCopied(true);
+
+    if (copyNoticeTimeoutRef.current) {
+      clearTimeout(copyNoticeTimeoutRef.current);
+    }
+
+    copyNoticeTimeoutRef.current = setTimeout(() => {
+      setIsSettlementIdCopied(false);
+    }, 1600);
   }
 
   return (
-    <div className={`${styles.panel} h-[220px] px-4 py-3 text-center`}>
-      <p className={styles.valueLabel}>
-        Account Revenue
-      </p>
+    <>
+      <div className={`${styles.panel} h-[220px] px-4 py-3 text-center`}>
+        <p className={styles.valueLabel}>
+          Account Revenue
+        </p>
 
       <div className={`${styles.metric} mt-2 px-3 py-2`}>
         <p className={`${styles.valueText} font-mono text-sm tabular-nums`}>
@@ -317,14 +269,16 @@ export default function LatestSettlementCard({
                   href={getArcScanTransactionUrl(displayedTransactionHash)}
                   target="_blank"
                   rel="noreferrer"
-                className={`${styles.textAction} text-[11px]`}
-              >
-                View on ArcScan
-              </a>
-            ) : null}
+                  className={`${styles.textAction} text-[11px]`}
+                >
+                  View on ArcScan
+                </a>
+              ) : null}
               {canViewMemo ? (
                 <button
                   type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded={isViewingMemo}
                   onClick={() => setIsViewingMemo(true)}
                   className={`${styles.textAction} text-[11px]`}
                 >
@@ -339,6 +293,78 @@ export default function LatestSettlementCard({
           No settlements yet.
         </p>
       )}
-    </div>
+      </div>
+
+      {isViewingMemo && memoRows ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+          onClick={() => setIsViewingMemo(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settlement-memo-title"
+            className={`${styles.panel} max-h-[min(420px,calc(100vh-3rem))] w-full max-w-md px-4 py-3 text-center shadow-2xl shadow-black/50`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p id="settlement-memo-title" className={styles.valueLabel}>
+              Settlement Memo
+            </p>
+
+            <div className="mt-3 max-h-[320px] overflow-y-auto pr-1 text-left">
+              {memoRows.map(([label, value]) => {
+                const isSettlementId = label === "Settlement ID";
+                const isMonospaceValue = isMemoValueMonospace(label);
+
+                return (
+                  <div
+                    key={label}
+                    className="border-t border-white/10 py-1.5 first:border-t-0 first:pt-0"
+                  >
+                    <p className={styles.valueLabel}>
+                      {label}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <p
+                        className={`break-words text-[11px] leading-4 text-white/70 ${
+                          isMonospaceValue ? "font-mono tabular-nums" : ""
+                        }`}
+                      >
+                        {label === "Amount" ? (
+                          <MoneyAmount
+                            amount={value}
+                            unit="Test USDC"
+                          />
+                        ) : (
+                          value
+                        )}
+                      </p>
+                      {isSettlementId ? (
+                        <>
+                          <CopyButton
+                            ariaLabel="Copy settlement ID"
+                            onClick={() => void handleCopySettlementId(value)}
+                            className="shrink-0 rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+                          />
+                          {isSettlementIdCopied ? (
+                            <span
+                              role="status"
+                              aria-live="polite"
+                              className="shrink-0 text-[10px] font-semibold text-emerald-300"
+                            >
+                              Copied
+                            </span>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
