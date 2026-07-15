@@ -348,6 +348,8 @@ function syncSiteAuctionAndCreateSettlementRecords(params: {
 }): SettlementRecord[] {
   const { siteConfig, escrowAddress, walletAddress, nowIso } = params;
   const clock = getAuctionClock(siteConfig.auctionStartTimestampMs);
+  syncAuctionCycle(clock, siteConfig.siteKey);
+
   const slotStates = getStoredSlotStates(siteConfig.siteKey);
   const submittedBids = getStoredSubmittedBids(siteConfig.siteKey);
   const {
@@ -392,8 +394,6 @@ function syncSiteAuctionAndCreateSettlementRecords(params: {
           nowIso,
         })
       : [];
-
-  syncAuctionCycle(clock, siteConfig.siteKey);
 
   return settlementRecords;
 }

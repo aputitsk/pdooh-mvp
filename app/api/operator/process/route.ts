@@ -1,13 +1,10 @@
 import {
-  createPublicClient,
   createWalletClient,
   encodeFunctionData,
-  http,
   isAddress,
   recoverTypedDataAddress,
   stringToHex,
   type Address,
-  type Chain,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -25,13 +22,14 @@ import { ARC_TREASURY_ADDRESS } from "@/lib/arc/arcConfig";
 import { createBidAuthorizationTypedData } from "@/lib/arc/arcBidAuthorizationTypedData";
 import {
   ARC_CHAIN_ID,
-  ARC_CHAIN_NAME,
-  ARC_EXPLORER_URL,
-  ARC_NATIVE_CURRENCY_SYMBOL,
-  ARC_RPC_URL,
   ARC_USDC_CONTRACT_ADDRESS,
 } from "@/lib/arc/arcConstants";
 import { getArcEscrowAddress } from "@/lib/arc/arcEscrowConfig";
+import { arcTestnetChain } from "@/lib/arc/rpc/chain";
+import {
+  createOperatorArcBroadcastTransport,
+  createOperatorArcPublicClient,
+} from "@/lib/arc/rpc/server";
 import { DEMO_BOT_BID } from "@/lib/auction/constants";
 import { getAuctionClock } from "@/lib/auction/auctionTimer";
 import { getSettlementEligibleLiveSlotIds } from "@/lib/auction/liveSlotCompletion";
@@ -90,21 +88,6 @@ const arcMemoAbi = [
     outputs: [],
   },
 ] as const;
-
-const arcTestnetChain = {
-  id: ARC_CHAIN_ID,
-  name: ARC_CHAIN_NAME,
-  nativeCurrency: {
-    name: ARC_NATIVE_CURRENCY_SYMBOL,
-    symbol: ARC_NATIVE_CURRENCY_SYMBOL,
-    decimals: 18,
-  },
-  rpcUrls: { default: { http: [ARC_RPC_URL] } },
-  blockExplorers: {
-    default: { name: "ArcScan", url: ARC_EXPLORER_URL },
-  },
-  testnet: true,
-} as const satisfies Chain;
 
 type OperatorSettlementRequest = {
   settlementId: Hex;
@@ -523,10 +506,7 @@ export async function POST(request: Request) {
     }
 
     const escrowAddress = getArcEscrowAddress();
-    const publicClient = createPublicClient({
-      chain: arcTestnetChain,
-      transport: http(ARC_RPC_URL),
-    });
+    const publicClient = createOperatorArcPublicClient();
 
     const alreadyProcessed = await publicClient.readContract({
       address: escrowAddress,
@@ -602,7 +582,7 @@ export async function POST(request: Request) {
     const walletClient = createWalletClient({
       account,
       chain: arcTestnetChain,
-      transport: http(ARC_RPC_URL),
+      transport: createOperatorArcBroadcastTransport(),
     });
 
     const configuredOperator = await publicClient.readContract({

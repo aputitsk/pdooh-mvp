@@ -1,12 +1,6 @@
-import { createPublicClient, formatUnits, http, type Chain } from "viem";
+import { formatUnits } from "viem";
 
-import {
-  ARC_CHAIN_ID,
-  ARC_CHAIN_NAME,
-  ARC_EXPLORER_URL,
-  ARC_NATIVE_CURRENCY_SYMBOL,
-  ARC_RPC_URL,
-} from "./arcConstants";
+import { arcPublicClient } from "./rpc/publicClient";
 
 type ArcFeeSignalStatus = "idle" | "loading" | "ready" | "error";
 
@@ -14,33 +8,6 @@ export type ArcFeeSignalSnapshot = {
   display: string | null;
   status: ArcFeeSignalStatus;
 };
-
-const arcTestnetChain = {
-  id: ARC_CHAIN_ID,
-  name: ARC_CHAIN_NAME,
-  nativeCurrency: {
-    name: ARC_NATIVE_CURRENCY_SYMBOL,
-    symbol: ARC_NATIVE_CURRENCY_SYMBOL,
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: [ARC_RPC_URL],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "ArcScan",
-      url: ARC_EXPLORER_URL,
-    },
-  },
-  testnet: true,
-} as const satisfies Chain;
-
-const arcPublicClient = createPublicClient({
-  chain: arcTestnetChain,
-  transport: http(ARC_RPC_URL),
-});
 
 const baselineGasUnits = BigInt(21_000);
 const readyDisplayFractionDigits = 6;

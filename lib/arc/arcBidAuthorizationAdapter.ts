@@ -3,7 +3,6 @@ import {
   custom,
   isAddress,
   type Address,
-  type Chain,
 } from "viem";
 
 import type {
@@ -12,11 +11,8 @@ import type {
 } from "@/lib/auction/auctionTypes";
 import {
   ARC_CHAIN_ID,
-  ARC_CHAIN_NAME,
-  ARC_EXPLORER_URL,
-  ARC_NATIVE_CURRENCY_SYMBOL,
-  ARC_RPC_URL,
 } from "./arcConstants";
+import { arcTestnetChain } from "./rpc/chain";
 import { createBidAuthorizationTypedData } from "./arcBidAuthorizationTypedData";
 import {
   getActiveArcWalletProvider,
@@ -24,28 +20,6 @@ import {
 } from "./arcWalletAdapter";
 import { normalizeWalletError } from "./arcWalletErrors";
 import { parseChainId } from "./arcWalletNetwork";
-
-const arcTestnetChain = {
-  id: ARC_CHAIN_ID,
-  name: ARC_CHAIN_NAME,
-  nativeCurrency: {
-    name: ARC_NATIVE_CURRENCY_SYMBOL,
-    symbol: ARC_NATIVE_CURRENCY_SYMBOL,
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: [ARC_RPC_URL],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "ArcScan",
-      url: ARC_EXPLORER_URL,
-    },
-  },
-  testnet: true,
-} as const satisfies Chain;
 
 function firstAddress(accounts: unknown): Address | null {
   const address = Array.isArray(accounts) ? accounts[0] : null;

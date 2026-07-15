@@ -1,12 +1,9 @@
 import {
-  createPublicClient,
   createWalletClient,
   custom,
   erc20Abi,
-  http,
   isAddress,
   type Address,
-  type Chain,
   type Hash,
 } from "viem";
 
@@ -14,13 +11,11 @@ import { ARC_TREASURY_ADDRESS } from "./arcConfig";
 import { refreshArcFeeSignal } from "./arcFeeSignal";
 import {
   ARC_CHAIN_ID,
-  ARC_CHAIN_NAME,
-  ARC_EXPLORER_URL,
-  ARC_NATIVE_CURRENCY_SYMBOL,
-  ARC_RPC_URL,
   ARC_USDC_CONTRACT_ADDRESS,
 } from "./arcConstants";
 import { getArcEscrowAddress } from "./arcEscrowConfig";
+import { arcPublicClient } from "./rpc/publicClient";
+import { arcTestnetChain } from "./rpc/chain";
 import { createArcEscrowValidationCache } from "./arcEscrowValidationCache";
 import {
   getActiveArcWalletProvider,
@@ -70,32 +65,6 @@ const auctionEscrowAbi = [
   },
 ] as const;
 
-const arcTestnetChain = {
-  id: ARC_CHAIN_ID,
-  name: ARC_CHAIN_NAME,
-  nativeCurrency: {
-    name: ARC_NATIVE_CURRENCY_SYMBOL,
-    symbol: ARC_NATIVE_CURRENCY_SYMBOL,
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: [ARC_RPC_URL],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "ArcScan",
-      url: ARC_EXPLORER_URL,
-    },
-  },
-  testnet: true,
-} as const satisfies Chain;
-
-const arcPublicClient = createPublicClient({
-  chain: arcTestnetChain,
-  transport: http(ARC_RPC_URL),
-});
 const validateEscrowCached = createArcEscrowValidationCache();
 const runDedupedEscrowBalanceRead =
   createInFlightRequestDedupe<UsdcMinorUnits>();

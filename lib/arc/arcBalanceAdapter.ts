@@ -1,44 +1,13 @@
-import { createPublicClient, erc20Abi, http, isAddress } from "viem";
-import type { Chain } from "viem";
+import { erc20Abi, isAddress } from "viem";
 
 import {
-  ARC_CHAIN_ID,
-  ARC_CHAIN_NAME,
-  ARC_EXPLORER_URL,
-  ARC_NATIVE_CURRENCY_SYMBOL,
-  ARC_RPC_URL,
   ARC_USDC_CONTRACT_ADDRESS,
 } from "./arcConstants";
+import { arcPublicClient } from "./rpc/publicClient";
 import { createInFlightRequestDedupe } from "./inFlightRequestDedupe";
 import type { ArcBalancePort } from "./arcPorts";
 import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
-const arcTestnetChain = {
-  id: ARC_CHAIN_ID,
-  name: ARC_CHAIN_NAME,
-  nativeCurrency: {
-    name: ARC_NATIVE_CURRENCY_SYMBOL,
-    symbol: ARC_NATIVE_CURRENCY_SYMBOL,
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: [ARC_RPC_URL],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "ArcScan",
-      url: ARC_EXPLORER_URL,
-    },
-  },
-  testnet: true,
-} as const satisfies Chain;
-
-const arcPublicClient = createPublicClient({
-  chain: arcTestnetChain,
-  transport: http(ARC_RPC_URL),
-});
 const runDedupedWalletBalanceRead =
   createInFlightRequestDedupe<UsdcMinorUnits>();
 

@@ -10,8 +10,8 @@ import {
   ARC_CHAIN_NAME,
   ARC_EXPLORER_URL,
   ARC_NATIVE_CURRENCY_SYMBOL,
-  ARC_RPC_URL,
 } from "@/lib/arc/arcConstants";
+import { ARC_NETWORK_METADATA_RPC_URLS } from "@/lib/arc/rpc/config";
 import { getActiveArcWalletProvider } from "@/lib/arc/arcWalletAdapter";
 import {
   clearArcNetworkSwitchState,
@@ -291,7 +291,7 @@ async function switchPrivyProviderToArc() {
               name: ARC_NATIVE_CURRENCY_SYMBOL,
               symbol: ARC_NATIVE_CURRENCY_SYMBOL,
             },
-            rpcUrls: [ARC_RPC_URL],
+            rpcUrls: ARC_NETWORK_METADATA_RPC_URLS,
             blockExplorerUrls: [ARC_EXPLORER_URL],
           },
         ],

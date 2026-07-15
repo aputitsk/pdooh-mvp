@@ -6,11 +6,15 @@ import { createSettlementRepository } from "../accounting/settlementRepository.t
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { createPendingSettlementRecord, markSettlementProcessing, markSettlementReadyToSettle, type FinalizedAuctionResult } from "../accounting/settlementRecords.ts";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { createEmptySlotStates, saveAuctionState } from "./auctionStorage.ts";
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { AUCTION_OPEN_SECONDS, AUCTION_SELECTING_SECONDS, AUCTION_TOTAL_CYCLE_SECONDS } from "./constants.ts";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { hasSettlementPlaybackReached, recoverStaleProcessingSettlementRecord } from "./siteSettlementScanner.ts";
+import { hasSettlementPlaybackReached, recoverStaleProcessingSettlementRecord, runSiteSettlementScanner } from "./siteSettlementScanner.ts";
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { SITE_CONFIGS } from "./siteConfig.ts";
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { getTemporaryReservedAmount } from "./temporaryReservations.ts";
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();
@@ -29,6 +33,30 @@ class MemoryStorage {
 
   setItem(key: string, value: string) {
     this.values.set(key, value);
+  }
+}
+
+async function withBrowserStorage<T>(
+  callback: (storage: MemoryStorage) => T | Promise<T>
+): Promise<T> {
+  const originalWindow = globalThis.window;
+  const storage = new MemoryStorage();
+
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: storage,
+      dispatchEvent: () => true,
+    },
+  });
+
+  try {
+    return await callback(storage);
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: originalWindow,
+    });
   }
 }
 
@@ -143,6 +171,44 @@ test("site B settlement readiness follows record site identity, not selected UI 
     );
 
     assert.equal(hasSettlementPlaybackReached(record), true);
+  } finally {
+    Date.now = originalDateNow;
+  }
+});
+
+test("cycle rollover does not create temporary reservations from stale bids", async () => {
+  const siteConfig = SITE_CONFIGS[0];
+  const advertiserAddress = bidAuthorization.payload.advertiserAddress;
+  const originalDateNow = Date.now;
+
+  Date.now = () =>
+    siteConfig.auctionStartTimestampMs +
+    (AUCTION_TOTAL_CYCLE_SECONDS * 8 + 1) * 1000;
+
+  try {
+    await withBrowserStorage(async () => {
+      const slotStates = createEmptySlotStates();
+      slotStates[0] = {
+        selectedAdvertisement: "Summer Sale",
+        bid: "1.50",
+        advertiserAddress,
+        bidAuthorization,
+      };
+
+      saveAuctionState(siteConfig.siteKey, {
+        auctionCycleId: "7",
+        slotStates,
+        submittedBids: [true, false, false],
+        paidSlots: [true, true, true],
+      });
+
+      await runSiteSettlementScanner(advertiserAddress);
+
+      assert.equal(
+        getTemporaryReservedAmount(advertiserAddress, siteConfig.siteKey),
+        0
+      );
+    });
   } finally {
     Date.now = originalDateNow;
   }
