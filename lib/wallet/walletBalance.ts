@@ -9,6 +9,7 @@ import {
 
 import { ARC_CHAIN_ID } from "@/lib/arc/arcConstants";
 import { getArcUsdcBalance } from "@/lib/arc/arcBalanceAdapter";
+import { normalizeArcReadError } from "@/lib/arc/arcReadErrors";
 import {
   formatUSDCFromMinorUnits,
   type UsdcMinorUnits,
@@ -45,10 +46,6 @@ const idleBalanceState: InternalWalletUsdcBalanceState = {
 };
 function getWalletSnapshot() {
   return createWalletSnapshot(getArcWalletState());
-}
-
-function getBalanceErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to read USDC balance.";
 }
 
 export function useWalletUsdcBalance(): WalletUsdcBalanceState {
@@ -94,12 +91,22 @@ export function useWalletUsdcBalance(): WalletUsdcBalanceState {
           return;
         }
 
-        setBalanceState({
-          status: "error",
-          balance: null,
-          formattedBalance: "0",
-          error: getBalanceErrorMessage(error),
-          address,
+        const normalizedError = normalizeArcReadError(error);
+
+        setBalanceState((previousState) => {
+          const previousBalance =
+            previousState.address === address ? previousState.balance : null;
+
+          return {
+            status: "error",
+            balance: previousBalance,
+            formattedBalance:
+              previousBalance === null
+                ? "0"
+                : formatUSDCFromMinorUnits(previousBalance),
+            error: normalizedError.message,
+            address,
+          };
         });
       });
 

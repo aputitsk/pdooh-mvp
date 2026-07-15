@@ -9,6 +9,7 @@ import {
 
 import { ARC_CHAIN_ID } from "@/lib/arc/arcConstants";
 import { getArcEscrowBalance } from "@/lib/arc/arcEscrowAdapter";
+import { normalizeArcReadError } from "@/lib/arc/arcReadErrors";
 import { getArcWalletState } from "@/lib/arc/arcWalletAdapter";
 import {
   formatUSDCFromMinorUnits,
@@ -47,12 +48,6 @@ const idleBalanceState: InternalWalletEscrowBalanceState = {
 };
 function getWalletSnapshot() {
   return createWalletSnapshot(getArcWalletState());
-}
-
-function getBalanceErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Unable to read escrow balance.";
 }
 
 export function useWalletEscrowBalance(): WalletEscrowBalanceState {
@@ -99,13 +94,26 @@ export function useWalletEscrowBalance(): WalletEscrowBalanceState {
           return;
         }
 
-        setBalanceState({
-          status: "error",
-          balance: null,
-          formattedBalance: "0",
-          error: getBalanceErrorMessage(error),
-          address,
-          updatedAtMs: null,
+        const normalizedError = normalizeArcReadError(error);
+
+        setBalanceState((previousState) => {
+          const hasPreviousBalance =
+            previousState.address === address && previousState.balance !== null;
+          const previousBalance = hasPreviousBalance
+            ? previousState.balance
+            : null;
+
+          return {
+            status: "error",
+            balance: previousBalance,
+            formattedBalance:
+              previousBalance === null
+                ? "0"
+                : formatUSDCFromMinorUnits(previousBalance),
+            error: normalizedError.message,
+            address,
+            updatedAtMs: hasPreviousBalance ? previousState.updatedAtMs : null,
+          };
         });
       });
 

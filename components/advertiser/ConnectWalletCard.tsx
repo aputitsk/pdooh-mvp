@@ -1,31 +1,37 @@
 import ArcNetworkSwitchButton from "@/components/wallet/ArcNetworkSwitchButton";
 import MoneyAmount from "@/components/ui/MoneyAmount";
 import styles from "@/components/ui/OperationalPanel.module.css";
+import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
 type ConnectWalletCardProps = {
   isWalletConnected: boolean;
   walletStatus: "restoring" | "connected" | "disconnected";
   usdcBalance: string;
+  usdcBalanceMinorUnits: UsdcMinorUnits | null;
   usdcBalanceStatus: "idle" | "loading" | "ready" | "error";
   usdcBalanceError: string | null;
   faucetUrl: string;
+  onRetryUsdcBalance: () => void;
 };
 
 export default function ConnectWalletCard({
   isWalletConnected,
   walletStatus,
   usdcBalance,
+  usdcBalanceMinorUnits,
   usdcBalanceStatus,
   usdcBalanceError,
   faucetUrl,
+  onRetryUsdcBalance,
 }: ConnectWalletCardProps) {
   const isWalletRestoring = walletStatus === "restoring";
+  const canShowBalance =
+    usdcBalanceStatus === "ready" ||
+    (usdcBalanceStatus === "error" && usdcBalanceMinorUnits !== null);
   const balanceText =
     usdcBalanceStatus === "loading"
         ? "Reading balance..."
-        : usdcBalanceStatus === "error"
-          ? usdcBalanceError
-          : "-";
+        : "-";
 
   return (
     <div className={`${styles.panel} p-6`}>
@@ -75,15 +81,28 @@ export default function ConnectWalletCard({
 
         <p
           className={`${styles.valueText} mt-2 break-words text-lg ${
-            usdcBalanceStatus === "ready" ? "font-mono tabular-nums" : ""
+            canShowBalance ? "font-mono tabular-nums" : ""
           }`}
         >
-          {usdcBalanceStatus === "ready" ? (
+          {canShowBalance ? (
             <MoneyAmount amount={usdcBalance} unit="Test USDC" />
           ) : (
             balanceText
           )}
         </p>
+
+        {usdcBalanceStatus === "error" && usdcBalanceError ? (
+          <div className={`${styles.statusStrip} ${styles.statusStripError} mt-3 px-3 py-2 text-sm`}>
+            <p>{usdcBalanceError}</p>
+            <button
+              type="button"
+              onClick={onRetryUsdcBalance}
+              className={`${styles.textAction} mt-2 text-sm`}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <ArcNetworkSwitchButton />

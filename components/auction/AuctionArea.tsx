@@ -18,6 +18,7 @@ type AuctionAreaProps = {
   availableAuctionCapacity: UsdcMinorUnits;
   displayedAvailableAuctionCapacity: UsdcMinorUnits;
   walletBalance: string;
+  walletBalanceMinorUnits: UsdcMinorUnits | null;
   walletBalanceStatus: "idle" | "loading" | "ready" | "error";
   walletBalanceError: string | null;
   escrowBalance: UsdcMinorUnits | null;
@@ -32,6 +33,8 @@ type AuctionAreaProps = {
   isWalletConnected: boolean;
   isWalletRestoring?: boolean;
   marketTheme: MarketTheme;
+  onRetryWalletBalance: () => void;
+  onRetryEscrowBalance: () => void;
   onAdvertisementChange: (slotIndex: number, value: string) => void;
   onBidChange: (slotIndex: number, value: string) => void;
   onPlaceBid: (slotIndex: number) => void | Promise<void>;
@@ -48,6 +51,7 @@ export default function AuctionArea({
   availableAuctionCapacity,
   displayedAvailableAuctionCapacity,
   walletBalance,
+  walletBalanceMinorUnits,
   walletBalanceStatus,
   walletBalanceError,
   escrowBalance,
@@ -62,6 +66,8 @@ export default function AuctionArea({
   isWalletConnected,
   isWalletRestoring = false,
   marketTheme,
+  onRetryWalletBalance,
+  onRetryEscrowBalance,
   onAdvertisementChange,
   onBidChange,
   onPlaceBid,
@@ -89,6 +95,7 @@ export default function AuctionArea({
             slotSecondsRemaining={slotSecondsRemaining}
             currentSlotIndex={currentSlotIndex}
             walletBalance={walletBalance}
+            walletBalanceMinorUnits={walletBalanceMinorUnits}
             walletBalanceStatus={walletBalanceStatus}
             walletBalanceError={walletBalanceError}
             escrowBalance={escrowBalance}
@@ -97,6 +104,8 @@ export default function AuctionArea({
             escrowBalanceStatus={escrowBalanceStatus}
             escrowBalanceError={escrowBalanceError}
             winners={winners}
+            onRetryWalletBalance={onRetryWalletBalance}
+            onRetryEscrowBalance={onRetryEscrowBalance}
           />
 
           <div className="auction-landscape-slot-grid grid gap-5 md:grid-cols-3">
@@ -143,6 +152,7 @@ export default function AuctionArea({
           slotSecondsRemaining={slotSecondsRemaining}
           currentSlotIndex={currentSlotIndex}
           walletBalance={walletBalance}
+          walletBalanceMinorUnits={walletBalanceMinorUnits}
           walletBalanceStatus={walletBalanceStatus}
           walletBalanceError={walletBalanceError}
           escrowBalance={escrowBalance}
@@ -151,6 +161,8 @@ export default function AuctionArea({
           escrowBalanceStatus={escrowBalanceStatus}
           escrowBalanceError={escrowBalanceError}
           winners={winners}
+          onRetryWalletBalance={onRetryWalletBalance}
+          onRetryEscrowBalance={onRetryEscrowBalance}
         />
       )}
 
@@ -160,6 +172,7 @@ export default function AuctionArea({
           slotSecondsRemaining={slotSecondsRemaining}
           currentSlotIndex={currentSlotIndex}
           walletBalance={walletBalance}
+          walletBalanceMinorUnits={walletBalanceMinorUnits}
           walletBalanceStatus={walletBalanceStatus}
           walletBalanceError={walletBalanceError}
           escrowBalance={escrowBalance}
@@ -168,6 +181,8 @@ export default function AuctionArea({
           escrowBalanceStatus={escrowBalanceStatus}
           escrowBalanceError={escrowBalanceError}
           winners={winners}
+          onRetryWalletBalance={onRetryWalletBalance}
+          onRetryEscrowBalance={onRetryEscrowBalance}
         />
       )}
     </div>

@@ -94,6 +94,8 @@ export default function AdvertiserPage() {
   const walletEscrowBalance = useWalletEscrowBalance();
   const refreshWalletUsdcBalance = walletUsdcBalance.refresh;
   const refreshWalletEscrowBalance = walletEscrowBalance.refresh;
+  const settlementEscrowRefreshKeyRef = useRef<string | null>(null);
+  const lifecycleRefreshFrameRef = useRef<number | null>(null);
   const temporaryReservedAmounts =
     useSharedEscrowTemporaryReservedAmounts(wallet.address);
   const isHydrated = useSyncExternalStore(
@@ -109,9 +111,22 @@ export default function AdvertiserPage() {
 
   useEffect(() => {
     if (!wallet.connected || !wallet.address) {
+      settlementEscrowRefreshKeyRef.current = null;
       return;
     }
 
+    const refreshKey = `${wallet.address.toLowerCase()}:${settlementRecordVersion}`;
+
+    if (settlementEscrowRefreshKeyRef.current === null) {
+      settlementEscrowRefreshKeyRef.current = refreshKey;
+      return;
+    }
+
+    if (settlementEscrowRefreshKeyRef.current === refreshKey) {
+      return;
+    }
+
+    settlementEscrowRefreshKeyRef.current = refreshKey;
     refreshWalletEscrowBalance();
   }, [
     refreshWalletEscrowBalance,
@@ -126,8 +141,15 @@ export default function AdvertiserPage() {
     }
 
     const refreshBalancesAfterReturn = () => {
-      refreshWalletUsdcBalance();
-      refreshWalletEscrowBalance();
+      if (lifecycleRefreshFrameRef.current !== null) {
+        return;
+      }
+
+      lifecycleRefreshFrameRef.current = window.requestAnimationFrame(() => {
+        lifecycleRefreshFrameRef.current = null;
+        refreshWalletUsdcBalance();
+        refreshWalletEscrowBalance();
+      });
     };
     const refreshBalancesOnVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -149,6 +171,11 @@ export default function AdvertiserPage() {
         "visibilitychange",
         refreshBalancesOnVisibilityChange
       );
+
+      if (lifecycleRefreshFrameRef.current !== null) {
+        window.cancelAnimationFrame(lifecycleRefreshFrameRef.current);
+        lifecycleRefreshFrameRef.current = null;
+      }
     };
   }, [
     refreshWalletEscrowBalance,
@@ -366,9 +393,11 @@ export default function AdvertiserPage() {
             isWalletConnected={wallet.connected}
             walletStatus={wallet.status}
             usdcBalance={walletUsdcBalance.formattedBalance}
+            usdcBalanceMinorUnits={walletUsdcBalance.balance}
             usdcBalanceStatus={walletUsdcBalance.status}
             usdcBalanceError={walletUsdcBalance.error}
             faucetUrl={CIRCLE_FAUCET_URL}
+            onRetryUsdcBalance={refreshWalletUsdcBalance}
           />
 
           {isWalletRestoring && (
@@ -406,6 +435,7 @@ export default function AdvertiserPage() {
                 escrowBalanceError={walletEscrowBalance.error}
                 reservedAmount={reservedAmount}
                 onSuccess={handleEscrowSuccess}
+                onRetryEscrowBalance={refreshWalletEscrowBalance}
               />
             </>
           )}

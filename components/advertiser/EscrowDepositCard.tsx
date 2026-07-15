@@ -44,6 +44,7 @@ type EscrowDepositCardProps = {
   escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
   escrowBalanceError: string | null;
   reservedAmount: UsdcMinorUnits;
+  onRetryEscrowBalance: () => void;
 };
 
 type ReceiptTransaction = {
@@ -78,6 +79,7 @@ export default function EscrowDepositCard({
   escrowBalanceStatus,
   escrowBalanceError,
   reservedAmount,
+  onRetryEscrowBalance,
 }: EscrowDepositCardProps) {
   const [amount, setAmount] = useState("");
   const [status, setStatus] = useState<EscrowActionStatus>("idle");
@@ -122,6 +124,13 @@ export default function EscrowDepositCard({
     escrowBalanceMinorUnits !== null &&
     escrowBalanceMinorUnits > 0 &&
     reservedAmount === 0;
+  const canRequestDeposit =
+    walletBalanceStatus === "ready" &&
+    walletBalanceMinorUnits !== null &&
+    escrowBalanceStatus === "ready";
+  const canShowEscrowBalance =
+    escrowBalanceStatus === "ready" ||
+    (escrowBalanceStatus === "error" && escrowBalanceMinorUnits !== null);
   const escrowContractAddress = getConfiguredEscrowAddress();
 
   useEffect(() => {
@@ -353,9 +362,7 @@ export default function EscrowDepositCard({
   const escrowBalanceText =
     escrowBalanceStatus === "loading"
         ? "Reading escrow balance..."
-        : escrowBalanceStatus === "error"
-          ? escrowBalanceError
-          : "-";
+        : "-";
   const receiptTransactions: ReceiptTransaction[] = [];
 
   if (approvalTransactionHash) {
@@ -396,15 +403,28 @@ export default function EscrowDepositCard({
 
         <p
           className={`${styles.valueText} mt-2 break-words text-lg ${
-            escrowBalanceStatus === "ready" ? "font-mono tabular-nums" : ""
+            canShowEscrowBalance ? "font-mono tabular-nums" : ""
           }`}
         >
-          {escrowBalanceStatus === "ready" ? (
+          {canShowEscrowBalance ? (
             <MoneyAmount amount={escrowBalance} unit="Test USDC" />
           ) : (
             escrowBalanceText
           )}
         </p>
+
+        {escrowBalanceStatus === "error" && escrowBalanceError ? (
+          <div className={`${styles.statusStrip} ${styles.statusStripError} mt-3 px-3 py-2 text-sm`}>
+            <p>{escrowBalanceError}</p>
+            <button
+              type="button"
+              onClick={onRetryEscrowBalance}
+              className={`${styles.textAction} mt-2 text-sm`}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
 
         <p className="mt-2 text-xs text-white/40">
           Custodied in AuctionEscrow and separate from the external wallet
@@ -465,7 +485,7 @@ export default function EscrowDepositCard({
         <button
           type="button"
           onClick={handleRequestDepositConfirmation}
-          disabled={isBusy || status === "success"}
+          disabled={isBusy || status === "success" || !canRequestDeposit}
           className={`min-h-12 w-full px-6 py-3 font-semibold ${
             status === "success" ? styles.successAction : styles.primaryAction
           } ${

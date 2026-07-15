@@ -220,6 +220,7 @@ export default function ScreenPage() {
   const marketTheme = getMarketTheme(selectedSiteKey);
   const refreshWalletUsdcBalance = walletUsdcBalance.refresh;
   const refreshEscrowBalance = escrowBalance.refresh;
+  const balanceRefreshKeyRef = useRef<string | null>(null);
   const clearBidError = useCallback((slotIndex: number) => {
     setBidErrors((currentBidErrors) => ({
       ...currentBidErrors,
@@ -353,6 +354,23 @@ export default function ScreenPage() {
   }, []);
 
   useEffect(() => {
+    const refreshKey = [
+      auction.clock.cycleId,
+      auction.clock.phase,
+      settlementRecordVersion,
+      submittedBidsKey,
+    ].join(":");
+
+    if (balanceRefreshKeyRef.current === null) {
+      balanceRefreshKeyRef.current = refreshKey;
+      return;
+    }
+
+    if (balanceRefreshKeyRef.current === refreshKey) {
+      return;
+    }
+
+    balanceRefreshKeyRef.current = refreshKey;
     refreshWalletUsdcBalance();
     refreshEscrowBalance();
   }, [
@@ -403,6 +421,7 @@ export default function ScreenPage() {
           availableAuctionCapacity={availableAuctionCapacity}
           displayedAvailableAuctionCapacity={displayedAvailableAuctionCapacity}
           walletBalance={walletUsdcBalance.formattedBalance}
+          walletBalanceMinorUnits={walletUsdcBalance.balance}
           walletBalanceStatus={walletUsdcBalance.status}
           walletBalanceError={walletUsdcBalance.error}
           escrowBalance={escrowBalance.balance}
@@ -417,6 +436,8 @@ export default function ScreenPage() {
           isWalletConnected={wallet.connected}
           isWalletRestoring={wallet.status === "restoring"}
           marketTheme={marketTheme}
+          onRetryWalletBalance={refreshWalletUsdcBalance}
+          onRetryEscrowBalance={refreshEscrowBalance}
           onAdvertisementChange={(slot, value) => {
             clearBidError(slot);
             auction.updateSlot(slot, {

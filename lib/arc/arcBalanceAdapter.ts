@@ -9,6 +9,7 @@ import {
   ARC_RPC_URL,
   ARC_USDC_CONTRACT_ADDRESS,
 } from "./arcConstants";
+import { createInFlightRequestDedupe } from "./inFlightRequestDedupe";
 import type { ArcBalancePort } from "./arcPorts";
 import type { UsdcMinorUnits } from "@/lib/money/usdc";
 
@@ -38,6 +39,8 @@ const arcPublicClient = createPublicClient({
   chain: arcTestnetChain,
   transport: http(ARC_RPC_URL),
 });
+const runDedupedWalletBalanceRead =
+  createInFlightRequestDedupe<UsdcMinorUnits>();
 
 function toSafeUsdcMinorUnits(balance: bigint): UsdcMinorUnits {
   if (balance < BigInt(0)) {
@@ -57,14 +60,16 @@ export const arcBalancePort: ArcBalancePort = {
       throw new Error("Wallet address is not a valid EVM address.");
     }
 
-    const balance = await arcPublicClient.readContract({
-      address: ARC_USDC_CONTRACT_ADDRESS,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [address],
-    });
+    return runDedupedWalletBalanceRead(address.toLowerCase(), async () => {
+      const balance = await arcPublicClient.readContract({
+        address: ARC_USDC_CONTRACT_ADDRESS,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [address],
+      });
 
-    return toSafeUsdcMinorUnits(balance);
+      return toSafeUsdcMinorUnits(balance);
+    });
   },
 };
 

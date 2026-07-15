@@ -19,6 +19,7 @@ type AuctionStatusCardProps = {
   slotSecondsRemaining: number;
   currentSlotIndex: number;
   walletBalance: string;
+  walletBalanceMinorUnits: UsdcMinorUnits | null;
   walletBalanceStatus: "idle" | "loading" | "ready" | "error";
   walletBalanceError: string | null;
   escrowBalance: UsdcMinorUnits | null;
@@ -27,6 +28,8 @@ type AuctionStatusCardProps = {
   escrowBalanceStatus: "idle" | "loading" | "ready" | "error";
   escrowBalanceError: string | null;
   winners: Advertisement[];
+  onRetryWalletBalance: () => void;
+  onRetryEscrowBalance: () => void;
 };
 
 function isDemoBotAdvertisement(winner: Advertisement) {
@@ -38,6 +41,7 @@ export default function AuctionStatusCard({
   slotSecondsRemaining,
   currentSlotIndex,
   walletBalance,
+  walletBalanceMinorUnits,
   walletBalanceStatus,
   walletBalanceError,
   escrowBalance,
@@ -46,20 +50,24 @@ export default function AuctionStatusCard({
   escrowBalanceStatus,
   escrowBalanceError,
   winners,
+  onRetryWalletBalance,
+  onRetryEscrowBalance,
 }: AuctionStatusCardProps) {
   const [playbackNowMs, setPlaybackNowMs] = useState(0);
   const walletBalanceText =
     walletBalanceStatus === "loading"
         ? "Reading balance..."
-        : walletBalanceStatus === "error"
-          ? walletBalanceError
-          : "-";
+        : "-";
   const escrowBalanceText =
     escrowBalanceStatus === "loading"
         ? "Reading balance..."
-        : escrowBalanceStatus === "error"
-          ? escrowBalanceError
-          : "-";
+        : "-";
+  const canShowWalletBalance =
+    walletBalanceStatus === "ready" ||
+    (walletBalanceStatus === "error" && walletBalanceMinorUnits !== null);
+  const canShowEscrowBalance =
+    (escrowBalanceStatus === "ready" || escrowBalanceStatus === "error") &&
+    escrowBalance !== null;
   const shouldShowWinners = phase !== "open";
   const isLive = phase === "live";
 
@@ -121,18 +129,21 @@ export default function AuctionStatusCard({
           <FinancialRowItem
             label="Wallet"
             value={
-              walletBalanceStatus === "ready" ? (
+              canShowWalletBalance ? (
                 <MoneyAmount amount={walletBalance} unit="Test USDC" />
               ) : (
                 walletBalanceText
               )
             }
-            isValueMonospace={walletBalanceStatus === "ready"}
+            isValueMonospace={canShowWalletBalance}
+            error={walletBalanceError}
+            isErrorVisible={walletBalanceStatus === "error"}
+            onRetry={onRetryWalletBalance}
           />
           <FinancialRowItem
             label="Escrow: Your auction deposit"
             value={
-              escrowBalanceStatus === "ready" && escrowBalance !== null ? (
+              canShowEscrowBalance ? (
                 <MoneyAmount
                   amount={formatUSDCFromMinorUnits(escrowBalance)}
                   unit="Test USDC"
@@ -141,9 +152,10 @@ export default function AuctionStatusCard({
                 escrowBalanceText
               )
             }
-            isValueMonospace={
-              escrowBalanceStatus === "ready" && escrowBalance !== null
-            }
+            isValueMonospace={canShowEscrowBalance}
+            error={escrowBalanceError}
+            isErrorVisible={escrowBalanceStatus === "error"}
+            onRetry={onRetryEscrowBalance}
           />
           <FinancialRowItem
             label="Available for bids"
@@ -234,12 +246,18 @@ export default function AuctionStatusCard({
 
 function FinancialRowItem({
   label,
+  error,
+  isErrorVisible = false,
   value,
   isValueMonospace = false,
+  onRetry,
 }: {
   label: string;
+  error?: string | null;
+  isErrorVisible?: boolean;
   value: ReactNode;
   isValueMonospace?: boolean;
+  onRetry?: () => void;
 }) {
   return (
     <div className="min-w-0">
@@ -253,6 +271,20 @@ function FinancialRowItem({
       >
         {value}
       </p>
+      {isErrorVisible && error ? (
+        <div className="mt-2 text-xs font-medium leading-4 text-red-200">
+          <p className="whitespace-normal">{error}</p>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-1 font-semibold text-emerald-200 underline-offset-4 hover:underline"
+            >
+              Retry
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

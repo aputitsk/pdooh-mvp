@@ -21,10 +21,12 @@ import {
   ARC_USDC_CONTRACT_ADDRESS,
 } from "./arcConstants";
 import { getArcEscrowAddress } from "./arcEscrowConfig";
+import { createArcEscrowValidationCache } from "./arcEscrowValidationCache";
 import {
   getActiveArcWalletProvider,
   getArcWalletState,
 } from "./arcWalletAdapter";
+import { createInFlightRequestDedupe } from "./inFlightRequestDedupe";
 import {
   formatUSDCFromMinorUnits,
   type UsdcMinorUnits,
@@ -94,6 +96,9 @@ const arcPublicClient = createPublicClient({
   chain: arcTestnetChain,
   transport: http(ARC_RPC_URL),
 });
+const validateEscrowCached = createArcEscrowValidationCache();
+const runDedupedEscrowBalanceRead =
+  createInFlightRequestDedupe<UsdcMinorUnits>();
 
 export type ArcEscrowDepositLifecycle = {
   onApprovalWalletRequest?: () => void;
@@ -255,7 +260,15 @@ async function getEscrowTransactionContext() {
   };
 }
 
-async function validateArcEscrowContract(escrowAddress: Address) {
+function getEscrowValidationKey(escrowAddress: Address) {
+  return [
+    escrowAddress.toLowerCase(),
+    ARC_USDC_CONTRACT_ADDRESS.toLowerCase(),
+    ARC_TREASURY_ADDRESS.toLowerCase(),
+  ].join(":");
+}
+
+async function validateArcEscrowContractUncached(escrowAddress: Address) {
   const bytecode = await arcPublicClient.getBytecode({
     address: escrowAddress,
   });
@@ -294,6 +307,12 @@ async function validateArcEscrowContract(escrowAddress: Address) {
   }
 }
 
+function validateArcEscrowContract(escrowAddress: Address) {
+  return validateEscrowCached(getEscrowValidationKey(escrowAddress), () =>
+    validateArcEscrowContractUncached(escrowAddress)
+  );
+}
+
 async function waitForSuccessfulArcTransaction(hash: Hash) {
   const receipt = await arcPublicClient.waitForTransactionReceipt({ hash });
 
@@ -315,14 +334,19 @@ export async function getArcEscrowBalance(
 
   await validateArcEscrowContract(escrowAddress);
 
-  const balance = await arcPublicClient.readContract({
-    address: escrowAddress,
-    abi: auctionEscrowAbi,
-    functionName: "balanceOf",
-    args: [advertiserAddress],
-  });
+  return runDedupedEscrowBalanceRead(
+    `${escrowAddress.toLowerCase()}:${advertiserAddress.toLowerCase()}`,
+    async () => {
+      const balance = await arcPublicClient.readContract({
+        address: escrowAddress,
+        abi: auctionEscrowAbi,
+        functionName: "balanceOf",
+        args: [advertiserAddress],
+      });
 
-  return toSafeUsdcMinorUnits(balance);
+      return toSafeUsdcMinorUnits(balance);
+    }
+  );
 }
 
 export async function depositArcUsdcToEscrow(
