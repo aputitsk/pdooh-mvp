@@ -1,6 +1,7 @@
 import {
   createWalletClient,
   custom,
+  encodeFunctionData,
   erc20Abi,
   isAddress,
   type Address,
@@ -68,6 +69,8 @@ const auctionEscrowAbi = [
 const validateEscrowCached = createArcEscrowValidationCache();
 const runDedupedEscrowBalanceRead =
   createInFlightRequestDedupe<UsdcMinorUnits>();
+const GAS_BUFFER_NUMERATOR = BigInt(120);
+const GAS_BUFFER_DENOMINATOR = BigInt(100);
 
 export type ArcEscrowDepositLifecycle = {
   onApprovalWalletRequest?: () => void;
@@ -78,7 +81,7 @@ export type ArcEscrowDepositLifecycle = {
 };
 
 export type ArcEscrowDepositResult = {
-  approvalTransactionHash: Hash;
+  approvalTransactionHash?: Hash;
   depositTransactionHash: Hash;
 };
 
@@ -145,6 +148,14 @@ function formatAvailableBalance(balance: UsdcMinorUnits) {
   return `${formatUSDCFromMinorUnits(balance)} Test USDC`;
 }
 
+function addGasBuffer(gas: bigint) {
+  return (gas * GAS_BUFFER_NUMERATOR) / GAS_BUFFER_DENOMINATOR;
+}
+
+async function getArcGasPrice() {
+  return arcPublicClient.getGasPrice();
+}
+
 async function getArcUsdcTokenBalance(owner: Address) {
   const balance = await arcPublicClient.readContract({
     address: ARC_USDC_CONTRACT_ADDRESS,
@@ -154,6 +165,15 @@ async function getArcUsdcTokenBalance(owner: Address) {
   });
 
   return toSafeUsdcMinorUnits(balance);
+}
+
+async function getArcUsdcAllowance(owner: Address, spender: Address) {
+  return arcPublicClient.readContract({
+    address: ARC_USDC_CONTRACT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [owner, spender],
+  });
 }
 
 async function assertWalletCanDeposit(account: Address, amount: UsdcMinorUnits) {
@@ -332,22 +352,49 @@ export async function depositArcUsdcToEscrow(
 
   await assertWalletCanDeposit(approvalContext.account, amount);
 
-  const { request: approvalRequest } = await arcPublicClient.simulateContract({
-    account: approvalContext.account,
-    address: ARC_USDC_CONTRACT_ADDRESS,
-    abi: erc20Abi,
-    functionName: "approve",
-    args: [escrowAddress, BigInt(amount)],
-  });
+  let approvalTransactionHash: Hash | undefined;
+  const depositAmount = BigInt(amount);
+  const currentAllowance = await getArcUsdcAllowance(
+    approvalContext.account,
+    escrowAddress
+  );
 
-  lifecycle.onApprovalWalletRequest?.();
+  if (currentAllowance < depositAmount) {
+    await arcPublicClient.simulateContract({
+      account: approvalContext.account,
+      address: ARC_USDC_CONTRACT_ADDRESS,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [escrowAddress, depositAmount],
+    });
+    const approvalGas = await arcPublicClient.estimateContractGas({
+      account: approvalContext.account,
+      address: ARC_USDC_CONTRACT_ADDRESS,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [escrowAddress, depositAmount],
+    });
+    const approvalGasPrice = await getArcGasPrice();
 
-  const approvalTransactionHash =
-    await approvalContext.walletClient.writeContract(approvalRequest);
+    lifecycle.onApprovalWalletRequest?.();
 
-  lifecycle.onApprovalPending?.(approvalTransactionHash);
-  await waitForSuccessfulArcTransaction(approvalTransactionHash);
-  lifecycle.onApprovalConfirmed?.(approvalTransactionHash);
+    approvalTransactionHash = await approvalContext.walletClient.sendTransaction({
+      account: approvalContext.account,
+      chain: arcTestnetChain,
+      to: ARC_USDC_CONTRACT_ADDRESS,
+      data: encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [escrowAddress, depositAmount],
+      }),
+      gas: addGasBuffer(approvalGas),
+      gasPrice: approvalGasPrice,
+    });
+
+    lifecycle.onApprovalPending?.(approvalTransactionHash);
+    await waitForSuccessfulArcTransaction(approvalTransactionHash);
+    lifecycle.onApprovalConfirmed?.(approvalTransactionHash);
+  }
 
   const depositContext = await getEscrowTransactionContext();
 
@@ -362,18 +409,37 @@ export async function depositArcUsdcToEscrow(
 
   await assertWalletCanDeposit(depositContext.account, amount);
 
-  const { request: depositRequest } = await arcPublicClient.simulateContract({
+  await arcPublicClient.simulateContract({
     account: depositContext.account,
     address: escrowAddress,
     abi: auctionEscrowAbi,
     functionName: "deposit",
-    args: [BigInt(amount)],
+    args: [depositAmount],
   });
+  const depositGas = await arcPublicClient.estimateContractGas({
+    account: depositContext.account,
+    address: escrowAddress,
+    abi: auctionEscrowAbi,
+    functionName: "deposit",
+    args: [depositAmount],
+  });
+  const depositGasPrice = await getArcGasPrice();
 
   lifecycle.onDepositWalletRequest?.();
 
   const depositTransactionHash =
-    await depositContext.walletClient.writeContract(depositRequest);
+    await depositContext.walletClient.sendTransaction({
+      account: depositContext.account,
+      chain: arcTestnetChain,
+      to: escrowAddress,
+      data: encodeFunctionData({
+        abi: auctionEscrowAbi,
+        functionName: "deposit",
+        args: [depositAmount],
+      }),
+      gas: addGasBuffer(depositGas),
+      gasPrice: depositGasPrice,
+    });
 
   lifecycle.onDepositPending?.(depositTransactionHash);
   await waitForSuccessfulArcTransaction(depositTransactionHash);
@@ -398,18 +464,39 @@ export async function withdrawArcUsdcFromEscrow(
 
   await assertEscrowCanWithdraw(escrowAddress, withdrawContext.account, amount);
 
-  const { request: withdrawRequest } = await arcPublicClient.simulateContract({
+  const withdrawAmount = BigInt(amount);
+
+  await arcPublicClient.simulateContract({
     account: withdrawContext.account,
     address: escrowAddress,
     abi: auctionEscrowAbi,
     functionName: "withdraw",
-    args: [BigInt(amount)],
+    args: [withdrawAmount],
   });
+  const withdrawGas = await arcPublicClient.estimateContractGas({
+    account: withdrawContext.account,
+    address: escrowAddress,
+    abi: auctionEscrowAbi,
+    functionName: "withdraw",
+    args: [withdrawAmount],
+  });
+  const withdrawGasPrice = await getArcGasPrice();
 
   lifecycle.onWithdrawWalletRequest?.();
 
   const withdrawTransactionHash =
-    await withdrawContext.walletClient.writeContract(withdrawRequest);
+    await withdrawContext.walletClient.sendTransaction({
+      account: withdrawContext.account,
+      chain: arcTestnetChain,
+      to: escrowAddress,
+      data: encodeFunctionData({
+        abi: auctionEscrowAbi,
+        functionName: "withdraw",
+        args: [withdrawAmount],
+      }),
+      gas: addGasBuffer(withdrawGas),
+      gasPrice: withdrawGasPrice,
+    });
 
   lifecycle.onWithdrawPending?.(withdrawTransactionHash);
   await waitForSuccessfulArcTransaction(withdrawTransactionHash);

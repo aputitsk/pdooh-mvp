@@ -14,7 +14,7 @@ export type EscrowDepositLifecycle = {
 };
 
 export type EscrowDepositResult = {
-  approvalTransactionHash: PaymentTransactionHash;
+  approvalTransactionHash?: PaymentTransactionHash;
   depositTransactionHash: PaymentTransactionHash;
 };
 

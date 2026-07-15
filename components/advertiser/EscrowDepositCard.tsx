@@ -255,7 +255,7 @@ export default function EscrowDepositCard({
         },
       });
 
-      setApprovalTransactionHash(result.approvalTransactionHash);
+      setApprovalTransactionHash(result.approvalTransactionHash ?? null);
       setDepositTransactionHash(result.depositTransactionHash);
       showButtonSuccess("success");
       setAmount("");
