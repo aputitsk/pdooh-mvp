@@ -339,6 +339,32 @@ contract AuctionEngineV1Test {
         engine.confirmPlayback(report);
     }
 
+    function testReporterCanConfirmFourSecondPlaybackAndSettle() public {
+        placeBid(ADVERTISER, SITE_ID, 0, ONE_USDC, AD_ID);
+
+        vm.warp(START + 60);
+        engine.finalizeSlot(SITE_ID, 0, 0);
+
+        AuctionEngineV1.PlaybackReport memory report = playbackReport(AD_ID, 11);
+        report.playbackEndedAt = START + 66;
+
+        vm.warp(START + 66);
+        vm.prank(REPORTER);
+        engine.confirmPlayback(report);
+
+        AuctionEngineV1.SlotState memory played = engine.getSlotState(SITE_ID, 0, 0);
+        assertEq(uint256(played.outcome), uint256(AuctionEngineV1.SlotOutcome.PLAYED));
+
+        vm.prank(OTHER);
+        engine.settleSlot(SITE_ID, 0, 0);
+
+        AuctionEngineV1.SlotState memory settled = engine.getSlotState(SITE_ID, 0, 0);
+        assertEq(uint256(settled.outcome), uint256(AuctionEngineV1.SlotOutcome.SETTLED));
+        assertEq(escrow.balanceOf(ADVERTISER), 99 * ONE_USDC);
+        assertEq(escrow.reservedOf(ADVERTISER), 0);
+        assertEq(usdc.balanceOf(TREASURY), ONE_USDC);
+    }
+
     function testProofExpiryReleasesWinningReservation() public {
         placeBid(ADVERTISER, SITE_ID, 0, ONE_USDC, AD_ID);
 

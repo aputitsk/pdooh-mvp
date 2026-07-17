@@ -160,6 +160,7 @@ Implemented Foundry coverage includes:
 - `minimumPaidBid` threshold;
 - loser release;
 - winner proof to settlement;
+- reporter can confirm a playback report that starts at the slot start, ends 4 seconds later, and then settle the slot;
 - proof expiry to release;
 - settlement revert leaves slot `PLAYED` and reservation active for retry;
 - treasury cannot bid;
@@ -195,8 +196,8 @@ The current worst-case slot path is bounded by `MAX_BIDS_PER_SLOT = 10`.
 - Current Arc Testnet smoke covered paid winner playback settlement, proof expiry release, and the `0.02` threshold `NO_PAID_WINNER` release path.
 - Redis/browser state remains the existing product store today; once contract mode is wired, Redis should be projection only after receipt and chain-state reads.
 - No APS verifier contract in V1. `REPORTER_ROLE` is used inside `AuctionEngineV1`.
-- No bid cancel, slot cancel, bid replacement, or bid increase in V1.
-- No on-chain Demo Bot. The contract state only distinguishes `PAID_WINNER` and `NO_PAID_WINNER`; UI/screen fallback remains off-chain.
+- No bid cancel, slot cancel, bid replacement, or bid increase in V1. This matches the current submitted-bid legacy path, where `submittedBids[slot]` blocks another submit for the same slot.
+- No on-chain Demo Bot wallet, escrow deposit, reservation, settlement, or revenue path. The authoritative contract state for bids at or below `minimumPaidBid` is `NO_PAID_WINNER`; UI/screen fallback may only be a deterministic display projection from that contract outcome, the snapshot `minimumPaidBid`, and static product advertisement config.
 - No admin migration from legacy `AuctionEscrow`.
 - No funding adapters inside Engine or Escrow.
 - Repeat Arc Testnet contract smoke after any contract, site config, or settlement-flow change because local EVM does not reproduce all Arc behavior.
@@ -269,6 +270,12 @@ Every future action switch must include a parity matrix:
 | timing | Phase, slot, and retry timing. |
 | reload recovery | Behavior after refresh or page change. |
 | retry/idempotency | Duplicate submit, retry, and already-processed behavior. |
+
+### Current Parity Notes
+
+- Playback confirmation does not require the full 10-second slot window to elapse. `confirmPlayback` requires `block.timestamp >= report.playbackEndedAt`, `report.playbackStartedAt >= slotStart`, and `report.playbackEndedAt <= slotEnd`. A trusted reporter can therefore submit a report for `slotStart -> slotStart + 4s` at `slotStart + 4s`, and `settleSlot` can run immediately after confirmation.
+- The Contract V1 Demo Bot mapping is deterministic display projection, not authority. When the contract finalizes `NO_PAID_WINNER`, the app may display the existing Demo Bot fallback advertisement and compare against the snapshot `minimumPaidBid`, but it must not create a paid winner, reservation, settlement, or revenue entry.
+- Current legacy repeat-bid behavior is one submitted bid per slot. After `submittedBids[slot]` is true, same-slot bid replacement, increase, decrease, and ad changes are blocked by the legacy app; V1 duplicate bid rejection is therefore equivalent for the current product behavior.
 
 ## Application Read-Only Foundation
 
