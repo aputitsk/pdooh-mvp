@@ -336,6 +336,8 @@ The foundation may compose existing config/site id/read types, derive UI phase/c
 
 It is not wired into UI, React providers, wallet adapters, Redis, legacy stores, settlement routes, lifecycle automation, reporter submission, or projections. Site support must be confirmed by Contract V1 reads; deployment metadata is diagnostics-only. Eligibility is a preflight helper, not final write authority: future write adapters must reread chain state before submitting transactions.
 
+`AuctionEscrowV2` balances are global per wallet, not per site. Low-level V2 `approve`, `deposit`, and `withdraw` adapters are therefore site-independent. Active-site support is only an application rollout/product-readiness gate for whether to expose a deposit flow while a site is not yet configured; it is not an escrow contract precondition. The deposit/withdraw foundation does not mean V2 funds are already connected to bidding, lifecycle, settlement, or revenue projections.
+
 ### Still Not Connected
 
 These remain intentionally unconnected:
