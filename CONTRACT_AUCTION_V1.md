@@ -211,6 +211,128 @@ Confirmed unchanged:
 
 Existing users must withdraw legacy balances themselves; there is no admin migration path.
 
+## Product Parity Invariant
+
+Contract V1 must replace the internal source of truth and trust model without changing the externally visible mechanics of the existing application unless a product change is explicitly approved.
+
+The migrated experience must preserve:
+
+- the same phases and timings: `open 60s`, `locked 2s`, then three sequential live slots of `10s` each;
+- the same `open -> locked -> live slot 1 -> live slot 2 -> live slot 3 -> next cycle` sequence;
+- the same three advertising slots;
+- the same advertisement selection, bid input, and bid submission UX;
+- the same AppKit and Privy confirmation flow;
+- the same Demo Bot bid of `0.02 Test USDC` until a different behavior is explicitly approved;
+- the same winner selection rules;
+- the same winner and advertisement display order;
+- the same `Balance`, `Reserved`, and `Available` concepts;
+- reservation on bid;
+- correct reservation replacement or increase on a new bid;
+- release of losing, replaced, cancelled, expired, and unused reservations;
+- charging only the won and playback-confirmed slot amount;
+- no double charge;
+- the same withdraw UX with reserved amount protection;
+- the same settlement receipts and account revenue projections;
+- the same site keys, advertisements, and slot mapping;
+- the same visible behavior after reload and page changes.
+
+Only authority changes:
+
+- cycle, slot state, bids, winner, and reservations become Contract V1 truth;
+- localStorage and Redis may only be cache/projection where still needed;
+- the browser must not appoint a winner or settlement amount;
+- settlement and release must follow contract rules;
+- lifecycle automation must not depend on a single browser heartbeat.
+
+Any unintended difference from current legacy behavior is a migration defect.
+
+If Contract V1 cannot reproduce part of the current product mechanics:
+
+- do not add a frontend workaround;
+- do not return authority to localStorage or Redis;
+- do not silently change UX or economic rules;
+- record the exact mismatch;
+- identify whether the fix belongs in the contract, config, or adapter layer;
+- stop before shipping incompatible behavior.
+
+Every future action switch must include a parity matrix:
+
+| Field | Required comparison |
+| --- | --- |
+| user input/action | Legacy action and Contract V1 action must be the same from the user's point of view. |
+| legacy result | Current app behavior before migration. |
+| Contract V1 result | Contract result and state transition. |
+| UI-visible result | What the user sees on `/screen` and `/advertiser`. |
+| balance delta | Change to `Balance`. |
+| reserved delta | Change to `Reserved` and `Available`. |
+| settlement delta | Settlement, receipt, and revenue projection effect. |
+| timing | Phase, slot, and retry timing. |
+| reload recovery | Behavior after refresh or page change. |
+| retry/idempotency | Duplicate submit, retry, and already-processed behavior. |
+
+## Application Read-Only Foundation
+
+The app now has an isolated Contract V1 read-only foundation under `lib/arc/contractV1`.
+It is not wired into the production UI, legacy stores, settlement scanner, operator routes, wallet flows, or Redis projection.
+
+### Mode and Address Env
+
+Public app env:
+
+- `NEXT_PUBLIC_PDOOH_AUCTION_MODE`: `legacy` or `contract_v1`; missing value defaults to `legacy`.
+- `NEXT_PUBLIC_PDOOH_AUCTION_ESCROW_V2_ADDRESS`: `AuctionEscrowV2` address for Contract V1 reads.
+- `NEXT_PUBLIC_PDOOH_AUCTION_ENGINE_V1_ADDRESS`: `AuctionEngineV1` address for Contract V1 reads.
+
+Guardrails:
+
+- Unknown mode values fall back to `legacy` and surface a diagnostic error.
+- Missing V1 addresses do not break `legacy` mode.
+- In `contract_v1` mode, missing, invalid, or zero V1 addresses are diagnostic errors.
+- V1 address config does not reuse `NEXT_PUBLIC_PDOOH_ESCROW_ADDRESS`, which remains the legacy `AuctionEscrow` address.
+- Deployment addresses are intentionally not hardcoded in app code.
+
+### Site ID Mapping
+
+Contract V1 site ids use `AuctionIds.siteId(canonicalSiteKey)`:
+
+```text
+keccak256(abi.encode(keccak256("pdooh.siteId.v1"), canonicalSiteKey))
+```
+
+The canonical input is the exact app `siteKey`, for example `new-york/times-square`.
+Display names, city names, business names, Redis metadata, and page labels are not ID inputs.
+
+All real application site keys currently found in `lib/auction/siteConfig.ts`:
+
+| Canonical application site key | Computed `bytes32 siteId` | Deployment/config proof | Status |
+| --- | --- | --- | --- |
+| `new-york/times-square` | `0x8cf3e0bc4b551deafc95cab2f38acbf1eae9a58ab3a8fe8b6be5bf3279331672` | `.env.arc-smoke.local.template` sets `PDOOH_INITIAL_SITE_ID`/`PDOOH_SMOKE_SITE_ID`; `script/ConfigureAuctionEngineV1Site.s.sol` reads `PDOOH_INITIAL_SITE_ID`; `broadcast/ConfigureAuctionEngineV1Site.s.sol/5042002/run-latest.json` calls `configureInitialSite` with the same value. | proven |
+| `los-angeles/hollywood-boulevard` | `0xeafcd6dbd8ec28ca540b1bd01c1b86bfcf3cd652b4d75e9ce14f8683c1781bfe` | No deployment/config script or broadcast currently configures this site id. Algorithm is confirmed by the `AuctionIds` formula and the NY vector, but concrete LA deployment mapping is not proven on-chain. | not configured |
+
+### Read-Only Diagnostics Boundary
+
+The read layer uses the existing Arc public client/RPC fallback. It does not create another public client, does not use a wallet provider, and does not call write methods.
+
+Read-only coverage:
+
+- `AuctionEscrowV2`: `balanceOf`, `availableOf`, `reservedOf`, `getReservation`, `engine`, `usdc`.
+- `AuctionEngineV1`: `currentCycleId`, `previewCycle`, `getSiteConfig`, `getSiteConfigForCycle`, `getCycleSnapshot`, `getSlotState`, `getSlotBidCount`, `escrow`.
+
+Diagnostics return mode/config validity, chain id, V1 addresses, computed site id, current/effective cycle id, preview and persisted cycle snapshot, site config, slot states and bid counts, wallet escrow balance/available/reserved, `available + reserved == balance`, escrow-engine match, engine-escrow match, USDC address, warnings, and errors.
+
+### Still Not Connected
+
+These remain intentionally unconnected:
+
+- V2 `approve`, `deposit`, `withdraw`.
+- Engine `placeBid`.
+- `finalizeSlot`, `confirmPlayback`, `expireSlot`, `settleSlot`.
+- playback proof or reporter flow.
+- Redis projections after receipts.
+- Contract V1 UI mode for `/screen` or `/advertiser`.
+- settlement scanner and operator routes.
+- public diagnostic page or API endpoint.
+
 ## Application Integration Guardrails
 
 - Do not add a browser heartbeat that performs operator actions.
