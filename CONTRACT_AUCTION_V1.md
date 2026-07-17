@@ -327,6 +327,15 @@ Read-only coverage:
 
 Diagnostics return mode/config validity, chain id, V1 addresses, computed site id, current/effective cycle id, preview and persisted cycle snapshot, site config, slot states and bid counts, wallet escrow balance/available/reserved, `available + reserved == balance`, escrow-engine match, engine-escrow match, USDC address, warnings, and errors.
 
+### Minimal Runtime Foundation Boundary
+
+The Contract V1 runtime foundation is a pure TypeScript domain layer only.
+Runtime modes remain `legacy | contract_v1`; there is no shadow app mode.
+
+The foundation may compose existing config/site id/read types, derive UI phase/current slot from Contract V1 snapshot timestamps, classify minimal read/config errors, and compute pure preflight eligibility for future wallet-owned `deposit`, `withdraw`, and `placeBid` actions.
+
+It is not wired into UI, React providers, wallet adapters, Redis, legacy stores, settlement routes, lifecycle automation, reporter submission, or projections. Site support must be confirmed by Contract V1 reads; deployment metadata is diagnostics-only. Eligibility is a preflight helper, not final write authority: future write adapters must reread chain state before submitting transactions.
+
 ### Still Not Connected
 
 These remain intentionally unconnected:
