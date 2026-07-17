@@ -1,22 +1,52 @@
 import type {
+  ContractV1ReadContractClient,
+  ContractV1ReceiptClient,
+  ContractV1TransactionRecoveryMetadata,
+  ContractV1TransactionReceipt,
   ContractV1WriteError,
   ContractV1WriteErrorCode,
+  ContractV1WriteResult,
   ContractV1WriteStage,
 } from "./types";
+
+export function contractV1WriteFailure({
+  code,
+  stage,
+  retryable = false,
+  recovery,
+}: {
+  code: ContractV1WriteErrorCode;
+  stage: ContractV1WriteStage;
+  retryable?: boolean;
+  recovery?: ContractV1TransactionRecoveryMetadata;
+}): ContractV1WriteResult<never> {
+  return {
+    ok: false,
+    error: contractV1WriteError({
+      code,
+      stage,
+      retryable,
+      recovery,
+    }),
+  };
+}
 
 export function contractV1WriteError({
   code,
   stage,
   retryable = false,
+  recovery,
 }: {
   code: ContractV1WriteErrorCode;
   stage: ContractV1WriteStage;
   retryable?: boolean;
+  recovery?: ContractV1TransactionRecoveryMetadata;
 }): ContractV1WriteError {
   return {
     code,
     stage,
     retryable,
+    recovery,
   };
 }
 
@@ -48,12 +78,93 @@ export function classifyContractV1WriteError(
   });
 }
 
-export function receiptUnknownError(stage: ContractV1WriteStage) {
-  return contractV1WriteError({
+export function receiptUnknownFailure(
+  stage: ContractV1WriteStage,
+  recovery: ContractV1TransactionRecoveryMetadata
+): ContractV1WriteResult<never> {
+  return contractV1WriteFailure({
     code: "receipt_unknown",
     stage,
     retryable: true,
+    recovery,
   });
+}
+
+export async function waitForContractV1Receipt(
+  receiptClient: ContractV1ReceiptClient,
+  recovery: ContractV1TransactionRecoveryMetadata
+): Promise<ContractV1WriteResult<ContractV1TransactionReceipt>> {
+  try {
+    return {
+      ok: true,
+      value: await receiptClient.waitForTransactionReceipt({
+        hash: recovery.transactionHash,
+      }),
+    };
+  } catch {
+    return receiptUnknownFailure("receipt", recovery);
+  }
+}
+
+export async function readContractV1BigInt({
+  readClient,
+  request,
+  stage,
+}: {
+  readClient: ContractV1ReadContractClient;
+  request: Parameters<ContractV1ReadContractClient["readContract"]>[0];
+  stage: ContractV1WriteStage;
+}): Promise<ContractV1WriteResult<bigint>> {
+  try {
+    return {
+      ok: true,
+      value: asBigInt(await readClient.readContract(request)),
+    };
+  } catch {
+    return contractV1WriteFailure({
+      code: "read_failed",
+      stage,
+      retryable: true,
+    });
+  }
+}
+
+export async function getContractV1ReadBlockNumber(
+  readClient: ContractV1ReadContractClient,
+  stage: ContractV1WriteStage
+): Promise<ContractV1WriteResult<bigint>> {
+  if (!readClient.getBlockNumber) {
+    return contractV1WriteFailure({
+      code: "read_failed",
+      stage,
+      retryable: true,
+    });
+  }
+
+  try {
+    return {
+      ok: true,
+      value: await readClient.getBlockNumber(),
+    };
+  } catch {
+    return contractV1WriteFailure({
+      code: "read_failed",
+      stage,
+      retryable: true,
+    });
+  }
+}
+
+function asBigInt(value: unknown) {
+  if (typeof value === "bigint") {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isSafeInteger(value)) {
+    return BigInt(value);
+  }
+
+  throw new TypeError("Contract V1 write read must return an integer.");
 }
 
 function isUserRejectedRequest(error: unknown) {

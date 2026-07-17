@@ -17,13 +17,20 @@ import {
   getArcWalletState,
 } from "../../arcWalletAdapter";
 import type {
+  ContractV1PreWriteValidationInput,
+  ContractV1WriteResult,
   ContractV1WalletWriteClient,
   ContractV1WalletWriteContext,
 } from "./types";
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { contractV1WriteFailure } from "./errors.ts";
 
 export type ContractV1ActiveWalletWriteContext = {
   context: ContractV1WalletWriteContext;
   walletClient: ContractV1WalletWriteClient | null;
+  preWriteValidator: (
+    input: ContractV1PreWriteValidationInput
+  ) => Promise<ContractV1WriteResult<void>>;
 };
 
 export async function getActiveContractV1WalletWriteContext({
@@ -74,6 +81,58 @@ export async function getActiveContractV1WalletWriteContext({
       usdcAddress,
     },
     walletClient,
+    preWriteValidator: validateActiveContractV1WalletWriteSession,
+  };
+}
+
+export async function validateActiveContractV1WalletWriteSession({
+  account,
+  expectedChainId,
+}: ContractV1PreWriteValidationInput): Promise<ContractV1WriteResult<void>> {
+  const provider = getActiveArcWalletProvider();
+
+  if (!provider) {
+    return contractV1WriteFailure({
+      code: "wallet_disconnected",
+      stage: "preflight",
+      retryable: false,
+    });
+  }
+
+  const [providerChainId, providerAccounts] = await Promise.all([
+    provider.request({ method: "eth_chainId" }).catch(() => null),
+    provider.request({ method: "eth_accounts" }).catch(() => null),
+  ]);
+  const activeChainId = parseChainId(providerChainId);
+  const activeAccount = firstAddress(providerAccounts);
+
+  if (activeChainId !== expectedChainId) {
+    return contractV1WriteFailure({
+      code: "wrong_chain",
+      stage: "preflight",
+      retryable: false,
+    });
+  }
+
+  if (!activeAccount) {
+    return contractV1WriteFailure({
+      code: "wallet_disconnected",
+      stage: "preflight",
+      retryable: false,
+    });
+  }
+
+  if (activeAccount.toLowerCase() !== account.toLowerCase()) {
+    return contractV1WriteFailure({
+      code: "account_changed",
+      stage: "preflight",
+      retryable: false,
+    });
+  }
+
+  return {
+    ok: true,
+    value: undefined,
   };
 }
 

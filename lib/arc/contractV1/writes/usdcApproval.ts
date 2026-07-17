@@ -2,12 +2,14 @@ import type { Address, Hash } from "viem";
 
 import type {
   ContractV1ApprovalResult,
+  ContractV1PreWriteValidator,
   ContractV1ReadContractClient,
   ContractV1ReceiptClient,
   ContractV1WalletWriteClient,
-  ContractV1WriteError,
   ContractV1WriteResult,
 } from "./types";
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { classifyContractV1WriteError, contractV1WriteError, contractV1WriteFailure, readContractV1BigInt, waitForContractV1Receipt } from "./errors.ts";
 
 const erc20ApprovalAbi = [
   {
@@ -40,6 +42,8 @@ export type ContractV1ApprovalInput = {
   usdcAddress: Address;
   spender: Address;
   amount: bigint;
+  expectedChainId: number;
+  preWriteValidator: ContractV1PreWriteValidator;
 };
 
 export async function readContractV1UsdcAllowance({
@@ -52,15 +56,17 @@ export async function readContractV1UsdcAllowance({
   usdcAddress: Address;
   owner: Address;
   spender: Address;
-}): Promise<bigint> {
-  return asBigInt(
-    await readClient.readContract({
+}): Promise<ContractV1WriteResult<bigint>> {
+  return readContractV1BigInt({
+    readClient,
+    stage: "preflight",
+    request: {
       address: usdcAddress,
       abi: erc20ApprovalAbi,
       functionName: "allowance",
       args: [owner, spender],
-    })
-  );
+    },
+  });
 }
 
 export async function ensureContractV1UsdcApproval({
@@ -71,11 +77,17 @@ export async function ensureContractV1UsdcApproval({
   usdcAddress,
   spender,
   amount,
+  expectedChainId,
+  preWriteValidator,
 }: ContractV1ApprovalInput): Promise<
   ContractV1WriteResult<ContractV1ApprovalResult>
 > {
   if (amount <= BigInt(0)) {
-    return failure("invalid_amount", "preflight", false);
+    return contractV1WriteFailure({
+      code: "invalid_amount",
+      stage: "preflight",
+      retryable: false,
+    });
   }
 
   const allowanceBefore = await readContractV1UsdcAllowance({
@@ -85,14 +97,27 @@ export async function ensureContractV1UsdcApproval({
     spender,
   });
 
-  if (allowanceBefore >= amount) {
+  if (!allowanceBefore.ok) {
+    return allowanceBefore;
+  }
+
+  if (allowanceBefore.value >= amount) {
     return {
       ok: true,
       value: {
-        allowanceBefore,
-        allowanceAfter: allowanceBefore,
+        allowanceBefore: allowanceBefore.value,
+        allowanceAfter: allowanceBefore.value,
       },
     };
+  }
+
+  const preWrite = await preWriteValidator({
+    account,
+    expectedChainId,
+  });
+
+  if (!preWrite.ok) {
+    return preWrite;
   }
 
   let approvalTransactionHash: Hash;
@@ -106,17 +131,32 @@ export async function ensureContractV1UsdcApproval({
       args: [spender, amount],
     });
   } catch (error) {
-    return failure(classifyWriteFailure(error, "approval_failed"), "approval", true);
+    return {
+      ok: false,
+      error: classifyContractV1WriteError(error, "approval_failed", "approval"),
+    };
   }
 
-  const receipt = await waitForReceipt(receiptClient, approvalTransactionHash);
+  const recovery = {
+    transactionHash: approvalTransactionHash,
+    action: "approve",
+    stage: "approval",
+    account,
+    target: usdcAddress,
+    amount,
+  } as const;
+  const receipt = await waitForContractV1Receipt(receiptClient, recovery);
 
   if (!receipt.ok) {
     return receipt;
   }
 
   if (receipt.value.status !== "success") {
-    return failure("transaction_reverted", "approval", false);
+    return contractV1WriteFailure({
+      code: "transaction_reverted",
+      stage: "approval",
+      retryable: false,
+    });
   }
 
   const allowanceAfter = await readContractV1UsdcAllowance({
@@ -126,111 +166,39 @@ export async function ensureContractV1UsdcApproval({
     spender,
   });
 
-  if (allowanceAfter < amount) {
-    return failure("approval_failed", "approval", true);
+  if (!allowanceAfter.ok) {
+    return {
+      ok: true,
+      value: {
+        allowanceBefore: allowanceBefore.value,
+        approvalTransactionHash,
+        allowanceVerificationStatus: "unavailable",
+        postStateError: contractV1WriteError({
+          code: "confirmed_post_state_unavailable",
+          stage: "post_state",
+          retryable: true,
+          recovery,
+        }),
+      },
+    };
+  }
+
+  if (allowanceAfter.value < amount) {
+    return contractV1WriteFailure({
+      code: "approval_failed",
+      stage: "post_state",
+      retryable: false,
+      recovery,
+    });
   }
 
   return {
     ok: true,
     value: {
-      allowanceBefore,
-      allowanceAfter,
+      allowanceBefore: allowanceBefore.value,
+      allowanceAfter: allowanceAfter.value,
       approvalTransactionHash,
-    },
-  };
-}
-
-function asBigInt(value: unknown) {
-  if (typeof value === "bigint") {
-    return value;
-  }
-
-  if (typeof value === "number" && Number.isSafeInteger(value)) {
-    return BigInt(value);
-  }
-
-  throw new TypeError("Contract V1 USDC allowance read must return an integer.");
-}
-
-async function waitForReceipt(
-  receiptClient: ContractV1ReceiptClient,
-  hash: Hash
-): Promise<ContractV1WriteResult<{ status: "success" | "reverted" }>> {
-  try {
-    return {
-      ok: true,
-      value: await receiptClient.waitForTransactionReceipt({ hash }),
-    };
-  } catch {
-    return failure("receipt_unknown", "receipt", true);
-  }
-}
-
-function classifyWriteFailure(
-  error: unknown,
-  defaultCode: ContractV1WriteError["code"]
-) {
-  const text = collectErrorText(error).join(" ").toLowerCase();
-
-  if (hasCode(error, 4001) || text.includes("user rejected")) {
-    return "transaction_rejected";
-  }
-
-  if (text.includes("execution reverted") || text.includes("transaction reverted")) {
-    return "transaction_reverted";
-  }
-
-  return defaultCode;
-}
-
-function hasCode(error: unknown, expectedCode: number): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-
-  const record = error as Record<string, unknown>;
-
-  return record.code === expectedCode || record.code === String(expectedCode);
-}
-
-function collectErrorText(error: unknown): string[] {
-  if (error instanceof Error) {
-    return [error.name, error.message];
-  }
-
-  if (typeof error === "string") {
-    return [error];
-  }
-
-  if (typeof error !== "object" || error === null) {
-    return [];
-  }
-
-  const record = error as Record<string, unknown>;
-  const values: string[] = [];
-
-  for (const field of ["name", "message", "shortMessage", "details"]) {
-    const value = record[field];
-
-    if (typeof value === "string") {
-      values.push(value);
-    }
-  }
-
-  return values;
-}
-
-function failure(
-  code: ContractV1WriteError["code"],
-  stage: ContractV1WriteError["stage"],
-  retryable: boolean
-): ContractV1WriteResult<never> {
-  return {
-    ok: false,
-    error: {
-      code,
-      stage,
-      retryable,
+      allowanceVerificationStatus: "verified",
     },
   };
 }

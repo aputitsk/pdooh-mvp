@@ -1,16 +1,21 @@
-import type { Address, Hash } from "viem";
+import { decodeEventLog, type Address, type Hash } from "viem";
 
 import type {
   ContractV1ApprovalResult,
   ContractV1DepositResult,
-  ContractV1EscrowPostState,
+  ContractV1PreWriteValidator,
   ContractV1ReadContractClient,
   ContractV1ReceiptClient,
+  ContractV1TransactionReceipt,
+  ContractV1TransactionRecoveryMetadata,
   ContractV1WalletWriteClient,
   ContractV1WalletWriteContext,
-  ContractV1WriteError,
   ContractV1WriteResult,
 } from "./types";
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { classifyContractV1WriteError, contractV1WriteError, contractV1WriteFailure, readContractV1BigInt, waitForContractV1Receipt } from "./errors.ts";
+// @ts-expect-error Node's type-stripping runner requires the .ts extension.
+import { isValidContractV1EscrowState, readContractV1EscrowState, validateContractV1EscrowWriteContext } from "./escrowState.ts";
 
 const erc20BalanceAbi = [
   {
@@ -53,6 +58,17 @@ const escrowDepositAbi = [
   },
 ] as const;
 
+const escrowDepositedEventAbi = [
+  {
+    type: "event",
+    name: "Deposited",
+    inputs: [
+      { name: "account", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
 export type ContractV1ApprovalEnsurer = (input: {
   readClient: ContractV1ReadContractClient;
   walletClient: ContractV1WalletWriteClient;
@@ -61,6 +77,8 @@ export type ContractV1ApprovalEnsurer = (input: {
   usdcAddress: Address;
   spender: Address;
   amount: bigint;
+  expectedChainId: number;
+  preWriteValidator: ContractV1PreWriteValidator;
 }) => Promise<ContractV1WriteResult<ContractV1ApprovalResult>>;
 
 export type ContractV1DepositInput = {
@@ -69,6 +87,7 @@ export type ContractV1DepositInput = {
   walletClient: ContractV1WalletWriteClient;
   receiptClient: ContractV1ReceiptClient;
   ensureApproval: ContractV1ApprovalEnsurer;
+  preWriteValidator: ContractV1PreWriteValidator;
   amount: bigint;
 };
 
@@ -78,11 +97,12 @@ export async function depositToContractV1Escrow({
   walletClient,
   receiptClient,
   ensureApproval,
+  preWriteValidator,
   amount,
 }: ContractV1DepositInput): Promise<
   ContractV1WriteResult<ContractV1DepositResult>
 > {
-  const preflight = validateCommonWriteContext(context, amount);
+  const preflight = validateContractV1EscrowWriteContext(context, amount);
 
   if (!preflight.ok) {
     return preflight;
@@ -96,8 +116,16 @@ export async function depositToContractV1Escrow({
     account,
   });
 
-  if (walletUsdcBalance < amount) {
-    return failure("insufficient_wallet_usdc", "preflight", false);
+  if (!walletUsdcBalance.ok) {
+    return walletUsdcBalance;
+  }
+
+  if (walletUsdcBalance.value < amount) {
+    return contractV1WriteFailure({
+      code: "insufficient_wallet_usdc",
+      stage: "preflight",
+      retryable: false,
+    });
   }
 
   const approval = await ensureApproval({
@@ -108,10 +136,32 @@ export async function depositToContractV1Escrow({
     usdcAddress: context.usdcAddress,
     spender: escrowAddress,
     amount,
+    expectedChainId: context.expectedChainId,
+    preWriteValidator,
   });
 
   if (!approval.ok) {
     return approval;
+  }
+
+  if (approval.value.allowanceVerificationStatus === "unavailable") {
+    return {
+      ok: false,
+      error: approval.value.postStateError ?? contractV1WriteError({
+        code: "confirmed_post_state_unavailable",
+        stage: "post_state",
+        retryable: true,
+      }),
+    };
+  }
+
+  const preWrite = await preWriteValidator({
+    account,
+    expectedChainId: context.expectedChainId,
+  });
+
+  if (!preWrite.ok) {
+    return preWrite;
   }
 
   let depositTransactionHash: Hash;
@@ -125,27 +175,81 @@ export async function depositToContractV1Escrow({
       args: [amount],
     });
   } catch (error) {
-    return failure(classifyWriteFailure(error, "deposit_failed"), "deposit", true);
+    return {
+      ok: false,
+      error: classifyContractV1WriteError(error, "deposit_failed", "deposit"),
+    };
   }
 
-  const receipt = await waitForReceipt(receiptClient, depositTransactionHash);
+  const recovery: ContractV1TransactionRecoveryMetadata = {
+    transactionHash: depositTransactionHash,
+    action: "deposit",
+    stage: "deposit",
+    account,
+    target: escrowAddress,
+    amount,
+  };
+  const receipt = await waitForContractV1Receipt(receiptClient, recovery);
 
   if (!receipt.ok) {
     return receipt;
   }
 
   if (receipt.value.status !== "success") {
-    return failure("transaction_reverted", "deposit", false);
+    return contractV1WriteFailure({
+      code: "transaction_reverted",
+      stage: "deposit",
+      retryable: false,
+    });
   }
 
-  const postState = await readEscrowPostState({
+  if (!hasDepositedEvent({
+    receipt: receipt.value,
+    escrowAddress,
+    account,
+    amount,
+  })) {
+    return contractV1WriteFailure({
+      code: "receipt_event_mismatch",
+      stage: "receipt",
+      retryable: false,
+      recovery,
+    });
+  }
+
+  const postState = await readContractV1EscrowState({
     readClient,
     escrowAddress,
     account,
+    stage: "post_state",
+    blockNumber: receipt.value.blockNumber,
   });
 
-  if (!isValidPostState(postState)) {
-    return failure("post_state_invariant_failed", "post_state", true);
+  if (!postState.ok) {
+    return {
+      ok: true,
+      value: {
+        approvalTransactionHash: approval.value.approvalTransactionHash,
+        depositTransactionHash,
+        receiptStatus: "success",
+        postStateStatus: "unavailable",
+        postStateError: contractV1WriteError({
+          code: "confirmed_post_state_unavailable",
+          stage: "post_state",
+          retryable: true,
+          recovery,
+        }),
+      },
+    };
+  }
+
+  if (!isValidContractV1EscrowState(postState.value)) {
+    return contractV1WriteFailure({
+      code: "post_state_invariant_failed",
+      stage: "post_state",
+      retryable: false,
+      recovery,
+    });
   }
 
   return {
@@ -154,7 +258,8 @@ export async function depositToContractV1Escrow({
       approvalTransactionHash: approval.value.approvalTransactionHash,
       depositTransactionHash,
       receiptStatus: "success",
-      postState,
+      postStateStatus: "available",
+      postState: postState.value,
     },
   };
 }
@@ -167,178 +272,52 @@ async function readWalletUsdcBalance({
   readClient: ContractV1ReadContractClient;
   usdcAddress: Address;
   account: Address;
-}) {
-  return asBigInt(
-    await readClient.readContract({
+}): Promise<ContractV1WriteResult<bigint>> {
+  return readContractV1BigInt({
+    readClient,
+    stage: "preflight",
+    request: {
       address: usdcAddress,
       abi: erc20BalanceAbi,
       functionName: "balanceOf",
       args: [account],
-    })
-  );
+    },
+  });
 }
 
-async function readEscrowPostState({
-  readClient,
+function hasDepositedEvent({
+  receipt,
   escrowAddress,
   account,
+  amount,
 }: {
-  readClient: ContractV1ReadContractClient;
+  receipt: ContractV1TransactionReceipt;
   escrowAddress: Address;
   account: Address;
-}): Promise<ContractV1EscrowPostState> {
-  const [balance, available, reserved] = await Promise.all([
-    readClient.readContract({
-      address: escrowAddress,
-      abi: escrowDepositAbi,
-      functionName: "balanceOf",
-      args: [account],
-    }),
-    readClient.readContract({
-      address: escrowAddress,
-      abi: escrowDepositAbi,
-      functionName: "availableOf",
-      args: [account],
-    }),
-    readClient.readContract({
-      address: escrowAddress,
-      abi: escrowDepositAbi,
-      functionName: "reservedOf",
-      args: [account],
-    }),
-  ]);
+  amount: bigint;
+}) {
+  return Boolean(
+    receipt.logs?.some((log) => {
+      if (log.address.toLowerCase() !== escrowAddress.toLowerCase()) {
+        return false;
+      }
 
-  return {
-    balance: asBigInt(balance),
-    available: asBigInt(available),
-    reserved: asBigInt(reserved),
-  };
-}
+      try {
+        const topics = [...log.topics] as [Hash, ...Hash[]];
+        const event = decodeEventLog({
+          abi: escrowDepositedEventAbi,
+          data: log.data,
+          topics,
+        });
 
-function validateCommonWriteContext(
-  context: ContractV1WalletWriteContext,
-  amount: bigint
-): ContractV1WriteResult<{ account: Address; escrowAddress: Address }> {
-  if (context.mode !== "contract_v1" || !context.configValid || !context.escrowAddress) {
-    return failure("invalid_config", "preflight", false);
-  }
-
-  if (context.chainId !== context.expectedChainId) {
-    return failure("wrong_chain", "preflight", false);
-  }
-
-  if (!context.account) {
-    return failure("wallet_disconnected", "preflight", false);
-  }
-
-  if (amount <= BigInt(0)) {
-    return failure("invalid_amount", "preflight", false);
-  }
-
-  return {
-    ok: true,
-    value: {
-      account: context.account,
-      escrowAddress: context.escrowAddress,
-    },
-  };
-}
-
-function isValidPostState(state: ContractV1EscrowPostState) {
-  return state.available + state.reserved === state.balance;
-}
-
-function asBigInt(value: unknown) {
-  if (typeof value === "bigint") {
-    return value;
-  }
-
-  if (typeof value === "number" && Number.isSafeInteger(value)) {
-    return BigInt(value);
-  }
-
-  throw new TypeError("Contract V1 escrow read must return an integer.");
-}
-
-async function waitForReceipt(
-  receiptClient: ContractV1ReceiptClient,
-  hash: Hash
-): Promise<ContractV1WriteResult<{ status: "success" | "reverted" }>> {
-  try {
-    return {
-      ok: true,
-      value: await receiptClient.waitForTransactionReceipt({ hash }),
-    };
-  } catch {
-    return failure("receipt_unknown", "receipt", true);
-  }
-}
-
-function classifyWriteFailure(
-  error: unknown,
-  defaultCode: ContractV1WriteError["code"]
-) {
-  const text = collectErrorText(error).join(" ").toLowerCase();
-
-  if (hasCode(error, 4001) || text.includes("user rejected")) {
-    return "transaction_rejected";
-  }
-
-  if (text.includes("execution reverted") || text.includes("transaction reverted")) {
-    return "transaction_reverted";
-  }
-
-  return defaultCode;
-}
-
-function hasCode(error: unknown, expectedCode: number): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-
-  const record = error as Record<string, unknown>;
-
-  return record.code === expectedCode || record.code === String(expectedCode);
-}
-
-function collectErrorText(error: unknown): string[] {
-  if (error instanceof Error) {
-    return [error.name, error.message];
-  }
-
-  if (typeof error === "string") {
-    return [error];
-  }
-
-  if (typeof error !== "object" || error === null) {
-    return [];
-  }
-
-  const record = error as Record<string, unknown>;
-  const values: string[] = [];
-
-  for (const field of ["name", "message", "shortMessage", "details"]) {
-    const value = record[field];
-
-    if (typeof value === "string") {
-      values.push(value);
-    }
-  }
-
-  return values;
-}
-
-function failure(
-  code: ContractV1WriteError["code"],
-  stage: ContractV1WriteError["stage"],
-  retryable: boolean
-): ContractV1WriteResult<never> {
-  return {
-    ok: false,
-    error: {
-      code,
-      stage,
-      retryable,
-    },
-  };
+        return (
+          event.eventName === "Deposited" &&
+          event.args.account.toLowerCase() === account.toLowerCase() &&
+          event.args.amount === amount
+        );
+      } catch {
+        return false;
+      }
+    })
+  );
 }
