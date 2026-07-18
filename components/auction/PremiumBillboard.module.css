@@ -97,6 +97,74 @@
   z-index: 33;
 }
 
+.slotTransitionOverlay {
+  animation: slotTransitionDim 450ms ease-out both;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.58), transparent 26%, transparent 74%, rgba(0, 0, 0, 0.58)),
+    radial-gradient(circle at 50% 50%, rgba(207, 232, 255, 0.1), rgba(0, 0, 0, 0.28) 56%, rgba(0, 0, 0, 0.58));
+  overflow: hidden;
+  z-index: 38;
+}
+
+.slotTransitionOverlay::before {
+  animation: slotTransitionScan 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(207, 232, 255, 0.08) 32%,
+    rgba(255, 255, 255, 0.7) 48%,
+    rgba(125, 211, 252, 0.14) 64%,
+    transparent 100%
+  );
+  content: "";
+  inset: -24% -44%;
+  position: absolute;
+  transform: translateX(-80%) skewX(-14deg);
+}
+
+.slotTransitionOverlay::after {
+  animation: slotTransitionNoise 110ms steps(2, end) infinite;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.16) 0,
+      rgba(255, 255, 255, 0.16) 1px,
+      transparent 1px,
+      transparent 8px
+    );
+  content: "";
+  inset: 0;
+  mix-blend-mode: screen;
+  opacity: 0.2;
+  position: absolute;
+}
+
+.slotTransitionOverlay span {
+  animation: slotTransitionBand 450ms ease-out both;
+  background: rgba(207, 232, 255, 0.34);
+  box-shadow: 0 0 18px rgba(125, 211, 252, 0.28);
+  height: 2px;
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  transform: translateX(-18%);
+}
+
+.slotTransitionOverlay span:nth-child(1) {
+  top: 31%;
+}
+
+.slotTransitionOverlay span:nth-child(2) {
+  animation-delay: 70ms;
+  top: 52%;
+}
+
+.slotTransitionOverlay span:nth-child(3) {
+  animation-delay: 130ms;
+  top: 68%;
+}
+
 .winnerCelebration {
   contain: paint;
   overflow: hidden;
@@ -515,6 +583,63 @@
     text-shadow:
       0 0 10px rgba(207, 232, 255, 0.22),
       0 2px 20px rgba(0, 0, 0, 0.72);
+  }
+}
+
+@keyframes slotTransitionDim {
+  0% {
+    opacity: 0;
+  }
+
+  18%,
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes slotTransitionScan {
+  from {
+    opacity: 0;
+    transform: translateX(-80%) skewX(-14deg);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(80%) skewX(-14deg);
+  }
+}
+
+@keyframes slotTransitionNoise {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes slotTransitionBand {
+  0% {
+    opacity: 0;
+    transform: translateX(-22%) scaleX(0.55);
+  }
+
+  34% {
+    opacity: 0.92;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(18%) scaleX(1);
   }
 }
 

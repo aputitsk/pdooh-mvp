@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AUCTION_PLAYBACK_SECONDS_PER_SLOT,
   DEMO_BOT_ADVERTISEMENT,
@@ -11,6 +11,7 @@ import ArcDemoAdvertisement from "./ArcDemoAdvertisement";
 import type { MarketTheme } from "./marketTheme";
 
 const PLAYBACK_SLOT_DURATION_MS = AUCTION_PLAYBACK_SECONDS_PER_SLOT * 1000;
+const SLOT_TRANSITION_MS = 450;
 
 type Advertisement = {
   name: string;
@@ -69,6 +70,8 @@ export default function LiveScreen({
   slotSecondsRemaining,
 }: LiveScreenProps) {
   const [playbackNowMs, setPlaybackNowMs] = useState(0);
+  const [isTransitioningSlot, setIsTransitioningSlot] = useState(false);
+  const previousSlotNumberRef = useRef(slotNumber);
   const isPersonalAdvertisement =
     winner !== null && !isDemoBotAdvertisement(winner);
   const displayStateClassName = isLive
@@ -102,6 +105,30 @@ export default function LiveScreen({
       window.clearInterval(interval);
     };
   }, [isLive]);
+
+  useEffect(() => {
+    if (previousSlotNumberRef.current === slotNumber) {
+      return;
+    }
+
+    previousSlotNumberRef.current = slotNumber;
+
+    if (!isLive) {
+      return;
+    }
+
+    const startTimeout = window.setTimeout(() => {
+      setIsTransitioningSlot(true);
+    }, 0);
+    const endTimeout = window.setTimeout(() => {
+      setIsTransitioningSlot(false);
+    }, SLOT_TRANSITION_MS);
+
+    return () => {
+      window.clearTimeout(startTimeout);
+      window.clearTimeout(endTimeout);
+    };
+  }, [isLive, slotNumber]);
 
   return (
     <div
@@ -141,6 +168,17 @@ export default function LiveScreen({
               {formatPlaybackTimer(slotPlaybackRemainingMs)}
             </span>
             <span className="hidden text-white/35 sm:inline">{locationName}</span>
+          </div>
+        )}
+
+        {isTransitioningSlot && (
+          <div
+            aria-hidden="true"
+            className={`${styles.slotTransitionOverlay} pointer-events-none absolute inset-0`}
+          >
+            <span />
+            <span />
+            <span />
           </div>
         )}
 
