@@ -7,6 +7,7 @@ import {
 } from "@/lib/auction/constants";
 
 import styles from "./PremiumBillboard.module.css";
+import ArcDemoAdvertisement from "./ArcDemoAdvertisement";
 import type { MarketTheme } from "./marketTheme";
 
 const PLAYBACK_SLOT_DURATION_MS = AUCTION_PLAYBACK_SECONDS_PER_SLOT * 1000;
@@ -145,26 +146,23 @@ export default function LiveScreen({
 
         <div className={`relative z-20 px-6 py-12 text-center ${contentStateClassName}`}>
           {winner ? (
-            <>
-              <h2
-                className={`text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl ${
-                  isPersonalAdvertisement ? styles.personalWinnerBusiness : ""
-                }`}
-              >
-                {winner.businessName}
-              </h2>
-
-              {isPersonalAdvertisement ? (
+            isPersonalAdvertisement ? (
+              <>
+                <h2
+                  className={`text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl ${styles.personalWinnerBusiness}`}
+                >
+                  {winner.businessName}
+                </h2>
                 <p
                   key={`${winner.businessName}-${winner.name}`}
                   className={`${styles.adName} ${styles.adNameMotion} ${styles.personalWinnerAdName} mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-normal text-white md:text-6xl`}
                 >
                   {renderAdvertisementText(winner.name)}
                 </p>
-              ) : (
-                <p className="mt-3 text-2xl text-white/80">{winner.name}</p>
-              )}
-            </>
+              </>
+            ) : (
+              <ArcDemoAdvertisement />
+            )
           ) : (
             <>
               <h2 className="mt-4 text-3xl font-semibold">

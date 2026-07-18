@@ -1,5 +1,7 @@
 import styles from "./PremiumBillboard.module.css";
+import ArcDemoAdvertisement from "./ArcDemoAdvertisement";
 import type { MarketTheme } from "./marketTheme";
+import { DEMO_BOT_ADVERTISEMENT } from "@/lib/auction/constants";
 
 type PremiumBillboardProps = {
   businessName: string;
@@ -25,11 +27,20 @@ function renderAdvertisementText(value: string) {
   ));
 }
 
+function isDemoBotAdvertisement(businessName: string, advertisementName: string) {
+  return (
+    businessName === DEMO_BOT_ADVERTISEMENT.businessName &&
+    advertisementName === DEMO_BOT_ADVERTISEMENT.name
+  );
+}
+
 export default function PremiumBillboard({
   businessName,
   advertisementName,
   marketTheme,
 }: PremiumBillboardProps) {
+  const isDemoBot = isDemoBotAdvertisement(businessName, advertisementName);
+
   return (
     <div
       className={`mb-5 rounded-3xl border p-6 ${marketTheme.billboard.shellClassName}`}
@@ -58,19 +69,23 @@ export default function PremiumBillboard({
           className={`${styles.softLight} absolute inset-y-0 w-2/5 ${marketTheme.billboard.softLightClassName}`}
         />
 
-        <div className="relative z-10 px-8 py-12 text-center">
-          <div className="w-full max-w-3xl min-w-0">
-            <h2 className="text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl">
-              {businessName}
-            </h2>
+        <div className="relative z-10 w-full px-8 py-12 text-center">
+          {isDemoBot ? (
+            <ArcDemoAdvertisement />
+          ) : (
+            <div className="mx-auto w-full max-w-3xl min-w-0">
+              <h2 className="text-balance text-2xl font-semibold tracking-normal text-white/78 drop-shadow-[0_1px_18px_rgba(255,255,255,0.1)] md:text-4xl">
+                {businessName}
+              </h2>
 
-            <p
-              key={`${businessName}-${advertisementName}`}
-              className={`${styles.adName} ${styles.adNameMotion} mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-normal text-white md:text-6xl`}
-            >
-              {renderAdvertisementText(advertisementName)}
-            </p>
-          </div>
+              <p
+                key={`${businessName}-${advertisementName}`}
+                className={`${styles.adName} ${styles.adNameMotion} mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-normal text-white md:text-6xl`}
+              >
+                {renderAdvertisementText(advertisementName)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
